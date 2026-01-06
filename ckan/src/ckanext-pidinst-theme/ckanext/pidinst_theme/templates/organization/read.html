@@ -1,0 +1,15 @@
+{% ckan_extends %}
+
+{% block organization_facets %}
+  <div class="filters">
+    <div>
+      {% for facet in facet_titles %}
+        {% if facet != 'organization' %}
+          {{ h.snippet('snippets/facet_list.html', title=facet_titles[facet], name=facet, extras={'id':group_dict.id}, search_facets=search_facets) }}
+        {% endif %}
+      {% endfor %}
+      {% snippet "spatial/snippets/spatial_query.html" , default_extent="[[-44, 112], [-10, 154]]" %}
+    </div>
+    <a class="close no-text hide-filters"><i class="fa fa-times-circle"></i><span class="text">close</span></a>
+  </div>
+{% endblock %}

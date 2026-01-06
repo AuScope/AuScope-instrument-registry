@@ -1,0 +1,24 @@
+{% extends "page.html" %}
+
+{% block breadcrumb_content %}
+    {{ super() }}
+    <li>
+      <a href="{{ h.url_for('contact.form') }}">{{ _('Contact') }}</a>
+    </li>
+{% endblock %}
+
+{% block secondary %}
+{% endblock %}
+
+{% block primary %}
+    <article class="module">
+        <div class="module-content">
+            <h1 class="page-heading">{{ _('Contact us') }}</h1>
+
+            {% block contact_form_content %}
+                {% include "contact/snippets/join_collection_form.html" %}
+            {% endblock %}
+
+        </div>
+    </article>
+{% endblock %}

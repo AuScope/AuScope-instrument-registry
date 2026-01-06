@@ -1,0 +1,31 @@
+pidinst_theme-js:
+  output: ckanext-pidinst_theme/%(version)s-pidinst_theme.js
+  contents:
+    - /shared/public/base/vendor/leaflet/leaflet.js
+    - /shared/public/base/vendor/leaflet-draw/leaflet.draw.js
+    - /shared/public/base/js/map-module.js
+    - /shared/public/base/js/display-map-module.js
+    - /shared/public/base/js/composite-repeating-module.js
+    - /shared/public/base/js/for-fields-handler-module.js
+    - /shared/public/base/js/gcmd-fields-handler-module.js
+    - vendor/dataTables/datatables.min.js
+    - vendor/jstree/jstree.min.js
+    - js/datatable-module.js
+    - js/jstree-view-module.js
+    - js/parent-instrument-selector-module.js
+    - js/facet-select-module.js
+    - js/pidinst_theme.js   
+  extra:
+    preload:
+      - vendor/jquery  
+      - vendor/bootstrap
+
+pidinst_theme-css:
+  contents:
+    - /shared/public/base/vendor/leaflet/leaflet.css
+    - /shared/public/base/vendor/leaflet-draw/leaflet.draw.css
+    - vendor/jstree/themes/default/style.min.css
+    - vendor/dataTables/datatables.min.css
+    - /shared/public/shared_style.css    
+    - css/pidinst_theme.css
+  output: ckanext-pidinst_theme/%(version)s-pidinst_theme.css

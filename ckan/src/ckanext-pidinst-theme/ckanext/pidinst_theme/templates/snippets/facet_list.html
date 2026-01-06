@@ -1,0 +1,76 @@
+{% ckan_extends %}
+
+{% block scripts %}
+    {{ super() }}
+    <script type="text/javascript">
+        $(window).on('load', function() {
+            ckan.module('facet-select-module');
+        });
+    </script>
+{% endblock %}
+
+{% block facet_list %}
+    {% set hide_empty = hide_empty or false %}
+    {% with items = items or h.get_facet_items_dict(name, search_facets) %}
+        {% if items or not hide_empty %}
+            {% if name not in ['groups', 'license_id', 'res_format'] %}
+                {% block facet_list_item %}
+                    <section data-module="facet-select-module" class="module module-narrow module-shallow" data-title="{{ title }}">
+                    <style>
+                        .facet-select {
+                            display: none;
+                            width: 100% !important;
+                            max-width: 100%;
+                            padding: 5px;
+                            margin: 5px 0;
+                            box-sizing: border-box;
+                            font-size: 14px;
+                        }
+
+                        .loading-indicator {
+                            display: block;
+                            text-align: center;
+                            padding: 10px;
+                            font-size: 14px;
+                            color: #333;
+                        }                    
+                    </style>
+                        {% block facet_list_heading %}
+                            <h2 class="module-heading">
+                                {{ title }}
+                            </h2>
+                        {% endblock %}
+                        {% block facet_list_items %}
+                            {% with items = items or h.get_facet_items_dict(name, search_facets) %}
+                                {% if items %}
+                                    <nav aria-label="{{ title }}">
+                                        <select class="facet-select" name="{{ name }}" multiple="multiple" style="width: 100%;">
+                                            {% for item in items %}
+                                                {% set label = label_function(item) if label_function else item.display_name %}
+                                                {% set label_truncated = label|truncate(22) if not label_function else label %}
+                                                {% set count = count_label(item['count']) if count_label else ('%d' % item['count']) %}
+                                                <option value="{{ item.name }}" {% if item.active %}selected{% endif %}>
+                                                    {{ label_truncated }} ({{ count }})
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        {% for key, value in request.args.items() %}
+                                            {% if key != name %}
+                                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                            {% endif %}
+                                        {% endfor %}
+                                        <div class="loading-indicator" style="display: none;">
+                                            <i class="fa fa-spinner fa-spin"></i> Loading...
+                                        </div>
+                                    </nav>
+                                {% else %}
+                                    <p class="module-content empty">{{ _('There are no {facet_type} that match this search').format(facet_type=title) }}</p>
+                                {% endif %}
+                            {% endwith %}
+                        {% endblock %}
+                    </section>
+                {% endblock %}
+            {% endif %}
+        {% endif %}
+    {% endwith %}
+{% endblock %}

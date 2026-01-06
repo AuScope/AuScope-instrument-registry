@@ -1,0 +1,8 @@
+{% ckan_extends %}
+
+{% block delete_button %}
+  {% if h.check_access('organization_delete', {'id': data.id})  %}
+    <a class="btn btn-danger pull-left" href="{% url_for group_type+'.delete', id=data.id %}" data-module="confirm-action" data-module-content="{{ _('Are you sure you want to delete this collection?') }}">{{ _('Delete') }}</a>
+  {% endif %}
+{% endblock %}
+

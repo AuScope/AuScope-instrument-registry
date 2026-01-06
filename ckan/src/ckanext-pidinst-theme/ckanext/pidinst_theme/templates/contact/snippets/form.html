@@ -1,0 +1,26 @@
+{% ckan_extends %}
+
+{% block contact_form_fields %}
+
+    {{ form.select('subject', label=_('Subject'), id='field-subject',
+    selected=data.subject, error=errors.subject, classes=['control-medium'],
+    options=[
+        {'text': _('General/Other Enquiry'), 'value': 'General/Other Enquiry'},
+        {'text': _('Bulk Sample Upload'), 'value': 'Bulk Sample Upload'},
+        {'text': _('Collection/Samples Updates'), 'value': 'Collection/Samples Updates'},
+        {'text': _('Collection Creation/Access'), 'value': 'Collection Creation/Access'}
+    ],
+    is_required=true) }}
+
+
+    {{ form.input('name', label=_('Contact Name'), id='field-name', value=data.name,
+                    error=errors.name, classes=['control-medium'], is_required=true) }}
+
+    {{ form.input('email', label=_('Email'), id='field-email', type='email',
+                    value=data.email, error=errors.email, classes=['control-medium'],
+                    is_required=true) }}
+
+    {{ form.textarea('content', label=_('Your Request'), id='field-content',
+                        value=data.content, error=errors.content,
+                        placeholder=_('What do you have to tell us?'), is_required=true) }}
+{% endblock %}

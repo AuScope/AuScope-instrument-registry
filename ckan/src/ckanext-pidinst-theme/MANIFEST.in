@@ -1,0 +1,7 @@
+include README.rst
+include LICENSE
+include requirements.txt
+recursive-include ckanext/igsn_theme *.html *.json *.js *.less *.css *.mo *.yml *.yaml
+recursive-include ckanext/igsn_theme/assets *.js *.css *.yml
+recursive-include ckanext/igsn_theme/assets/css *.css
+recursive-include ckanext/igsn_theme/migration *.ini *.py *.mako

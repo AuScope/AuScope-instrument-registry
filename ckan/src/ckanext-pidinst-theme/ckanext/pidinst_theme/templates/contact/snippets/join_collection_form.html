@@ -1,0 +1,36 @@
+{% extends "contact/snippets/form.html" %}
+
+{% block contact_form_legend_content %}
+{% endblock %}
+
+{% block contact_form_fields %}
+    {% set subject = "Collection Access" %}
+    {% set name_label = _('Collection Contact Name') %}
+    {% set email_label = _('Email') %}
+    {% set description_label = _('Description') %}
+    {% set collection_id_label = _('Collection ID') %}
+    {% set collection_name_label = _('Collection Name') %}
+    
+  
+    <input type="hidden" name="subject" value="{{ subject }}"> 
+    <input type="hidden" name="content" value="{{ data.content }}"> 
+    <input type="hidden" name="collection_id" value="{{ data.collection_id }}"> 
+    <input type="hidden" name="collection_name" value="{{ data.collection_name }}"> 
+
+    {{ form.input('name', label=name_label, id='field-name', value=data.name,
+                    error=errors.name, classes=['control-medium'], is_required=true) }}
+
+    {{ form.input('email', label=email_label, id='field-email', type='email',
+                    value=data.email, error=errors.email, classes=['control-medium'],
+                    is_required=true) }}    
+
+
+    {{ form.textarea('description', label=description_label, id='field-description',
+                        value=data.description, error=errors.description,
+                        placeholder=_('Brief description?'), is_required=true) }}
+
+{% endblock %}
+
+
+
+

@@ -1,0 +1,30 @@
+<div 
+    data-module="parent-instrument-selector-module"    
+    {% if data.get('owner_org') %}
+        data-module-group="{{ data['owner_org'] }}"
+    {% else %}
+        data-module-group="{{ data['group_id'] }}"
+    {% endif %}
+
+    class="form-group" id="parent">
+    
+    <label class="form-label" for="field-parent">
+        {% if h.scheming_field_required(field) %}
+            <span title="This field is required" class="control-required">*</span>
+        {% endif %}
+        {{ h.scheming_language_text(field.label) }}
+    </label>
+
+    <input class="form-control" id="field-parent" name="parent" value="{{data['parent']}}" autocomplete="off">
+   
+    {% if errors['parent'] %}
+        {% for error in errors['parent'] %}
+            <span class="error-block">{{ error }}</span>
+        {% endfor %}
+    {% endif %}
+
+
+    {%- snippet 'scheming/form_snippets/help_text.html', field=field -%}
+
+</div>
+

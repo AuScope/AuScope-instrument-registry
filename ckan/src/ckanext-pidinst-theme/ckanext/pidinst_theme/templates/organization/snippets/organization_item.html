@@ -1,0 +1,68 @@
+{#
+Renders a row for an organization in a table. This should be used in a list.
+
+organization - An organization dict.
+
+Example:
+
+    <table class="table">
+      {% for organization in organizations %}
+        {% snippet "organization/snippets/organization_item.html", organization=organization %}
+      {% endfor %}
+    </table>
+#}
+{% set url = h.url_for(organization.type ~ '.read', id=organization.name) %}
+{% set user_role = h.get_user_role_in_organization(organization.name) %}
+{% if user_role == 'editor' %}
+    {% set user_role = 'Curator' %}
+{% endif %}
+{% block item %}
+<tr class="clickable-row" data-href="{{ url }}">
+  {% block item_inner %}
+  <td>{{ organization.name }}</td>
+  <td>{{ organization.display_name }}</td>
+  <td>
+    {% if organization.package_count %}
+      {{ organization.package_count }}
+    {% else %}
+      {{ _('0') }}
+    {% endif %}
+  </td>
+  <td>
+    {% if organization.description %}
+      {{ h.markdown_extract(organization.description, extract_length=80) }}
+    {% else %}
+      {{ _('No description available.') }}
+    {% endif %}
+  </td>
+  <td>
+    {% if user_role %}
+      {{ user_role | capitalize }}
+    {% else %}
+      {% set params = {'org_id': organization.id} %}
+      <a href="{{ h.url_for('pidinst_theme.request_join_collection' , **params) }}" role="button" class="btn btn-link">{{ _('Join') }}</a>
+    {% endif %}
+  </td>
+  {% endblock %}
+</tr>
+{% endblock %}
+
+<style>
+  .clickable-row {
+    cursor: pointer;
+  }
+  .clickable-row:hover {
+    background-color: #f1f1f1;
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    var rows = document.querySelectorAll(".clickable-row");
+    rows.forEach(function(row) {
+      row.addEventListener("click", function() {
+        window.location.href = row.dataset.href;
+      });
+    });
+  });
+</script>

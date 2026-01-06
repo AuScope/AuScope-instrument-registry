@@ -1,0 +1,190 @@
+{% import "macros/form.html" as form %}
+
+<style>
+  .cell-wrap {
+    max-width: 200px;
+    max-height: 50px;
+    overflow: auto;
+    text-overflow: clip;
+    white-space: nowrap;
+    word-wrap: break-word;
+    cursor: pointer;
+  }
+
+  .cell-wrap::-webkit-scrollbar {
+
+    display: none;
+  }
+
+  .dataTables_scrollBody .cell-wrap {
+    overflow: auto;
+  }
+
+  .collapsible-content {
+    display: none;
+  }
+
+  .collapsible-header {
+    cursor: pointer;
+
+  }
+
+  table.dataTable>tbody>tr.row-success {
+    background-color: #a8f9a8;
+  }
+
+  table.dataTable>tbody>tr.row-error {
+    background-color: #fad4b5;
+  }
+
+  .loader {
+    border: 16px solid #f3f3f3;
+    border-top: 16px solid #3498db;
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    display: none;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+</style>
+<form id="dataset-edit" method="post" action="{{ action }}" data-module="basic-form" novalidate
+  enctype="multipart/form-data">
+
+  <div class="row" style="margin-bottom: 50px;">
+    <div class="col-sm-9">
+      <h1>Upload batch sample metadata</h1>
+    </div>
+    <div class="col-sm-3 float-right">
+      <a href="/base/files/auscope-sample-template-v3.xlsx" class="btn btn-link" download>
+        <i class="fas fa-upload"></i> Download Template
+      </a>
+    </div>
+  </div>
+
+  <div class="form-group control-full">
+    <div class="input-group">
+      <input id="field-batch-upload" type="file" name="file" value="" placeholder="" class="form-control"
+        accept=".xlsx,.xls">
+      <span class="input-group-btn">
+        <button type="button" class="btn btn-danger btn-remove-url" style="top: 0px;"
+          onclick="removePreviewData()">Remove</button>
+        <button class="btn btn-primary" name="preview" value="Preview" type="submit" style="top: 0px;"> Upload & Preview
+        </button>
+      </span>
+    </div>
+  </div>
+
+
+  <div class="resource-view">
+    {% if preview_data %}
+    <div class="data-viewer-info">
+      <p>{{ file_name }}</p>
+    </div>
+    <div data-module="datatable-module" data-endpoint="{{ url_for('pidinst_theme.get_preview_data') }}"'>
+      <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item">
+          <a class="nav-link active" id="samples-tab" data-bs-toggle="tab" data-bs-target="#samples">Samples</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="authors-tab" data-bs-toggle="tab" data-bs-target="#authors">Authors</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="resources-tab" data-bs-toggle="tab" data-bs-target="#resources">Related Resources</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="funders-tab" data-bs-toggle="tab" data-bs-target="#funders">Funders</a>
+        </li>        
+      </ul>
+      <div class="tab-content active">
+        <div class="tab-pane fade show active" id="samples" role="tabpanel" aria-labelledby="samples-tab">
+          {% if preview_data.samples %}
+          <table id="samplesTable" class="display" width="100%"></table>
+          {% else %}
+          <p>No data is defined yet for Samples.</p>
+          {% endif %}
+        </div>
+        <div class="tab-pane fade" id="authors" role="tabpanel" aria-labelledby="authors-tab">
+          {% if preview_data.authors %}
+          <table id="authorsTable" class="display" width="100%"></table>
+          {% else %}
+          <p>No data is defined yet for Authors.</p>
+          {% endif %}
+        </div>
+        <div class="tab-pane fade" id="resources" role="tabpanel" aria-labelledby="resources-tab">
+          {% if preview_data.related_resources %}
+          <table id="resourcesTable" class="display" width="100%"></table>
+          {% else %}
+          <p>No data is defined yet for Related Resources.</p>
+          {% endif %}
+        </div>
+        <div class="tab-pane fade" id="funders" role="tabpanel" aria-labelledby="funders-tab">
+          {% if preview_data.funders %}
+          <table id="fundersTable" class="display" width="100%"></table>
+          {% else %}
+          <p>No data is defined yet for Funder.</p>
+          {% endif %}
+        </div>        
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% block form_actions %}
+  <div class="form-actions">
+    {% block save_button %}
+      {% if preview_data and preview_data.samples and preview_data.samples|length > 0 %} 
+      <button class="btn btn-primary"
+      name="save" value="Save" type="submit" {{ ' disabled' if not preview_data or not preview_data.get('samples') or
+      not preview_data['samples'] else '' }}>
+      Submit
+      </button>
+      {% endif %}
+      {% endblock %}
+    </div>
+    {% endblock %}
+
+</form>
+
+<div id="loader" class="loader"></div>
+
+<script>
+  document.getElementById('dataset-edit').onsubmit = function () {
+    document.getElementById('loader').style.display = 'block';
+  };
+
+  window.onload = function () {
+    document.getElementById('loader').style.display = 'none';
+  };
+
+</script>
+
+<script>
+  function removePreviewData() {
+    $.ajax({
+      url: '/remove_preview_data',
+      type: 'POST',
+      success: function (response) {
+        $('.resource-view').html('<p>No preview data is available.</p>');
+        $('[name="save"]').hide();        
+      },
+      error: function (xhr, status, error) {
+        console.error('Error removing preview data:', error);
+      }
+    });
+  }
+</script>
