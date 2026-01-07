@@ -89,9 +89,9 @@ if echo "$CKAN__PLUGINS" | grep -q "igsn_theme"; then
     # ckan config-tool $CKAN_INI "ckan.dataset.create_on_ui_requires_resources = true"
     ckan config-tool $CKAN_INI "ckan.dataset.create_on_ui_requires_resources = false"
 
-    ckan config-tool $CKAN_INI "scheming.organization_schemas  = ckanext.igsn_theme:sample_organization_schema.yaml"
+    ckan config-tool $CKAN_INI "scheming.organization_schemas  = ckanext.igsn_theme:instrument_organization_schema.yaml"
 
-    export CKAN___SCHEMING__DATASET_SCHEMAS="ckanext.igsn_theme:sample_repository_schema.yaml"
+    export CKAN___SCHEMING__DATASET_SCHEMAS="ckanext.igsn_theme:instrument_repository_schema.yaml"
 
 
     ckan config-tool $CKAN_INI "ckan.locale_default = en_AU"
@@ -108,7 +108,7 @@ if echo "$CKAN__PLUGINS" | grep -q "pidinst_theme"; then
     export CKAN___SCHEMING__DATASET_SCHEMAS="ckanext.pidinst_theme:instrument_schema.yaml"
 
 
-    ckan config-tool $CKAN_INI "ckan.locale_default = en_AU"    
+    ckan config-tool $CKAN_INI "ckan.locale_default = en_AU"
 else
     #ckan config-tool $CKAN_INI "ckan.auth.allow_dataset_collaborators = True"
     ckan config-tool $CKAN_INI "ckan.auth.user_create_groups = false"

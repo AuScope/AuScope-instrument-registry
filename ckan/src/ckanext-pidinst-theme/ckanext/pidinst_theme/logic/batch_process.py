@@ -7,7 +7,7 @@ import pandas as pd
 import logging
 import json
 import re
-from ckanext.pidinst_theme.logic.batch_validation import validate_parent_instruments, is_numeric, is_cell_empty, is_url, validate_related_resources, validate_user_keywords, validate_authors, validate_samples, generate_sample_name, generate_sample_title
+from ckanext.pidinst_theme.logic.batch_validation import validate_parent_instruments, is_numeric, is_cell_empty, is_url, validate_related_resources, validate_user_keywords, validate_authors, validate_instruments, generate_instrument_name, generate_instrument_title
 log = logging.getLogger(__name__)
 
 
@@ -24,65 +24,65 @@ def generate_location_geojson(coordinates_list):
             }
             features.append(point_feature)
 
-        feature_collection = {
-            "type": "FeatureCollection",
+        feature_organisation = {
+            "type": "FeatureOrganisation",
             "features": features
         }
-        return feature_collection
+        return feature_organisation
 
-def process_author_emails(sample, authors_df):
-        author_emails = [email.strip() for email in sample.get("author_emails", "").split(";")]
+def process_author_emails(instrument, authors_df):
+        author_emails = [email.strip() for email in instrument.get("author_emails", "").split(";")]
         matched_authors = authors_df[authors_df["author_email"].isin(author_emails)]
         return json.dumps(matched_authors.to_dict("records"))
 
-def prepare_samples_data(samples_df, authors_df, related_resources_df, funding_df, org_id):
-        samples_data = []
-        for _, row in samples_df.iterrows():
-            sample = row.to_dict()
-            sample["author"] = process_author_emails(sample, authors_df)
-            sample["related_resource"] = process_related_resources(sample, related_resources_df)
-            sample["funder"] = process_funding_info(sample, funding_df)
-            sample['user_keywords'] = validate_user_keywords(sample['user_keywords'])
-            sample['publication_date'] = date.today().isoformat()
-            sample['private']=False
-            sample['notes'] = sample['description']
-            sample['location_choice'] = 'noLocation'
-            sample['parent_instrument'] = sample['parent_instrument']
-            sample['parent'] = ''
+def prepare_instruments_data(instruments_df, authors_df, related_resources_df, funding_df, org_id):
+        instruments_data = []
+        for _, row in instruments_df.iterrows():
+            instrument = row.to_dict()
+            instrument["author"] = process_author_emails(instrument, authors_df)
+            instrument["related_resource"] = process_related_resources(instrument, related_resources_df)
+            instrument["funder"] = process_funding_info(instrument, funding_df)
+            instrument['user_keywords'] = validate_user_keywords(instrument['user_keywords'])
+            instrument['publication_date'] = date.today().isoformat()
+            instrument['private']=False
+            instrument['notes'] = instrument['description']
+            instrument['location_choice'] = 'noLocation'
+            instrument['parent_instrument'] = instrument['parent_instrument']
+            instrument['parent'] = ''
 
-            sample['acquisition_start_date'] = row['acquisition_start_date'].strftime('%Y-%m-%d') if pd.notnull(row['acquisition_start_date']) else None
-            sample['acquisition_end_date'] = row['acquisition_end_date'].strftime('%Y-%m-%d') if pd.notnull(row['acquisition_end_date']) else None
+            instrument['acquisition_start_date'] = row['acquisition_start_date'].strftime('%Y-%m-%d') if pd.notnull(row['acquisition_start_date']) else None
+            instrument['acquisition_end_date'] = row['acquisition_end_date'].strftime('%Y-%m-%d') if pd.notnull(row['acquisition_end_date']) else None
 
             org = toolkit.get_action('organization_show')({}, {'id': org_id})
-            sample['owner_org'] = org_id
-            sample['sample_repository_contact_name'] = org.get('contact_name', 'test')
-            sample['sample_repository_contact_email'] = org.get('contact_email', '')
-            
-            if 'point_latitude' in sample and sample['point_latitude'] != '' and 'point_longitude' in sample and sample['point_longitude'] != '':
-                if not is_numeric(sample['point_latitude']) or not is_numeric(sample['point_longitude']):
+            instrument['owner_org'] = org_id
+            instrument['instrument_repository_contact_name'] = org.get('contact_name', 'test')
+            instrument['instrument_repository_contact_email'] = org.get('contact_email', '')
+
+            if 'point_latitude' in instrument and instrument['point_latitude'] != '' and 'point_longitude' in instrument and instrument['point_longitude'] != '':
+                if not is_numeric(instrument['point_latitude']) or not is_numeric(instrument['point_longitude']):
                     raise ValueError("Latitude and Longitude must be numeric.")
-                sample['location_choice'] = 'point'
-                coordinates = [(sample['point_latitude'], sample['point_longitude'])]
-                sample['location_data'] = generate_location_geojson(coordinates)
-            sample['epsg'] = get_epsg_name(sample['epsg_code'])
+                instrument['location_choice'] = 'point'
+                coordinates = [(instrument['point_latitude'], instrument['point_longitude'])]
+                instrument['location_data'] = generate_location_geojson(coordinates)
+            instrument['epsg'] = get_epsg_name(instrument['epsg_code'])
             defaults = {
                 "publisher_identifier_type": "ROR",
                 "publisher_identifier": "https://ror.org/04s1m4564",
                 "publisher": "AuScope",
                 "resource_type": "PhysicalObject",
             }
-            sample.update(defaults)
-            
-            sample["name"] = generate_sample_name(org_id, sample['sample_type'], sample['sample_number'])
-            sample["title"] = generate_sample_title(org_id, sample['sample_type'], sample['sample_number'])
-            samples_data.append(sample)
-        return samples_data
-    
-def process_related_resources(sample, related_resources_df):
-    related_resources_urls = sample.get("related_resources_urls")
+            instrument.update(defaults)
+
+            instrument["name"] = generate_instrument_name(org_id, instrument['instrument_type'], instrument['instrument_number'])
+            instrument["title"] = generate_instrument_title(org_id, instrument['instrument_type'], instrument['instrument_number'])
+            instruments_data.append(instrument)
+        return instruments_data
+
+def process_related_resources(instrument, related_resources_df):
+    related_resources_urls = instrument.get("related_resources_urls")
     if is_cell_empty(related_resources_urls):
         return "[]"
-    
+
     related_resource_urls = [url.strip() for url in related_resources_urls.split(";")]
     for url in related_resource_urls:
         is_url(url)  # Check if the URL is valid
@@ -94,9 +94,9 @@ def process_related_resources(sample, related_resources_df):
     matched_resources = related_resources_df[related_resources_df["related_resource_url"].isin(related_resource_urls)]
     return json.dumps(matched_resources.to_dict("records"))
 
-def process_funding_info(sample, funding_df):
-    if not is_cell_empty(sample.get("project_ids")):
-        project_ids = [project_id.strip() for project_id in sample.get("project_ids").split(";")]
+def process_funding_info(instrument, funding_df):
+    if not is_cell_empty(instrument.get("project_ids")):
+        project_ids = [project_id.strip() for project_id in instrument.get("project_ids").split(";")]
         for project_id in project_ids:
             funding_info = funding_df[funding_df['project_identifier'] == project_id]
             if funding_info.empty:
@@ -124,53 +124,53 @@ def get_epsg_name(epsg_code):
             return espg_data['Results'][0]['Name']
         else:
             return None
-        
+
 def set_parent_instrument(context):
         """
-        Sets the parent sample for each created sample.
-        The 'parent_instrument' field can be a DOI or a sample number.
+        Sets the parent instrument for each created instrument.
+        The 'parent_instrument' field can be a DOI or a instrument number.
         """
         preview_data = session.get('preview_data', {})
-        samples = preview_data.get('samples', [])
+        instruments = preview_data.get('instruments', [])
 
-        created_samples = session.get('created_samples', [])
+        created_instruments = session.get('created_instruments', [])
         log = logging.getLogger(__name__)
-        for sample in samples:
-            # log.info(f"set_parent_instrument sample : {sample}")
+        for instrument in instruments:
+            # log.info(f"set_parent_instrument instrument : {instrument}")
 
-            parent_instrument = sample.get('parent_instrument')
+            parent_instrument = instrument.get('parent_instrument')
             if not parent_instrument:
                 continue
 
             # log.info(f"set_parent_instrument parent_instrument : {parent_instrument}")
 
-            # Attempt to find the parent sample by DOI or sample number
-            parent_package = find_parent_package(parent_instrument, context, samples, created_samples)
+            # Attempt to find the parent instrument by DOI or instrument number
+            parent_package = find_parent_package(parent_instrument, context, instruments, created_instruments)
             if not parent_package:
                 continue
 
             # log.info(f"parent_package : {parent_package}")
 
-            # Update the sample with the parent sample ID
-            sample_id = get_created_sample_id(sample)
-            # log.info(f"sample_id : {sample_id}")
+            # Update the instrument with the parent instrument ID
+            instrument_id = get_created_instrument_id(instrument)
+            # log.info(f"instrument_id : {instrument_id}")
 
             if 'id' not in parent_package:
-                parent_package['id'] = get_created_sample_id(parent_package)
+                parent_package['id'] = get_created_instrument_id(parent_package)
 
             # log.info(f"parent_package['id'] : {parent_package['id']}")
 
-            if sample_id and 'id' in parent_package:
+            if instrument_id and 'id' in parent_package:
                 try:
-                    existing_sample = toolkit.get_action('package_show')(context, {'id': sample_id})
-                    existing_sample['parent'] = parent_package['id']
-                    toolkit.get_action('package_update')(context, existing_sample)
+                    existing_instrument = toolkit.get_action('package_show')(context, {'id': instrument_id})
+                    existing_instrument['parent'] = parent_package['id']
+                    toolkit.get_action('package_update')(context, existing_instrument)
                 except Exception as e:
-                    log.error(f"Failed to update sample {sample_id} with parent sample {parent_package['id']}: {e}")
-                    
-def find_parent_package(parent_instrument, context, preview_samples, created_samples):
+                    log.error(f"Failed to update instrument {instrument_id} with parent instrument {parent_package['id']}: {e}")
+
+def find_parent_package(parent_instrument, context, preview_instruments, created_instruments):
         """
-        Finds the parent package based on DOI or sample number.
+        Finds the parent package based on DOI or instrument number.
         """
         # Attempt to find by DOI
         try:
@@ -180,25 +180,25 @@ def find_parent_package(parent_instrument, context, preview_samples, created_sam
         except Exception as e:
             log.warning(f"Failed to find parent package by DOI {parent_instrument}: {e}")
 
-        # Attempt to find by sample number within preview_data
-        for sample in preview_samples:
-            if sample.get('sample_number') == parent_instrument:
-                # Check if the sample has been created and has an ID
-                for created_sample in created_samples:
-                    if created_sample['sample_number'] == sample.get('sample_number'):
-                        return created_sample
+        # Attempt to find by instrument number within preview_data
+        for instrument in preview_instruments:
+            if instrument.get('instrument_number') == parent_instrument:
+                # Check if the instrument has been created and has an ID
+                for created_instrument in created_instruments:
+                    if created_instrument['instrument_number'] == instrument.get('instrument_number'):
+                        return created_instrument
 
-        log.warning(f"Parent sample {parent_instrument} not found by DOI or sample number.")
+        log.warning(f"Parent instrument {parent_instrument} not found by DOI or instrument number.")
         return None
 
-def get_created_sample_id(preview_sample):
+def get_created_instrument_id(preview_instrument):
     """
-    Finds the created sample ID corresponding to the preview sample.
+    Finds the created instrument ID corresponding to the preview instrument.
     """
-    created_samples = session.get('created_samples', [])
-    for created_sample in created_samples:
-        if created_sample['sample_number'] == preview_sample.get('sample_number'):
-            return created_sample['id']
+    created_instruments = session.get('created_instruments', [])
+    for created_instrument in created_instruments:
+        if created_instrument['instrument_number'] == preview_instrument.get('instrument_number'):
+            return created_instrument['id']
     return None
 
 def read_excel_sheets(excel_data, sheets):

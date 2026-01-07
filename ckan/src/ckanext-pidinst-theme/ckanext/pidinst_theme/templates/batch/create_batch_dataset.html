@@ -67,10 +67,10 @@
 
   <div class="row" style="margin-bottom: 50px;">
     <div class="col-sm-9">
-      <h1>Upload batch sample metadata</h1>
+      <h1>Upload batch instrument metadata</h1>
     </div>
     <div class="col-sm-3 float-right">
-      <a href="/base/files/auscope-sample-template-v3.xlsx" class="btn btn-link" download>
+      <a href="/base/files/auscope-instrument-template-v3.xlsx" class="btn btn-link" download>
         <i class="fas fa-upload"></i> Download Template
       </a>
     </div>
@@ -98,7 +98,7 @@
     <div data-module="datatable-module" data-endpoint="{{ url_for('pidinst_theme.get_preview_data') }}"'>
       <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item">
-          <a class="nav-link active" id="samples-tab" data-bs-toggle="tab" data-bs-target="#samples">Samples</a>
+          <a class="nav-link active" id="instruments-tab" data-bs-toggle="tab" data-bs-target="#instruments">Instruments</a>
         </li>
         <li class="nav-item">
           <a class="nav-link" id="authors-tab" data-bs-toggle="tab" data-bs-target="#authors">Authors</a>
@@ -108,14 +108,14 @@
         </li>
         <li class="nav-item">
           <a class="nav-link" id="funders-tab" data-bs-toggle="tab" data-bs-target="#funders">Funders</a>
-        </li>        
+        </li>
       </ul>
       <div class="tab-content active">
-        <div class="tab-pane fade show active" id="samples" role="tabpanel" aria-labelledby="samples-tab">
-          {% if preview_data.samples %}
-          <table id="samplesTable" class="display" width="100%"></table>
+        <div class="tab-pane fade show active" id="instruments" role="tabpanel" aria-labelledby="instruments-tab">
+          {% if preview_data.instruments %}
+          <table id="instrumentsTable" class="display" width="100%"></table>
           {% else %}
-          <p>No data is defined yet for Samples.</p>
+          <p>No data is defined yet for Instruments.</p>
           {% endif %}
         </div>
         <div class="tab-pane fade" id="authors" role="tabpanel" aria-labelledby="authors-tab">
@@ -138,7 +138,7 @@
           {% else %}
           <p>No data is defined yet for Funder.</p>
           {% endif %}
-        </div>        
+        </div>
       </div>
     </div>
     {% endif %}
@@ -147,10 +147,10 @@
   {% block form_actions %}
   <div class="form-actions">
     {% block save_button %}
-      {% if preview_data and preview_data.samples and preview_data.samples|length > 0 %} 
+      {% if preview_data and preview_data.instruments and preview_data.instruments|length > 0 %}
       <button class="btn btn-primary"
-      name="save" value="Save" type="submit" {{ ' disabled' if not preview_data or not preview_data.get('samples') or
-      not preview_data['samples'] else '' }}>
+      name="save" value="Save" type="submit" {{ ' disabled' if not preview_data or not preview_data.get('instruments') or
+      not preview_data['instruments'] else '' }}>
       Submit
       </button>
       {% endif %}
@@ -180,7 +180,7 @@
       type: 'POST',
       success: function (response) {
         $('.resource-view').html('<p>No preview data is available.</p>');
-        $('[name="save"]').hide();        
+        $('[name="save"]').hide();
       },
       error: function (xhr, status, error) {
         console.error('Error removing preview data:', error);

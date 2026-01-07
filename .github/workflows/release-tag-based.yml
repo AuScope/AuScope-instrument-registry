@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: 'Release Type (patch/minor/major)'
+        description: "Release Type (patch/minor/major)"
         required: true
-        default: 'patch'
+        default: "patch"
       appName:
-        description: 'Application Name (data/sample)'
+        description: "Application Name (data/instrument)"
         required: true
-        default: 'data'
+        default: "data"
     branches:
       - master
       - release/*
@@ -72,7 +72,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install bump2version
         run: pip install bump2version

@@ -22,13 +22,13 @@ def is_creating_or_editing_org():
     """Determine if the user is creating or editing an organization."""
     current_path = toolkit.request.path
     if (
-        current_path.startswith('/organization/request_join_collection') or 
-        current_path.startswith('/organization/request_new_collection') or
+        current_path.startswith('/organization/request_join_organisation') or
+        current_path.startswith('/organization/request_new_organisation') or
         current_path.startswith('/organization/new') or
         current_path.startswith('/organization/edit') or
         current_path.startswith('/organization/members') or
         current_path.startswith('/organization/bulk_process') or
-        current_path == '/organization/' 
+        current_path == '/organization/'
     ):
         return True
     return False
@@ -70,7 +70,7 @@ def get_package(package_id):
         return None
     except toolkit.NotAuthorized:
         return None
-    
+
 
 def get_user_role_in_organization(org_id):
     if not toolkit.c.user:
@@ -108,7 +108,7 @@ def custom_structured_data(dataset_id, profiles=None, _format='jsonld'):
     except ValueError:
         # result was not JSON, return anyway
         return data
-    
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -117,7 +117,7 @@ def get_helpers():
         'get_org_list': get_org_list,
         'users_role_in_org': users_role_in_org,
         "get_search_facets" : get_search_facets,
-        'current_date': current_date,        
+        'current_date': current_date,
         "get_package": get_package,
         "get_user_role_in_organization" : get_user_role_in_organization,
         "custom_structured_data" : custom_structured_data

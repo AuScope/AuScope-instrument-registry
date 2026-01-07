@@ -102,17 +102,17 @@ def location_validator(field, schema):
                 elevation = float(elevation)
             except (ValueError, TypeError):
                 add_error(errors, elevation_key, invalid_error)
-   
+
         log = logging.getLogger(__name__)
         try:
             log.debug("location_data: %s", location_data)
-            
+
             geom = shape(location_data['features'][0]['geometry'])
             log.debug("WKT for spatial field: %s", geom.wkt)
-            
+
             geojson_geom = geojson.dumps(mapping(geom))
             log.debug("GeoJSON for spatial field: %s", geojson_geom)
-            
+
             data['spatial',] = geojson_geom
 
 
@@ -161,7 +161,7 @@ def composite_not_empty_subfield(key, subfield_label, value, errors):
     '''
     Validates that a specified subfield is not empty. If the subfield is empty,
     appends a custom error message that includes the subfield label.
-    
+
     Parameters:
         key (tuple): The key in the data dictionary that corresponds to the main field.
         subfield_label (str): The label of the subfield to be included in the error message.
@@ -171,7 +171,7 @@ def composite_not_empty_subfield(key, subfield_label, value, errors):
     if not value or value is missing:
         if key not in errors:
             errors[key] = []
-        
+
         if errors[key] and "Missing value at required subfields:" in errors[key][-1]:
             errors[key][-1] += f", {subfield_label}"
         else:
@@ -198,7 +198,7 @@ def author_validator(key, item, index, field, errors):
 
     if author_identifier:
         tk.get_validator('url_validator')(key, {key: author_identifier}, errors, {})
-        
+
         for subfield in field['subfields']:
             if subfield.get('field_name') == 'author_identifier_type':
                 author_identifier_type_label = subfield.get('label', 'Default Label') + " " + str(index)
@@ -214,7 +214,7 @@ def author_validator(key, item, index, field, errors):
 
     if author_affiliation_identifier:
         tk.get_validator('url_validator')(key, {key: author_affiliation_identifier}, errors, {})
-         
+
 
 def funder_validator(key, item, index, field, errors):
     funder_identifier_key = f'funder_identifier'
@@ -239,7 +239,7 @@ def project_validator(key, item, index, field, errors):
     project_name = item.get(project_name_key, "")
     project_identifier = item.get(project_identifier_key, "")
     project_identifier_type = item.get(project_identifier_type_key, "")
-    
+
     if project_identifier and project_identifier is not missing:
         tk.get_validator('url_validator')(key, {key: project_identifier}, errors, {})
 
@@ -248,9 +248,9 @@ def project_validator(key, item, index, field, errors):
             if subfield.get('field_name') == 'project_identifier':
                 project_identifier_label = subfield.get('label', 'Default Label') + " " + str(index)
             if subfield.get('field_name') == 'project_identifier_type':
-                project_identifier_type_label = subfield.get('label', 'Default Label') + " " + str(index)                
+                project_identifier_type_label = subfield.get('label', 'Default Label') + " " + str(index)
 
-        composite_not_empty_subfield(key,  project_identifier_label , project_identifier, errors)           
+        composite_not_empty_subfield(key,  project_identifier_label , project_identifier, errors)
         composite_not_empty_subfield(key,  project_identifier_type_label , project_identifier_type, errors)
 
 def related_resource_validator(key, item, index, field, errors):
@@ -314,10 +314,10 @@ def composite_repeating_validator(field, schema):
                             composite_not_empty_subfield(key, subfield_label , subfield_value, errors)
 
                     # Call custom author and funder validation for each item
-                    author_validator(key , item, index, field, errors)        
-                    funder_validator(key , item, index, field, errors)        
-                    project_validator(key , item, index, field, errors)        
-                    related_resource_validator(key , item, index, field, errors)        
+                    author_validator(key , item, index, field, errors)
+                    funder_validator(key , item, index, field, errors)
+                    project_validator(key , item, index, field, errors)
+                    related_resource_validator(key , item, index, field, errors)
 
                 # remove empty elements from list
                 clean_list = []
@@ -358,37 +358,37 @@ def owner_org_validator(key, data, errors, context):
 
 @scheming_validator
 @register_validator
-def sample_number_validator(field, schema):
+def instrument_number_validator(field, schema):
     def validator(key, data, errors, context):
 
-        sample_number = data.get(key)
+        instrument_number = data.get(key)
         owner_org_key = ('owner_org',)
         owner_org = data.get(owner_org_key, missing)
-        current_sample_id = data.get(('id',), None) 
+        current_instrument_id = data.get(('id',), None)
 
         if owner_org is missing:
             add_error(errors, owner_org_key, missing_error)
             return
 
-        if sample_number is missing or sample_number == '':
+        if instrument_number is missing or instrument_number == '':
             add_error(errors, key, missing_error)
             return
 
         try:
             package_search = tk.get_action('package_search')
             search_result = package_search(context, {
-                'q': f'owner_org:{owner_org} AND sample_number:{sample_number}',
+                'q': f'owner_org:{owner_org} AND instrument_number:{instrument_number}',
                 'rows': 1000  # Retrieve all potential results
             })
-            
+
             if search_result['count'] > 0:
                 for result in search_result['results']:
-                    if result['id'] != current_sample_id:
+                    if result['id'] != current_instrument_id:
                         org_name = tk.get_action('organization_show')({}, {'id': owner_org})['name']
-                        add_error(errors, key, f'sample_number "{sample_number}" already exists in collection "{org_name}"')
+                        add_error(errors, key, f'instrument_number "{instrument_number}" already exists in organisation "{org_name}"')
                         break  # Stop checking after the first duplicate is found
         except NotFound:
-            add_error(errors, key, 'Error checking uniqueness of sample_number')
+            add_error(errors, key, 'Error checking uniqueness of instrument_number')
         except Exception as e:
             add_error(errors, key, f'Error querying Solr: {str(e)}')
 
@@ -478,54 +478,54 @@ def depth_validator(field, schema):
 @register_validator
 def parent_validator(field, schema):
     """
-    A validator to ensure that if the parent sample is specified, 
-    then the acquisition start date of the sample must be either the same as or later than the acquisition start date of its parent sample.
-    Additionally, the sample and its parent must belong to the same organization and cannot be the same.
+    A validator to ensure that if the parent instrument is specified,
+    then the acquisition start date of the instrument must be either the same as or later than the acquisition start date of its parent instrument.
+    Additionally, the instrument and its parent must belong to the same organization and cannot be the same.
     """
     def validator(key, data, errors, context):
-          
+
         parent_instrument_id_key = ('parent',)
         parent_instrument_id = data.get(parent_instrument_id_key, missing)
         start_date_key = ('acquisition_start_date',)
         start_date = data.get(start_date_key, missing)
         owner_org_key = ('owner_org',)
         owner_org = data.get(owner_org_key, missing)
-        sample_id_key = ('id',)
-        sample_id = data.get(sample_id_key, missing)
+        instrument_id_key = ('id',)
+        instrument_id = data.get(instrument_id_key, missing)
 
         if parent_instrument_id is missing or parent_instrument_id is None or not str(parent_instrument_id).strip():
             return
-        
-        if sample_id == parent_instrument_id:
-            add_error(errors, parent_instrument_id_key, _('A sample cannot be its own parent.'))
+
+        if instrument_id == parent_instrument_id:
+            add_error(errors, parent_instrument_id_key, _('A instrument cannot be its own parent.'))
             return
-                    
+
         try:
             parent_instrument = tk.get_action('package_show')(context, {'id': parent_instrument_id})
         except tk.ObjectNotFound:
-            add_error(errors, parent_instrument_id_key, _('Parent sample not found.'))
+            add_error(errors, parent_instrument_id_key, _('Parent instrument not found.'))
             return
         except tk.NotAuthorized:
-            add_error(errors, parent_instrument_id_key, _('You are not authorized to view the parent sample.'))           
+            add_error(errors, parent_instrument_id_key, _('You are not authorized to view the parent instrument.'))
             return
-        
+
         parent_owner_org = parent_instrument.get('owner_org', missing)
         if owner_org is missing or parent_owner_org is missing or owner_org != parent_owner_org:
-            add_error(errors, parent_instrument_id_key, _('The sample and its parent must belong to the same organization.'))                      
+            add_error(errors, parent_instrument_id_key, _('The instrument and its parent must belong to the same organization.'))
             return
-        
+
         parent_start_date = parent_instrument.get('acquisition_start_date', missing)
-        
+
         if start_date and parent_start_date and str(start_date).strip() and str(parent_start_date).strip():
             try:
                 start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
                 parent_start_date_dt = datetime.strptime(parent_start_date, "%Y-%m-%d")
             except ValueError:
-                add_error(errors, parent_instrument_id_key, _('Invalid date format. Use YYYY-MM-DD.'))                     
+                add_error(errors, parent_instrument_id_key, _('Invalid date format. Use YYYY-MM-DD.'))
                 return
 
             if start_date_dt < parent_start_date_dt:
-                add_error(errors, parent_instrument_id_key, _('The Acquisition Start Date of the sample must be the same as or later than the acquisition start date of its parent sample.'))           
+                add_error(errors, parent_instrument_id_key, _('The Acquisition Start Date of the instrument must be the same as or later than the acquisition start date of its parent instrument.'))
 
     return validator
 
@@ -533,7 +533,7 @@ def parent_validator(field, schema):
 @scheming_validator
 @register_validator
 def group_name_validator(field, schema):
-    
+
     def validator(key, data,errors, context):
         """Ensures that value can be used as a group's name
         """
@@ -546,7 +546,7 @@ def group_name_validator(field, schema):
             model.Group.name == data[key],
             model.Group.state != model.State.DELETED
         )
-        
+
         if group:
             group_id: Union[Optional[str], df.Missing] = group.id
         else:
@@ -557,7 +557,7 @@ def group_name_validator(field, schema):
 
         result = query.first()
         if result:
-            add_error(errors, key, _('Collection name already exists in database.'))           
+            add_error(errors, key, _('Organisation name already exists in database.'))
 
     return validator
 
@@ -568,7 +568,7 @@ def get_validators():
         "location_validator": location_validator,
         "composite_repeating_validator": composite_repeating_validator,
         "owner_org_validator": owner_org_validator,
-        "sample_number_validator" : sample_number_validator,
+        "instrument_number_validator" : instrument_number_validator,
         "acquisition_date_validator" : acquisition_date_validator,
         "depth_validator" : depth_validator,
         "parent_validator" : parent_validator,

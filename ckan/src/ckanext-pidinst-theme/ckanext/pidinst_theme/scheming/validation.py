@@ -10,7 +10,7 @@ from ckan.types import (
     FlattenDataDict, FlattenKey, Context, FlattenErrorDict
 )
 
-from collections import OrderedDict
+from organisations import OrderedDict
 import ckan.model as model
 from typing import Any, Optional
 

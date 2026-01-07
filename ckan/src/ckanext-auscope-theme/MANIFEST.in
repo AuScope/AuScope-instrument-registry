@@ -1,7 +1,0 @@
-include README.rst
-include LICENSE
-include requirements.txt
-recursive-include ckanext/auscope_theme *.html *.json *.js *.less *.css *.mo *.yml *.yaml
-recursive-include ckanext/auscope_theme/assets *.js *.css *.yml
-recursive-include ckanext/auscope_theme/assets/css *.css
-recursive-include ckanext/auscope_theme/migration *.ini *.py *.mako

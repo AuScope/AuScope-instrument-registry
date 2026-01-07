@@ -4,11 +4,10 @@ on:
   push:
     branches:
       - master
-      - dev-sample
+      - dev-instrument
       - dev-data
 
 jobs:
-
   build-and-push-ghcr:
     runs-on: ubuntu-latest
     steps:
@@ -31,8 +30,8 @@ jobs:
         run: |
           echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
           echo "COMMIT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
-          if [[ "${{ github.ref }}" == "refs/heads/dev-sample" ]]; then
-            echo "::set-output name=tag::ghcr.io/auscope/auscope-ckan-dev:sample-latest"
+          if [[ "${{ github.ref }}" == "refs/heads/dev-instrument" ]]; then
+            echo "::set-output name=tag::ghcr.io/auscope/auscope-ckan-dev:instrument-latest"
           elif [[ "${{ github.ref }}" == "refs/heads/dev-data" ]]; then
             echo "::set-output name=tag::ghcr.io/auscope/auscope-ckan-dev:data-latest"
           else

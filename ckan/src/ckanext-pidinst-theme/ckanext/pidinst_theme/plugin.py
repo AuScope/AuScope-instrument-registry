@@ -94,10 +94,10 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
 
     def after_dataset_show(self, *args, **kwargs):
         return schema.after_dataset_show(*args, **kwargs)
-    
+
     def before_dataset_search(self, *args, **kwargs):
         return schema.before_dataset_search(*args, **kwargs)
-    
+
     # IAuthFunctions
 
     def get_auth_functions(self):
@@ -130,11 +130,11 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
 
 
     def dataset_facets(self, facets_dict, package_type):
-        facets_dict['sample_type'] = toolkit._('Sample Type')
+        facets_dict['instrument_type'] = toolkit._('Instrument Type')
         facets_dict['locality'] = toolkit._('Locality')
         return facets_dict
-    
+
     def organization_facets(self, facets_dict, organization_type, package_type):
-        facets_dict['sample_type'] = toolkit._('Sample Type')
+        facets_dict['instrument_type'] = toolkit._('Instrument Type')
         facets_dict['locality'] = toolkit._('Locality')
         return facets_dict

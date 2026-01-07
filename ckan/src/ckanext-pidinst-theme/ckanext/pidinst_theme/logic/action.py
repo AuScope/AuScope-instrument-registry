@@ -46,14 +46,14 @@ def organization_list_for_user(next_action, context, data_dict):
 def package_create(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
     # logger.info("package_create before data_dict: %s", pformat(data_dict))
-    
+
     package_type = data_dict.get('type')
     package_plugin = lib_plugins.lookup_package_plugin(package_type)
     if 'schema' in context:
         schema = context['schema']
     else:
         schema = package_plugin.create_package_schema()
-    
+
     # Replace owner_org_validator
     if 'owner_org' in schema:
         schema['owner_org'] = [
@@ -61,9 +61,9 @@ def package_create(next_action, context, data_dict):
             for f in schema['owner_org']
         ]
 
-    data_dict['name']  = generate_sample_name(data_dict)   
-    data_dict['title'] = generate_sample_title(data_dict)    
- 
+    data_dict['name']  = generate_instrument_name(data_dict)
+    data_dict['title'] = generate_instrument_title(data_dict)
+
     manage_parent_related_resource(data_dict)
 
     if 'private' in data_dict and data_dict['private'] == 'False':
@@ -94,19 +94,19 @@ def package_create(next_action, context, data_dict):
 def package_update(next_action, context, data_dict):
     # logger = logging.getLogger(__name__)
     # logger.info("package_update data_dict: %s", pformat(data_dict))
-    
-    data_dict['name']  = generate_sample_name(data_dict)   
-    data_dict['title'] = generate_sample_title(data_dict)   
-    
+
+    data_dict['name']  = generate_instrument_name(data_dict)
+    data_dict['title'] = generate_instrument_title(data_dict)
+
     manage_parent_related_resource(data_dict)
 
     package = get_package_object(context, {'id': data_dict['id']})
-    
+
     # If package being made public for first time, set publication date
     if package.private and data_dict['private'] == 'False' and \
             (not data_dict['publication_date'] or data_dict['publication_date'] == ''):
         data_dict['publication_date'] = datetime.now()
-        
+
     return next_action(context, data_dict)
 
 logger = logging.getLogger(__name__)
@@ -180,30 +180,30 @@ def manage_parent_related_resource(data_dict):
     # Update the JSON string for related resources
     data_dict['related_resource'] = json.dumps(related_resources)
 
-def generate_sample_name(data_dict):
+def generate_instrument_name(data_dict):
     owner_org = data_dict['owner_org']
-    sample_type = data_dict['sample_type']
-    sample_number = data_dict['sample_number']
+    instrument_type = data_dict['instrument_type']
+    instrument_number = data_dict['instrument_number']
     org_name= tk.get_action('organization_show')({}, {'id': owner_org})['name']
     org_name = org_name.replace(' ', '_')
-    sample_type = sample_type.replace(' ', '_')
-    sample_number = sample_number.replace(' ', '_')
-    
-    name = f"{org_name}-{sample_type}-Sample-{sample_number}"
+    instrument_type = instrument_type.replace(' ', '_')
+    instrument_number = instrument_number.replace(' ', '_')
+
+    name = f"{org_name}-{instrument_type}-Instrument-{instrument_number}"
     name = re.sub(r'[^a-z0-9-_]', '', name.lower())
 
     return name
 
-def generate_sample_title(data_dict):
+def generate_instrument_title(data_dict):
     owner_org = data_dict['owner_org']
-    sample_type = data_dict['sample_type']
-    sample_number = data_dict['sample_number']
+    instrument_type = data_dict['instrument_type']
+    instrument_number = data_dict['instrument_number']
     org_name= tk.get_action('organization_show')({}, {'id': owner_org})['name']
     org_name = org_name
-    sample_type = sample_type
-    sample_number = sample_number
-    
-    title= f"{org_name} - {sample_type} Sample {sample_number}"
+    instrument_type = instrument_type
+    instrument_number = instrument_number
+
+    title= f"{org_name} - {instrument_type} Instrument {instrument_number}"
 
     return title
 
@@ -310,7 +310,7 @@ def organization_member_create(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
     member = None
     try:
-        # logger.info("Adding member to collection: %s", data_dict)
+        # logger.info("Adding member to organisation: %s", data_dict)
         member = next_action(context, data_dict)
     except tk.ValidationError as e:
         logger.error(f'Error during member addition: {e.error_dict}')
@@ -326,40 +326,40 @@ def organization_member_create(next_action, context, data_dict):
 @tk.chained_action
 def organization_create(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
-    collection = None
+    organisation = None
     try:
         # logger.info("Creating organization: %s", pformat(data_dict))
-        collection = next_action(context, data_dict)
+        organisation = next_action(context, data_dict)
     except tk.ValidationError as e:
-        logger.error(f'Error during collection creation: {e.error_dict}')
+        logger.error(f'Error during organisation creation: {e.error_dict}')
         raise tk.ValidationError(e.error_dict)
     except Exception as e:
-        logger.error(f'Unexpected error during collection creation: {e}')
-        raise tk.ValidationError({'error': ['Unexpected error during collection creation. Please contact support.']})
+        logger.error(f'Unexpected error during organisation creation: {e}')
+        raise tk.ValidationError({'error': ['Unexpected error during organisation creation. Please contact support.']})
 
-    if collection is not None:
+    if organisation is not None:
         try:
             email_notifications.organization_create_notify_email(data_dict)
-            h.flash_success(_('The collection has been created and the notification email has been sent successfully.'))
+            h.flash_success(_('The organisation has been created and the notification email has been sent successfully.'))
         except Exception as e:
             logger.error(f'Error during email sending: {e}')
-            h.flash_error(_('The collection has been created but there was an error sending the notification email. Please check the email configuration.'), 'error')
-    return collection
+            h.flash_error(_('The organisation has been created but there was an error sending the notification email. Please check the email configuration.'), 'error')
+    return organisation
 
 
 
 @tk.chained_action
 def organization_delete(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
-    collection = None
+    organisation = None
     try:
-        # logger.info("Deleting collection: %s", pformat(data_dict))
+        # logger.info("Deleting organisation: %s", pformat(data_dict))
 
         org_id = tk.get_or_bust(data_dict, 'id')
         organization = get_action('organization_show')({}, {'id': org_id})
-        # logger.info(f'Collection deletion result: %s', pformat(organization))
+        # logger.info(f'Organisation deletion result: %s', pformat(organization))
         if not organization:
-            raise tk.ObjectNotFound('Collection was not found.')
+            raise tk.ObjectNotFound('Organisation was not found.')
         members=organization.get('users')
         non_admin_users = []
         for member in members:
@@ -367,24 +367,24 @@ def organization_delete(next_action, context, data_dict):
                 non_admin_users.append(member)
 
         if non_admin_users:
-            raise tk.ValidationError('The collection has members and cannot be deleted.')
+            raise tk.ValidationError('The organisation has members and cannot be deleted.')
 
         next_action(context, data_dict)
     except tk.ValidationError as e:
-        logger.error(f'Error during collection deletion: {e.error_dict}')
+        logger.error(f'Error during organisation deletion: {e.error_dict}')
         raise tk.ValidationError(e.error_dict)
     except Exception as e:
-        logger.error(f'Unexpected error during collection deletion: {e}')
-        raise tk.ValidationError({'error': ['Unexpected error during collection deletion. Please contact support.']})
+        logger.error(f'Unexpected error during organisation deletion: {e}')
+        raise tk.ValidationError({'error': ['Unexpected error during organisation deletion. Please contact support.']})
 
     try:
         email_notifications.organization_delete_notify_email(organization)
-        tk.h.flash_success(_('The collection has been deleted and the notification email has been sent successfully.'))
+        tk.h.flash_success(_('The organisation has been deleted and the notification email has been sent successfully.'))
     except Exception as e:
         logger.error(f'Error during email sending: {e}')
-        tk.h.flash_error(_('The collection has been deleted but there was an error sending the notification email. Please check the email configuration.'), 'error')
+        tk.h.flash_error(_('The organisation has been deleted but there was an error sending the notification email. Please check the email configuration.'), 'error')
 
-     
+
 def get_actions():
     return {
         'pidinst_theme_get_sum': pidinst_theme_get_sum,
@@ -399,5 +399,5 @@ def get_actions():
         'organization_member_create' :organization_member_create,
         # 'package_search': package_search,
         'organization_create' :organization_create,
-        "organization_delete" : organization_delete,        
+        "organization_delete" : organization_delete,
     }

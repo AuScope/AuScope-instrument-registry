@@ -5,29 +5,29 @@
 {% endblock %}
 
 {% block contact_form_fields %}
-    {% set subject = "Collection Creation" %}
-    {% set name_label = _('Collection Contact Name') %}
-    {% set email_label = _('Collection Contact Email') %}
-    {% set full_name_label = _('Full Name of the Collection') %}
-    {% set short_name_label = _('Short Name of the Collection') %}
+    {% set subject = "Organisation Creation" %}
+    {% set name_label = _('Organisation Contact Name') %}
+    {% set email_label = _('Organisation Contact Email') %}
+    {% set full_name_label = _('Full Name of the Organisation') %}
+    {% set short_name_label = _('Short Name of the Organisation') %}
     {% set description_label = _('Description') %}
-    
-    <input type="hidden" name="subject" value="{{ subject }}"> 
-    <input type="hidden" name="content" value="{{ data.content }}"> 
-    
+
+    <input type="hidden" name="subject" value="{{ subject }}">
+    <input type="hidden" name="content" value="{{ data.content }}">
+
     {{ form.input('name', label=name_label, id='field-name', value=data.name,
                     error=errors.name, classes=['control-medium'], is_required=true) }}
-                    
+
     {{ form.input('email', label=email_label, id='field-email', type='email',
                     value=data.email, error=errors.email, classes=['control-medium'],
-                    is_required=true) }}    
-                    
-    {{ form.input('collection_full_name', label=full_name_label, id='field-collection_full_name',
-                value=data.collection_full_name, error=errors.collection_full_name, classes=['control-medium'],
+                    is_required=true) }}
+
+    {{ form.input('organisation_full_name', label=full_name_label, id='field-organisation_full_name',
+                value=data.organisation_full_name, error=errors.organisation_full_name, classes=['control-medium'],
                 is_required=true) }}
-                
-    {{ form.input('collection_short_name', label=short_name_label, id='field-collection_short_name',
-                value=data.collection_short_name, error=errors.collection_short_name, classes=['control-medium'],
+
+    {{ form.input('organisation_short_name', label=short_name_label, id='field-organisation_short_name',
+                value=data.organisation_short_name, error=errors.organisation_short_name, classes=['control-medium'],
                 is_required=true) }}
 
 
@@ -40,7 +40,7 @@
     <div class="form-group {% if errors.is_culturally_sensitive %}has-error{% endif %}">
         <label class="form-label" for="field-is_culturally_sensitive">
             <span title="This field is required" class="control-required">*</span>
-            {{ _("In Australia, 'Indigenous Data' refers to information or knowledge, in any format or medium, which is about and may affect Indigenous peoples both collectively and individually [1]. Does this collection relate to Indigenous people and impact Indigenous lives at the collective and/or individual level?") }}
+            {{ _("In Australia, 'Indigenous Data' refers to information or knowledge, in any format or medium, which is about and may affect Indigenous peoples both collectively and individually [1]. Does this organisation relate to Indigenous people and impact Indigenous lives at the collective and/or individual level?") }}
         </label>
         <select name="is_culturally_sensitive" id="field-is_culturally_sensitive" class="form-control" required>
             <option value="" disabled selected>{{ _('Please select an option') }}</option>
@@ -48,17 +48,17 @@
             <option value="no" {% if data.is_culturally_sensitive == 'no' %}selected{% endif %}>{{ _('No') }}</option>
             <option value="unsure" {% if data.is_culturally_sensitive == 'unsure' %}selected{% endif %}>{{ _('Unsure') }}</option>
         </select>
-        
+
         {% if errors.is_culturally_sensitive %}
             <span class="help-block">{{ errors.is_culturally_sensitive }}</span>
         {% endif %}
 
         <div class="info-block ">
             <i class="fa fa-info-circle"></i>
-            <small style="font-size: 11px;"> [1] Maiam nayri Wingara. (2018) Indigenous Data Sovereignty Communique Indigenous Data Sovereignty Summit 20th June 2018, Canberra, ACT. 
+            <small style="font-size: 11px;"> [1] Maiam nayri Wingara. (2018) Indigenous Data Sovereignty Communique Indigenous Data Sovereignty Summit 20th June 2018, Canberra, ACT.
                 <a href="https://static1.squarespace.com/static/5b3043afb40b9d20411f3512/t/63ed934fe861fa061ebb9202/1676514134724/Communique-Indigenous-Data-Sovereignty-Summit.pdf">https://static1.squarespace.com/static/5b3043afb40b9d20411f3512/t/63ed934fe861fa061ebb9202/1676514134724/Communique-Indigenous-Data-Sovereignty-Summit.pdf</a>
             </small>
         </div>
-              
-              
+
+
 {% endblock %}

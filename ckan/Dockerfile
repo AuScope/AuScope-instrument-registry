@@ -111,8 +111,7 @@ COPY src/shared/templates /shared/templates
 # RUN pip install $APP_DIR/src_extensions/ckanext-oidc-pkce
 
 RUN pip install $APP_DIR/src_extensions/ckanext-oidc-pkce && \
-  pip install $APP_DIR/src_extensions/ckanext-auscope-theme && \
-  pip install $APP_DIR/src_extensions/ckanext-igsn-theme && \
+  pip install $APP_DIR/src_extensions/ckanext-pidinst-theme && \
   pip install pandas openpyxl requests python-multipart
 
 RUN chmod +x ${APP_DIR}/start_ckan.sh
