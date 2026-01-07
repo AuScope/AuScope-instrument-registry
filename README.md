@@ -1,10 +1,10 @@
 # Docker Compose setup for CKAN
 
 - [Docker Compose setup for CKAN](#docker-compose-setup-for-ckan)
-  - [1. Overview](#1--overview)
-  - [2. Installing Docker](#2--installing-docker)
-  - [3. docker compose _vs_ docker-compose](#3--docker-compose-vs-docker-compose)
-  - [4. Install (build and run) CKAN plus dependencies](#4--install-build-and-run-ckan-plus-dependencies)
+  - [1. Overview](#1-overview)
+  - [2. Installing Docker](#2-installing-docker)
+  - [3. docker compose _vs_ docker-compose](#3-docker-compose-vs-docker-compose)
+  - [4. Install (build and run) CKAN plus dependencies](#4-install-build-and-run-ckan-plus-dependencies)
     - [Base mode](#base-mode)
     - [Development mode](#development-mode)
       - [Create an extension](#create-an-extension)
@@ -22,6 +22,7 @@
   - [Copying and License](#copying-and-license)
 - [Github Pipeline](#github-pipeline)
   - [Branches](#branches)
+- [ckanext-oidc-pkce](#ckanext-oidc-pkce)
 
 ## 1. Overview
 
@@ -280,3 +281,11 @@ There are Build and Release pipelines for this repository. See .github/workflows
 - dev-data: commit to this branch to build "data-latest" tag images for Data Repository Dev instance.
 - dev-instrument: commit to this branch to build "instrument-latest" tag images for Instrument Repository Dev instance.
 - master: this branch is used for production releases.
+
+# ckanext-oidc-pkce
+
+To clone the ckanext-oidc-pkce submodule, please use below command:
+
+```
+git submodule update --init --recursive
+```

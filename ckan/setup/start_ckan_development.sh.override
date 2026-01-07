@@ -79,25 +79,6 @@ ckan config-tool $SRC_DIR/ckan/test-core.ini \
 
 
 ### AUTH Settings ###
-if echo "$CKAN__PLUGINS" | grep -q "igsn_theme"; then
-    #ckan config-tool $CKAN_INI "ckan.auth.allow_dataset_collaborators = True"
-    ckan config-tool $CKAN_INI "ckan.auth.user_create_groups = false"
-    #ckan config-tool $CKAN_INI "ckan.auth.create_unowned_dataset = True"
-    ckan config-tool $CKAN_INI "ckan.auth.user_create_organizations = false"
-    # ckan config-tool $CKAN_INI "ckan.dataset.create.require.resource = true"
-    ckan config-tool $CKAN_INI "ckan.dataset.create.require.resource = false"
-    # ckan config-tool $CKAN_INI "ckan.dataset.create_on_ui_requires_resources = true"
-    ckan config-tool $CKAN_INI "ckan.dataset.create_on_ui_requires_resources = false"
-
-    ckan config-tool $CKAN_INI "scheming.organization_schemas  = ckanext.igsn_theme:instrument_organization_schema.yaml"
-
-    export CKAN___SCHEMING__DATASET_SCHEMAS="ckanext.igsn_theme:instrument_repository_schema.yaml"
-
-
-    ckan config-tool $CKAN_INI "ckan.locale_default = en_AU"
-fi
-
-### AUTH Settings ###
 if echo "$CKAN__PLUGINS" | grep -q "pidinst_theme"; then
     ckan config-tool $CKAN_INI "ckan.auth.user_create_groups = false"
     ckan config-tool $CKAN_INI "ckan.auth.user_create_organizations = false"
@@ -119,28 +100,28 @@ else
 fi
 
 # Compiling translations for the custom extension
-if echo "$CKAN__PLUGINS" | grep -q "igsn_theme"; then
+if echo "$CKAN__PLUGINS" | grep -q "pidinst_theme"; then
     echo "Compiling translations for custom CKAN extensions..."
 
     for i in $SRC_EXTENSIONS_DIR/*; do
         echo "Checking directory: $i"
 
         # Adjust the path to where your i18n directory actually is
-        if [ -d "$i/ckanext/igsn_theme/i18n" ]; then
-            echo "Found i18n directory in $i/ckanext/igsn_theme/i18n"
+        if [ -d "$i/ckanext/pidinst_theme/i18n" ]; then
+            echo "Found i18n directory in $i/ckanext/pidinst_theme/i18n"
 
             # Navigate to each language directory and compile the .po files
-            for lang in "$i/ckanext/igsn_theme/i18n/"*; do
+            for lang in "$i/ckanext/pidinst_theme/i18n/"*; do
                 if [ -d "$lang" ]; then
                     echo "Compiling translations for language directory: $lang"
                     msgfmt "$lang/LC_MESSAGES/ckan.po" -o "$lang/LC_MESSAGES/ckan.mo"
                     echo "Compiled translations for $lang"
                     echo "Copying compiled lang to the src directory"
-                    cp -r $SRC_EXTENSIONS_DIR/ckanext-igsn-theme/ckanext/igsn_theme/i18n/en_AU/LC_MESSAGES/* $APP_DIR/src/ckan/ckan/i18n/en_AU/LC_MESSAGES/
+                    cp -r $SRC_EXTENSIONS_DIR/ckanext-igsn-theme/ckanext/pidinst_theme/i18n/en_AU/LC_MESSAGES/* $APP_DIR/src/ckan/ckan/i18n/en_AU/LC_MESSAGES/
                 fi
             done
         else
-            echo "i18n directory not found in $i/ckanext/igsn_theme/i18n"
+            echo "i18n directory not found in $i/ckanext/pidinst_theme/i18n"
         fi
     done
 fi

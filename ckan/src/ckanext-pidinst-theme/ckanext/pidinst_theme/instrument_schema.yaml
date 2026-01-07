@@ -12,6 +12,28 @@ dataset_fields:
     help_text: Unique string that identifies the instrument instance
     groupBy: About Instrument
 
+  - field_name: schema_version
+    label: Schema Version
+    form_snippet: hidden_field.html
+    form_placeholder: Version number of the PIDINST schema used in this record
+    help_text: Version number of the PIDINST schema used in this record
+    groupBy: About Instrument
+
+  # - field_name: identifierType
+  #   label: IdentifierType
+  #   form_placeholder: Type of the identifier
+  #   form_attrs:
+  #     disabled: true
+  #   help_text: Unique string that identifies the instrument instance
+  #   groupBy: About Instrument
+
+  - field_name: landing_page
+    label: Landing Page URL
+    form_placeholder: A landing page that the identifier resolves to
+    help_text: A landing page that the identifier resolves to
+    display_snippet: URL
+    groupBy: About Instrument
+
   - field_name: title
     label: Title
     preset: title
@@ -27,18 +49,18 @@ dataset_fields:
     form_placeholder: eg. my-instrument
     groupBy: About Instrument
 
-  - field_name: parent
-    label: Parent Instrument
-    form_snippet: instrument_parent_field.html
-    display_snippet: instrument_parent_field.html
-    validators: parent_validator
-    help_text: Institution(s) responsible for the management of the instrument. This may include the legal owner, the operator, or an institute providing access to the instrument.
-    groupBy: About Instrument
+  # - field_name: parent
+  #   label: Parent Instrument
+  #   form_snippet: instrument_parent_field.html
+  #   display_snippet: instrument_parent_field.html
+  #   validators: parent_validator
+  #   help_text: Institution(s) responsible for the management of the instrument. This may include the legal owner, the operator, or an institute providing access to the instrument.
+  #   groupBy: About Instrument
 
-  - field_name: parent_instrument
-    form_snippet: hidden_field.html
-    display_snippet: null
-    groupBy: About Instrument
+  # - field_name: parent_instrument
+  #   form_snippet: hidden_field.html
+  #   display_snippet: null
+  #   groupBy: About Instrument
 
   - field_name: owner
     label: Owners
@@ -68,16 +90,6 @@ dataset_fields:
 
       - field_name: owner_identifier_type
         label: Owner Identifier Type
-        preset: select
-        choices:
-          - value: ORCID
-            label: ORCID
-          - value: ROR
-            label: ROR
-          - value: ISNI
-            label: ISNI
-          - value: Other
-            label: Other
         help_text: "Type of the identifier"
 
   - field_name: manufacturer
@@ -99,16 +111,6 @@ dataset_fields:
 
       - field_name: manufacturer_identifier_type
         label: Manufacturer Identifier Type
-        preset: select
-        choices:
-          - value: ORCID
-            label: ORCID
-          - value: ROR
-            label: ROR
-          - value: ISNI
-            label: ISNI
-          - value: Other
-            label: Other
         help_text: "Type of the identifier"
 
   - field_name: model
@@ -130,14 +132,6 @@ dataset_fields:
 
       - field_name: model_identifier_type
         label: Model Identifier Type
-        preset: select
-        choices:
-          - value: URL
-            label: URL
-          - value: Serial Number
-            label: Serial Number
-          - value: Other
-            label: Other
         help_text: "Type of the identifier"
 
   - field_name: description
@@ -165,12 +159,13 @@ dataset_fields:
 
       - field_name: instrument_type_identifier_type
         label: Instrument Type Identifier Type
-        preset: select
-        choices:
-          - value: URL
-            label: URL
-          - value: Other
-            label: Other
+        # Do we need to keep choices or there always free texts?
+        # preset: select
+        # choices:
+        #   - value: URL
+        #     label: URL
+        #   - value: Other
+        #     label: Other
         help_text: "Type of the identifier"
 
   - field_name: measured_variable
@@ -202,15 +197,9 @@ dataset_fields:
             label: Commissioned
           - value: DeCommissioned
             label: DeCommissioned
-          - value: Calibrated
-            label: Calibrated
-          - value: Manufactured
-            label: Manufactured
-          - value: Other
-            label: Other
         help_text: The type of the date
 
-  - field_name: related_identifier
+  - field_name: related_identifier_obj
     label: Related Identifier
     preset: composite_repeating
     form_snippet: composite_repeating_field.html
@@ -218,9 +207,12 @@ dataset_fields:
     form_blanks: 0
     groupBy: Related Resources
     subfields:
+      - field_name: related_identifier
+        label: Related Identifier
+        help_text: Identifiers of related resources
+
       - field_name: related_identifier_name
         label: Related Identifier Name
-        required: true
         help_text: A name for the related resource, may be used to give a hint on the context of that resource
 
       - field_name: related_identifier_type
@@ -230,18 +222,44 @@ dataset_fields:
         choices:
           - value: ARK
             label: ARK
+          - value: arXiv
+            label: arXiv
+          - value: bibcode
+            label: bibcode
           - value: DOI
             label: DOI
+          - value: EAN13
+            label: EAN13
+          - value: EISSN
+            label: EISSN
           - value: Handle
             label: Handle
+          - value: IGSN
+            label: IGSN
+          - value: ISBN
+            label: ISBN
+          - value: ISSN
+            label: ISSN
+          - value: ISTC
+            label: ISTC
+          - value: LISSN
+            label: LISSN
+          - value: PMID
+            label: PMID
           - value: PURL
             label: PURL
-          - value: URN
-            label: URN
+          - value: RAiD
+            label: RAiD
+          - value: RRID
+            label: RRID
+          - value: UPC
+            label: UPC
           - value: URL
             label: URL
-          - value: Other
-            label: Other
+          - value: URN
+            label: URN
+          - value: w3id
+            label: w3id
         help_text: Type of the identifier
 
       - field_name: relation_type
@@ -275,7 +293,7 @@ dataset_fields:
             label: HasPart
         help_text: Description of the relationship
 
-  - field_name: alternate_identifier
+  - field_name: alternate_identifier_obj
     label: Alternate Identifier
     preset: composite_repeating
     form_snippet: composite_repeating_field.html
@@ -283,13 +301,17 @@ dataset_fields:
     form_blanks: 0
     groupBy: Related Resources
     subfields:
+      - field_name: alternate_identifier
+        label: Alternate Identifier
+        help_text: Identifiers other than the PIDINST pertaining to the same instrument instance. This should be used if the instrument has a serial number. Other possible uses include an owner's inventory number or an entry in some instrument data base.
+
       - field_name: alternate_identifier_name
         label: Alternate Identifier Name
-        required: true
         help_text: A supplementary name for the identifier type. This is mostly useful for "Other"
 
       - field_name: alternate_identifier_type
         label: Alternate Identifier Type
+        # Conditionally Required
         required: true
         preset: select
         choices:
@@ -300,273 +322,272 @@ dataset_fields:
           - value: Other
             label: Other
         help_text: Type of the identifier
+#   - field_name: user_keywords
+#     label: User Specified Keywords
+#     preset: tag_string_autocomplete
+#     validators: ignore_missing tag_string_convert
+#     help_text: Keywords help with the discovery of the instrument
+#     groupBy: Supporting Metadata
 
-  - field_name: user_keywords
-    label: User Specified Keywords
-    preset: tag_string_autocomplete
-    validators: ignore_missing tag_string_convert
-    help_text: Keywords help with the discovery of the instrument
-    groupBy: Supporting Metadata
+#   - field_name: gcmd_keywords_code
+#     label: GCMD Science Keywords
+#     form_snippet: gcmd_field.html
+#     display_snippet: gcmd_field.html
+#     help_text: Global Change Master Directory (GCMD) science keywords. Choose the keywords that represent the instrument or its application.
+#     groupBy: Supporting Metadata
 
-  - field_name: gcmd_keywords_code
-    label: GCMD Science Keywords
-    form_snippet: gcmd_field.html
-    display_snippet: gcmd_field.html
-    help_text: Global Change Master Directory (GCMD) science keywords. Choose the keywords that represent the instrument or its application.
-    groupBy: Supporting Metadata
+#   - field_name: gcmd_keywords
+#     label: GCMD Science Keywords
+#     form_snippet: hidden_field.html
+#     help_text: Global Change Master Directory (GCMD) science keywords. Choose the keywords that represent the instrument or its application.
+#     display_snippet: null
+#     groupBy: Supporting Metadata
 
-  - field_name: gcmd_keywords
-    label: GCMD Science Keywords
-    form_snippet: hidden_field.html
-    help_text: Global Change Master Directory (GCMD) science keywords. Choose the keywords that represent the instrument or its application.
-    display_snippet: null
-    groupBy: Supporting Metadata
+#   - field_name: fields_of_research_code
+#     label: Fields of Research Code
+#     form_snippet: fields_of_research_field.html
+#     display_snippet: null
+#     help_text: The area(s) of study relevant to the instrument or its application, based on the ANZSRC Fields of Research (FoR) 2020
+#     groupBy: Supporting Metadata
 
-  - field_name: fields_of_research_code
-    label: Fields of Research Code
-    form_snippet: fields_of_research_field.html
-    display_snippet: null
-    help_text: The area(s) of study relevant to the instrument or its application, based on the ANZSRC Fields of Research (FoR) 2020
-    groupBy: Supporting Metadata
+#   - field_name: fields_of_research
+#     label: Fields of Research
+#     form_snippet: hidden_field.html
+#     help_text: The classification code used for the subject term in ANZSRC Fields of Research (FoR) 2020
+#     display_snippet: fields_of_research_field.html
+#     groupBy: Supporting Metadata
 
-  - field_name: fields_of_research
-    label: Fields of Research
-    form_snippet: hidden_field.html
-    help_text: The classification code used for the subject term in ANZSRC Fields of Research (FoR) 2020
-    display_snippet: fields_of_research_field.html
-    groupBy: Supporting Metadata
+#   - field_name: locality
+#     label: Locality
+#     help_text: The locality or named place where the instrument is located
+#     groupBy: Spatial & Temporal
 
-  - field_name: locality
-    label: Locality
-    help_text: The locality or named place where the instrument is located
-    groupBy: Spatial & Temporal
+#   - field_name: location_choice
+#     label: Location Details
+#     preset: radio
+#     choices:
+#       - value: noLocation
+#         label: "No"
+#       - value: area
+#         label: Area on Map
+#       - value: point
+#         label: Single point on Map
+#     default: noLocation
+#     display_snippet: map_field.html
+#     help_text: Choose how to specify the location.
+#     validators: location_validator
+#     groupBy: Spatial & Temporal
 
-  - field_name: location_choice
-    label: Location Details
-    preset: radio
-    choices:
-      - value: noLocation
-        label: "No"
-      - value: area
-        label: Area on Map
-      - value: point
-        label: Single point on Map
-    default: noLocation
-    display_snippet: map_field.html
-    help_text: Choose how to specify the location.
-    validators: location_validator
-    groupBy: Spatial & Temporal
+#   - field_name: map_display
+#     label: Map Display
+#     form_snippet: map_field_single_point.html
+#     display_snippet: null
+#     help_text: Interactive map for selecting coordinates.
+#     groupBy: Spatial & Temporal
 
-  - field_name: map_display
-    label: Map Display
-    form_snippet: map_field_single_point.html
-    display_snippet: null
-    help_text: Interactive map for selecting coordinates.
-    groupBy: Spatial & Temporal
+#   - field_name: location_data
+#     label: Location Data
+#     form_snippet: null
+#     display_snippet: null
+#     preset: json_object
+#     groupBy: Spatial & Temporal
 
-  - field_name: location_data
-    label: Location Data
-    form_snippet: null
-    display_snippet: null
-    preset: json_object
-    groupBy: Spatial & Temporal
+#   - field_name: spatial
+#     label: Spatial
+#     form_snippet: null
+#     display_snippet: null
+#     preset: json_object
+#     groupBy: Spatial & Temporal
 
-  - field_name: spatial
-    label: Spatial
-    form_snippet: null
-    display_snippet: null
-    preset: json_object
-    groupBy: Spatial & Temporal
+#   - field_name: elevation
+#     label: Elevation (m)
+#     help_text: The elevation of the geographic location specified above mean sea level in meters
+#     form_snippet: null
+#     display_snippet: null
+#     groupBy: Spatial & Temporal
 
-  - field_name: elevation
-    label: Elevation (m)
-    help_text: The elevation of the geographic location specified above mean sea level in meters
-    form_snippet: null
-    display_snippet: null
-    groupBy: Spatial & Temporal
+#   - field_name: epsg_code
+#     label: Geographic Coordinate System
+#     help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
+#     form_snippet: null
+#     display_snippet: null
+#     groupBy: Spatial & Temporal
 
-  - field_name: epsg_code
-    label: Geographic Coordinate System
-    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
-    form_snippet: null
-    display_snippet: null
-    groupBy: Spatial & Temporal
+#   - field_name: epsg
+#     label: Geographic Coordinate System
+#     form_snippet: hidden_field.html
+#     help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
+#     display_snippet: null
+#     groupBy: Spatial & Temporal
 
-  - field_name: epsg
-    label: Geographic Coordinate System
-    form_snippet: hidden_field.html
-    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
-    display_snippet: null
-    groupBy: Spatial & Temporal
+#   - field_name: funder
+#     label: Funding Reference
+#     preset: composite_repeating
+#     form_snippet: composite_repeating_field.html
+#     validators: composite_repeating_validator
+#     form_blanks: 0
+#     groupBy: Funder Identifier
+#     subfields:
+#       - field_name: funder_name
+#         label: Funder Name
+#         required: true
+#         help_text: Information about financial support for the instrument. Provide the full (official) name of the funding provider, e.g., Australian Research Council (ARC)
 
-  - field_name: funder
-    label: Funding Reference
-    preset: composite_repeating
-    form_snippet: composite_repeating_field.html
-    validators: composite_repeating_validator
-    form_blanks: 0
-    groupBy: Funder Identifier
-    subfields:
-      - field_name: funder_name
-        label: Funder Name
-        required: true
-        help_text: Information about financial support for the instrument. Provide the full (official) name of the funding provider, e.g., Australian Research Council (ARC)
+#       - field_name: funder_identifier
+#         label: Funder Identifier
+#         display_snippet: URL
+#         help_text: Unique identifier of the funding entity
 
-      - field_name: funder_identifier
-        label: Funder Identifier
-        display_snippet: URL
-        help_text: Unique identifier of the funding entity
+#       - field_name: funder_identifier_type
+#         label: Funder Identifier Scheme
+#         preset: select
+#         choices:
+#           - value: Crossref Funder ID
+#             label: Crossref Funder ID
+#           - value: GRID
+#             label: GRID
+#           - value: ISNI
+#             label: ISNI
+#           - value: ROR
+#             label: ROR
+#           - value: Wikidata
+#             label: Wikidata
+#           - value: Other
+#             label: Other
+#         help_text: The type of the funder identifier
 
-      - field_name: funder_identifier_type
-        label: Funder Identifier Scheme
-        preset: select
-        choices:
-          - value: Crossref Funder ID
-            label: Crossref Funder ID
-          - value: GRID
-            label: GRID
-          - value: ISNI
-            label: ISNI
-          - value: ROR
-            label: ROR
-          - value: Wikidata
-            label: Wikidata
-          - value: Other
-            label: Other
-        help_text: The type of the funder identifier
+#       - field_name: funding_program
+#         label: Funding Program Name
+#         help_text: The name of the funding program through which the project grant was awarded
 
-      - field_name: funding_program
-        label: Funding Program Name
-        help_text: The name of the funding program through which the project grant was awarded
+#       - field_name: project_identifier
+#         label: Project Identifier
+#         display_snippet: URL
+#         help_text: The code assigned by the funder to a sponsored project
 
-      - field_name: project_identifier
-        label: Project Identifier
-        display_snippet: URL
-        help_text: The code assigned by the funder to a sponsored project
+#       - field_name: project_name
+#         label: Project Name
+#         help_text: The full name of the project
 
-      - field_name: project_name
-        label: Project Name
-        help_text: The full name of the project
+#       - field_name: project_identifier_type
+#         label: Project Identifier Type
+#         preset: select
+#         choices:
+#           - value: RAiD
+#             label: RAiD
+#           - value: CORDIS Grant Agreement ID
+#             label: CORDIS Grant Agreement ID
+#           - value: GrantConnect ID
+#             label: GrantConnect ID
+#           - value: Other
+#             label: Other
+#         help_text: The type of project identifier
 
-      - field_name: project_identifier_type
-        label: Project Identifier Type
-        preset: select
-        choices:
-          - value: RAiD
-            label: RAiD
-          - value: CORDIS Grant Agreement ID
-            label: CORDIS Grant Agreement ID
-          - value: GrantConnect ID
-            label: GrantConnect ID
-          - value: Other
-            label: Other
-        help_text: The type of project identifier
+#   - field_name: supplementation_information
+#     label: Supplemental Information
+#     form_snippet: textarea.html
+#     help_text: Any other descriptive information about the instrument that can promote its reuse
+#     groupBy: Supporting Metadata
 
-  - field_name: supplementation_information
-    label: Supplemental Information
-    form_snippet: textarea.html
-    help_text: Any other descriptive information about the instrument that can promote its reuse
-    groupBy: Supporting Metadata
+#   - field_name: publisher
+#     label: Publisher
+#     required: true
+#     preset: select
+#     choices:
+#       - value: AuScope
+#         label: AuScope
+#     default: AuScope
+#     form_include_blank_choice: false
+#     help_text: The entity that publishes the instrument
+#     form_snippet: hidden_field.html
+#     display_snippet: publisher_field.html
+#     groupBy: Supporting Metadata
 
-  - field_name: publisher
-    label: Publisher
-    required: true
-    preset: select
-    choices:
-      - value: AuScope
-        label: AuScope
-    default: AuScope
-    form_include_blank_choice: false
-    help_text: The entity that publishes the instrument
-    form_snippet: hidden_field.html
-    display_snippet: publisher_field.html
-    groupBy: Supporting Metadata
+#   - field_name: publisher_identifier
+#     label: Publisher Identifier
+#     required: true
+#     preset: select
+#     choices:
+#       - value: "https://ror.org/04s1m4564"
+#         label: https://ror.org/04s1m4564
+#     default: https://ror.org/04s1m4564
+#     form_include_blank_choice: false
+#     form_snippet: hidden_field.html
+#     display_snippet: null
+#     help_text: The persistent identifier of the publisher
+#     validators: ignore_missing unicode_safe strip_value url_validator
+#     groupBy: Supporting Metadata
 
-  - field_name: publisher_identifier
-    label: Publisher Identifier
-    required: true
-    preset: select
-    choices:
-      - value: "https://ror.org/04s1m4564"
-        label: https://ror.org/04s1m4564
-    default: https://ror.org/04s1m4564
-    form_include_blank_choice: false
-    form_snippet: hidden_field.html
-    display_snippet: null
-    help_text: The persistent identifier of the publisher
-    validators: ignore_missing unicode_safe strip_value url_validator
-    groupBy: Supporting Metadata
+#   - field_name: publisher_identifier_type
+#     label: Publisher Identifier Type
+#     required: true
+#     default: ROR
+#     preset: select
+#     choices:
+#       - value: ROR
+#         label: ROR
+#     form_include_blank_choice: false
+#     form_snippet: hidden_field.html
+#     display_snippet: null
+#     help_text: The type of the persistent identifier represents the publisher
+#     groupBy: Supporting Metadata
 
-  - field_name: publisher_identifier_type
-    label: Publisher Identifier Type
-    required: true
-    default: ROR
-    preset: select
-    choices:
-      - value: ROR
-        label: ROR
-    form_include_blank_choice: false
-    form_snippet: hidden_field.html
-    display_snippet: null
-    help_text: The type of the persistent identifier represents the publisher
-    groupBy: Supporting Metadata
+#   - field_name: publication_date
+#     label: Publication Date
+#     form_snippet: hidden_field.html
+#     preset: date
+#     help_text: The date the instrument is published through the repository
+#     groupBy: Supporting Metadata
 
-  - field_name: publication_date
-    label: Publication Date
-    form_snippet: hidden_field.html
-    preset: date
-    help_text: The date the instrument is published through the repository
-    groupBy: Supporting Metadata
+#   - field_name: credit
+#     label: Credit
+#     form_snippet: textarea.html
+#     help_text: The Credit field is where you acknowledge people or organisations who contributed
+#     groupBy: Supporting Metadata
 
-  - field_name: credit
-    label: Credit
-    form_snippet: textarea.html
-    help_text: The Credit field is where you acknowledge people or organisations who contributed
-    groupBy: Supporting Metadata
+#   - field_name: instrument_contact_name
+#     label: Instrument Contact Name
+#     required: true
+#     form_snippet: instrument_contact_name.html
+#     display_snippet: null
+#     help_text: A primary contact can be approached by users requesting further information of the instrument and its access
+#     groupBy: Supporting Metadata
 
-  - field_name: instrument_contact_name
-    label: Instrument Contact Name
-    required: true
-    form_snippet: instrument_contact_name.html
-    display_snippet: null
-    help_text: A primary contact can be approached by users requesting further information of the instrument and its access
-    groupBy: Supporting Metadata
+#   - field_name: instrument_contact_email
+#     label: Instrument Contact Email
+#     required: true
+#     display_snippet: email.html
+#     form_snippet: instrument_contact_email.html
+#     display_email_name_field: instrument_contact_name
+#     help_text: Email of the primary instrument contact
+#     validators: ignore_missing unicode_safe strip_value email_validator
+#     groupBy: Supporting Metadata
 
-  - field_name: instrument_contact_email
-    label: Instrument Contact Email
-    required: true
-    display_snippet: email.html
-    form_snippet: instrument_contact_email.html
-    display_email_name_field: instrument_contact_name
-    help_text: Email of the primary instrument contact
-    validators: ignore_missing unicode_safe strip_value email_validator
-    groupBy: Supporting Metadata
+#   - field_name: citation
+#     label: Citation
+#     form_snippet: null
+#     display_snippet: null
+#     help_text: The full bibliographic citation of the instrument
+#     groupBy: Supporting Metadata
 
-  - field_name: citation
-    label: Citation
-    form_snippet: null
-    display_snippet: null
-    help_text: The full bibliographic citation of the instrument
-    groupBy: Supporting Metadata
+#   - field_name: owner_org
+#     label: Organization
+#     preset: dataset_organization
 
-  - field_name: owner_org
-    label: Organization
-    preset: dataset_organization
+# resource_fields:
+#   - field_name: url
+#     label: URL
+#     preset: resource_url_upload
 
-resource_fields:
-  - field_name: url
-    label: URL
-    preset: resource_url_upload
+#   - field_name: name
+#     label: Name
+#     help: The name of the dataset
 
-  - field_name: name
-    label: Name
-    help: The name of the dataset
+#   - field_name: description
+#     label: Description
+#     preset: markdown
+#     form_placeholder: Some useful notes about the data
 
-  - field_name: description
-    label: Description
-    preset: markdown
-    form_placeholder: Some useful notes about the data
-
-  - field_name: format
-    label: Format
-    preset: resource_format_autocomplete
+#   - field_name: format
+#     label: Format
+#     preset: resource_format_autocomplete
