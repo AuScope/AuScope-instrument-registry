@@ -90,13 +90,6 @@ if echo "$CKAN__PLUGINS" | grep -q "pidinst_theme"; then
 
 
     ckan config-tool $CKAN_INI "ckan.locale_default = en_AU"
-else
-    #ckan config-tool $CKAN_INI "ckan.auth.allow_dataset_collaborators = True"
-    ckan config-tool $CKAN_INI "ckan.auth.user_create_groups = false"
-    #ckan config-tool $CKAN_INI "ckan.auth.create_unowned_dataset = True"
-    ckan config-tool $CKAN_INI "ckan.auth.user_create_organizations = false"
-
-    export CKAN___SCHEMING__DATASET_SCHEMAS="ckanext.auscope_theme:data_repository_schema.yaml"
 fi
 
 # Compiling translations for the custom extension
@@ -117,7 +110,7 @@ if echo "$CKAN__PLUGINS" | grep -q "pidinst_theme"; then
                     msgfmt "$lang/LC_MESSAGES/ckan.po" -o "$lang/LC_MESSAGES/ckan.mo"
                     echo "Compiled translations for $lang"
                     echo "Copying compiled lang to the src directory"
-                    cp -r $SRC_EXTENSIONS_DIR/ckanext-igsn-theme/ckanext/pidinst_theme/i18n/en_AU/LC_MESSAGES/* $APP_DIR/src/ckan/ckan/i18n/en_AU/LC_MESSAGES/
+                    cp -r $SRC_EXTENSIONS_DIR/ckanext-pidinst-theme/ckanext/pidinst_theme/i18n/en_AU/LC_MESSAGES/* $APP_DIR/src/ckan/ckan/i18n/en_AU/LC_MESSAGES/
                 fi
             done
         else
@@ -175,8 +168,9 @@ echo "Adding AuScope organization to DB"
 export PGPASSWORD=$CKAN_DB_PASSWORD
 export PGUSER=$CKAN_DB_USER
 export PGDATABASE=$CKAN_DB
-DB_HOST=$(echo $CKAN_SQLALCHEMY_URL | cut -d '@' -f2 | cut -d':' -f1)
-psql -h $DB_HOST -p 5432 -f create_auscope_org.sql
+# Extract host from CKAN_SQLALCHEMY_URL (postgresql://user:pass@host/db)
+DB_HOST=$(echo "$CKAN_SQLALCHEMY_URL" | cut -d'@' -f2 | cut -d'/' -f1 | cut -d':' -f1)
+psql -h "$DB_HOST" -p 5432 -f create_auscope_org.sql
 # psql -h db -p 5432 -f create_auscope_org.sql
 
 # Start supervisord
