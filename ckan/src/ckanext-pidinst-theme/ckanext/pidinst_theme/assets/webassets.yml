@@ -10,7 +10,6 @@ pidinst_theme-js:
     - /shared/public/base/js/gcmd-fields-handler-module.js
     - vendor/dataTables/datatables.min.js
     - vendor/jstree/jstree.min.js
-    - js/datatable-module.js
     - js/jstree-view-module.js
     - js/parent-instrument-selector-module.js
     - js/facet-select-module.js

@@ -131,7 +131,7 @@ entity_type='dataset', object_type=dataset_type -%}
 
 {%- if pages -%}
 <input type="hidden" name="_ckan_phase" value="{{ active_page }}" />
-{%- elif 'resource_fields' not in schema -%}
+{%- elif not schema.get('resource_fields') -%}
 <!-- force controller to skip resource-editing step for this type -->
 <input type="hidden" name="_ckan_phase" value="" />
 {%- endif -%}

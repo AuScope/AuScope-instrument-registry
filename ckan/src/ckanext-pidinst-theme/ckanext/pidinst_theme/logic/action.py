@@ -61,29 +61,10 @@ def package_create(next_action, context, data_dict):
             for f in schema['owner_org']
         ]
 
-    data_dict['name']  = generate_instrument_name(data_dict)
-    data_dict['title'] = generate_instrument_title(data_dict)
-
     manage_parent_related_resource(data_dict)
 
-    if 'private' in data_dict and data_dict['private'] == 'False':
-        data_dict['publication_date'] = datetime.now()
-
-
-    # This is a temporary solution for the batch upload problem and needs to be addressed in the batch upload process
-    if 'acquisition_start_date' in data_dict:
-        acquisition_start_date = data_dict['acquisition_start_date']
-        if isinstance(acquisition_start_date, pd.Timestamp):
-            acquisition_start_date = acquisition_start_date.strftime('%Y-%m-%d')
-        acquisition_start_date = acquisition_start_date.strip()
-        data_dict['acquisition_start_date'] = acquisition_start_date
-
-    if 'acquisition_end_date' in data_dict:
-        acquisition_end_date = data_dict['acquisition_end_date']
-        if isinstance(acquisition_end_date, pd.Timestamp):
-            acquisition_end_date = acquisition_end_date.strftime('%Y-%m-%d')
-        acquisition_end_date = acquisition_end_date.strip()
-        data_dict['acquisition_end_date'] = acquisition_end_date
+    # if 'private' in data_dict and data_dict['private'] == 'False':
+    #     data_dict['publication_date'] = datetime.now()
 
 
     # logger.info("package_create after data_dict: %s", pformat(data_dict))
@@ -95,18 +76,13 @@ def package_update(next_action, context, data_dict):
     # logger = logging.getLogger(__name__)
     # logger.info("package_update data_dict: %s", pformat(data_dict))
 
-    data_dict['name']  = generate_instrument_name(data_dict)
-    data_dict['title'] = generate_instrument_title(data_dict)
-
     manage_parent_related_resource(data_dict)
 
-    package = get_package_object(context, {'id': data_dict['id']})
-
-    # If package being made public for first time, set publication date
-    if package.private and data_dict['private'] == 'False' and \
-            (not data_dict['publication_date'] or data_dict['publication_date'] == ''):
-        data_dict['publication_date'] = datetime.now()
-
+    # package = get_package_object(context, {'id': data_dict['id']})
+    # if package.private and data_dict['private'] == 'False' and \
+    #         (not data_dict['publication_date'] or data_dict['publication_date'] == ''):
+    #     data_dict['publication_date'] = datetime.now()
+    # return next_action(context, data_dict)
     return next_action(context, data_dict)
 
 logger = logging.getLogger(__name__)
@@ -180,32 +156,6 @@ def manage_parent_related_resource(data_dict):
     # Update the JSON string for related resources
     data_dict['related_resource'] = json.dumps(related_resources)
 
-def generate_instrument_name(data_dict):
-    owner_org = data_dict['owner_org']
-    instrument_type = data_dict['instrument_type']
-    instrument_number = data_dict['instrument_number']
-    org_name= tk.get_action('organization_show')({}, {'id': owner_org})['name']
-    org_name = org_name.replace(' ', '_')
-    instrument_type = instrument_type.replace(' ', '_')
-    instrument_number = instrument_number.replace(' ', '_')
-
-    name = f"{org_name}-{instrument_type}-Instrument-{instrument_number}"
-    name = re.sub(r'[^a-z0-9-_]', '', name.lower())
-
-    return name
-
-def generate_instrument_title(data_dict):
-    owner_org = data_dict['owner_org']
-    instrument_type = data_dict['instrument_type']
-    instrument_number = data_dict['instrument_number']
-    org_name= tk.get_action('organization_show')({}, {'id': owner_org})['name']
-    org_name = org_name
-    instrument_type = instrument_type
-    instrument_number = instrument_number
-
-    title= f"{org_name} - {instrument_type} Instrument {instrument_number}"
-
-    return title
 
 # We do not need user_create customization here.
 # Users do not need to be a part of an organization by default.

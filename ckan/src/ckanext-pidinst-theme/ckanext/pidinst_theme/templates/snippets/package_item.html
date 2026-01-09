@@ -10,7 +10,7 @@
     <td>{% for tag in package.tags %}
           <span class="badge" title="{{ tag.name }}">{{ tag.name|truncate(20) }}</span>{% endfor %}
     </td>
-    <td title="{{ package.notes }}">{{ package.notes|truncate(150) }}</td>
+    <td title="{{ package.description }}">{{ package.description|truncate(150) }}</td>
     <td>
     {% if parent_id %}
         {% set pkg = h.get_package(parent_id) %}  {# Attempt to fetch the package details by ID #}

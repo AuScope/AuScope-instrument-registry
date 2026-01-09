@@ -18,9 +18,9 @@
       {% endblock %}
     </h1>
     {% block package_notes %}
-      {% if pkg.notes %}
+      {% if pkg.description %}
         <div class="notes embedded-content">
-          {{ h.render_markdown(h.get_translated(pkg, 'notes')) }}
+          {{ h.render_markdown(h.get_translated(pkg, 'description')) }}
         </div>
       {% endif %}
     {% endblock %}

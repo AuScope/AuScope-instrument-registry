@@ -31,7 +31,6 @@ dataset_fields:
     label: Landing Page URL
     form_placeholder: A landing page that the identifier resolves to
     help_text: A landing page that the identifier resolves to
-    display_snippet: URL
     groupBy: About Instrument
 
   - field_name: title
@@ -45,7 +44,6 @@ dataset_fields:
   - field_name: name
     label: URL
     preset: dataset_slug
-    form_snippet: hidden_field.html
     form_placeholder: eg. my-instrument
     groupBy: About Instrument
 
@@ -69,6 +67,9 @@ dataset_fields:
     form_snippet: composite_repeating_field.html
     required: true
     groupBy: About Instrument
+    composite_rules:
+      - when_present: owner_identifier
+        require: [owner_identifier_type]    
     subfields:
       - field_name: owner_name
         label: Owner Name
@@ -97,8 +98,12 @@ dataset_fields:
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html
+    required: true
     form_blanks: 1
     groupBy: About Instrument
+    composite_rules:
+      - when_present: manufacturer_identifier
+        require: [manufacturer_identifier_type]    
     subfields:
       - field_name: manufacturer_name
         label: Manufacturer Name
@@ -120,6 +125,9 @@ dataset_fields:
     form_snippet: composite_repeating_field.html
     form_blanks: 1
     groupBy: About Instrument
+    composite_rules:
+      - when_present: model_identifier
+        require: [model_identifier_type]
     subfields:
       - field_name: model_name
         label: Model Name
@@ -206,6 +214,9 @@ dataset_fields:
     validators: composite_repeating_validator
     form_blanks: 0
     groupBy: Related Resources
+    composite_rules:
+      - when_present: related_identifier
+        require: [related_identifier_type]    
     subfields:
       - field_name: related_identifier
         label: Related Identifier
@@ -300,6 +311,13 @@ dataset_fields:
     validators: composite_repeating_validator
     form_blanks: 0
     groupBy: Related Resources
+    composite_rules:
+      - when_present: alternate_identifier
+        require: [alternate_identifier_type]  
+      - when_equals:
+          field: alternate_identifier_type
+          value: Other
+        require: [alternate_identifier_name]          
     subfields:
       - field_name: alternate_identifier
         label: Alternate Identifier
@@ -322,6 +340,21 @@ dataset_fields:
           - value: Other
             label: Other
         help_text: Type of the identifier
+
+  # XXX This will be auto-generated after DOI minting, see metadata document
+  - field_name: citation
+    label: Citation
+    form_snippet: null
+    display_snippet: null
+    help_text: The full bibliographic citation of the instrument
+    groupBy: Supporting Metadata   
+
+  - field_name: owner_org
+    label: Organization
+    form_snippet: org_visibility.html
+    groupBy: About Instrument    
+
+resource_fields: []        
 #   - field_name: user_keywords
 #     label: User Specified Keywords
 #     preset: tag_string_autocomplete
@@ -591,3 +624,5 @@ dataset_fields:
 #   - field_name: format
 #     label: Format
 #     preset: resource_format_autocomplete
+
+

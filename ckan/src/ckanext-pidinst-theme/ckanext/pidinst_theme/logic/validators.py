@@ -1,5 +1,6 @@
 import ckan.plugins.toolkit as tk
 from ckantoolkit import ( _, missing , get_validator )
+import inspect
 import json
 
 import ckanext.scheming.helpers as sh
@@ -157,181 +158,240 @@ def is_valid_bounding_box(bbox):
     except (ValueError, TypeError):
         return False
 
-def composite_not_empty_subfield(key, subfield_label, value, errors):
-    '''
-    Validates that a specified subfield is not empty. If the subfield is empty,
-    appends a custom error message that includes the subfield label.
-
-    Parameters:
-        key (tuple): The key in the data dictionary that corresponds to the main field.
-        subfield_label (str): The label of the subfield to be included in the error message.
-        value (str): The value of the subfield to validate.
-        errors (dict): A dictionary where validation errors are collected.
-    '''
-    if not value or value is missing:
-        if key not in errors:
-            errors[key] = []
-
-        if errors[key] and "Missing value at required subfields:" in errors[key][-1]:
-            errors[key][-1] += f", {subfield_label}"
-        else:
-            errors[key].append(f"Missing value at required subfields: {subfield_label}")
-
 def composite_all_empty(field, item):
-    all_empty = True
-    for schema_subfield in field['subfields']:
-        subfield_value = item.get(schema_subfield.get('field_name', ''), "")
-        if subfield_value and subfield_value is not missing:
-            all_empty = False
-    return all_empty
+    for schema_subfield in field.get("subfields", []):
+        name = schema_subfield.get("field_name", "")
+        v = item.get(name, "")
+        if v is not None and v is not missing and str(v).strip() != "":
+            return False
+    return True
 
-def author_validator(key, item, index, field, errors):
-    author_identifier_key = 'author_identifier'
-    author_identifier_type_key = 'author_identifier_type'
-    author_email_key = 'author_email'
-    author_affiliation_identifier_key = 'author_affiliation_identifier'
 
-    author_identifier = item.get(author_identifier_key, "")
-    author_identifier_type = item.get(author_identifier_type_key, "")
-    author_email = item.get(author_email_key, "")
-    author_affiliation_identifier = item.get(author_affiliation_identifier_key, "")
+def _subfield_label(field, subfield_name, index):
+    # Find label from schema, fall back to field_name
+    for sf in field.get("subfields", []):
+        if sf.get("field_name") == subfield_name:
+            label = sf.get("label") or subfield_name
+            # label can be i18n dict sometimes
+            if isinstance(label, dict):
+                label = subfield_name
+            return f"{label} {index}"
+    return f"{subfield_name} {index}"
 
-    if author_identifier:
-        tk.get_validator('url_validator')(key, {key: author_identifier}, errors, {})
 
-        for subfield in field['subfields']:
-            if subfield.get('field_name') == 'author_identifier_type':
-                author_identifier_type_label = subfield.get('label', 'Default Label') + " " + str(index)
-                break
-        composite_not_empty_subfield(key, author_identifier_type_label, author_identifier_type, errors)
+def composite_not_empty_subfield(main_key, subfield_label, value, errors):
+    if value is missing or value is None or str(value).strip() == "":
+        # Keep a single aggregated message (your existing UX)
+        errors[main_key] = errors.get(main_key, [])
+        if errors[main_key] and "Missing value at required subfields:" in errors[main_key][-1]:
+            errors[main_key][-1] += f", {subfield_label}"
+        else:
+            errors[main_key].append(f"Missing value at required subfields: {subfield_label}")
 
-    if author_email:
+
+def _apply_navl_validators_to_value(validators_str, value, context):
+    """
+    Apply CKAN NAVL validators (space-separated) to a single value.
+    Returns (new_value, error_messages[])
+    """
+    if not validators_str:
+        return value, []
+
+    tmp_key = ("__tmp__",)
+    tmp_data = {tmp_key: value}
+    tmp_errors = {}
+
+    for vname in validators_str.split():
+        v = get_validator(vname)
+
+        # Prefer NAVL invocation; fallback to value-style if signature mismatch
         try:
-            tk.get_validator('email_validator')(author_email, {})
-        except tk.ValidationError:
-            errors[author_email_key] = errors.get(author_email_key, [])
-            errors[author_email_key].append(f"Author Email {index} must be a valid email address.")
+            v(tmp_key, tmp_data, tmp_errors, context)
+        except TypeError:
+            try:
+                # Some validators accept (value, context)
+                tmp_data[tmp_key] = v(tmp_data[tmp_key], context)
+            except TypeError:
+                # Simple value transformer: (value)
+                tmp_data[tmp_key] = v(tmp_data[tmp_key])
+            except tk.Invalid as e:
+                tmp_errors.setdefault(tmp_key, []).append(str(e))
+        except tk.Invalid as e:
+            tmp_errors.setdefault(tmp_key, []).append(str(e))
+        except StopOnError:
+            tmp_errors.setdefault(tmp_key, []).append(str(invalid_error))
 
-    if author_affiliation_identifier:
-        tk.get_validator('url_validator')(key, {key: author_affiliation_identifier}, errors, {})
+    return tmp_data.get(tmp_key), tmp_errors.get(tmp_key, [])
 
 
-def funder_validator(key, item, index, field, errors):
-    funder_identifier_key = f'funder_identifier'
-    funder_identifier_type_key = f'funder_identifier_type'
+def _parse_composite_from_extras(key, data):
+    """
+    Extract composite repeating rows from __extras (scheming composite pattern).
+    Returns (found_list, extras_to_delete, extras_dict)
+    """
+    found = {}
+    prefix = key[-1] + "-"
+    extras_key = key[:-1] + ("__extras",)
+    extras = data.get(extras_key, {})
 
-    funder_identifier = item.get(funder_identifier_key, "")
-    funder_identifier_type = item.get(funder_identifier_type_key, "")
+    extras_to_delete = []
+    for name, text in list(extras.items()):
+        if not name.startswith(prefix):
+            continue
 
-    if funder_identifier and funder_identifier is not missing:
-        tk.get_validator('url_validator')(key, {key: funder_identifier}, errors, {})
-        for subfield in field['subfields']:
-            if subfield.get('field_name') == 'funder_identifier_type':
-                funder_identifier_type_label = subfield.get('label', 'Default Label') + " " + str(index)
-                break
-        composite_not_empty_subfield(key,  funder_identifier_type_label , funder_identifier_type, errors)
+        # name format: "{field}-{index}-{subfield}"
+        # eg: "owner-1-owner_name"
+        parts = name.split("-", 2)
+        if len(parts) != 3:
+            continue
 
-def project_validator(key, item, index, field, errors):
-    project_name_key = f'project_name'
-    project_identifier_key = f'project_identifier'
-    project_identifier_type_key = f'project_identifier_type'
+        index = int(parts[1])
+        subfield = parts[2]
+        extras_to_delete.append(name)
 
-    project_name = item.get(project_name_key, "")
-    project_identifier = item.get(project_identifier_key, "")
-    project_identifier_type = item.get(project_identifier_type_key, "")
+        found.setdefault(index, {})
+        found[index][subfield] = text
 
-    if project_identifier and project_identifier is not missing:
-        tk.get_validator('url_validator')(key, {key: project_identifier}, errors, {})
+    found_list = [row for _, row in sorted(found.items(), key=lambda kv: kv[0])]
+    return found, found_list, extras_to_delete, extras
 
-    if project_name and project_name is not missing:
-        for subfield in field['subfields']:
-            if subfield.get('field_name') == 'project_identifier':
-                project_identifier_label = subfield.get('label', 'Default Label') + " " + str(index)
-            if subfield.get('field_name') == 'project_identifier_type':
-                project_identifier_type_label = subfield.get('label', 'Default Label') + " " + str(index)
 
-        composite_not_empty_subfield(key,  project_identifier_label , project_identifier, errors)
-        composite_not_empty_subfield(key,  project_identifier_type_label , project_identifier_type, errors)
+def _apply_required_subfields(field, key, item, index, errors):
+    item_is_empty_and_optional = composite_all_empty(field, item) and not sh.scheming_field_required(field)
+    if item_is_empty_and_optional:
+        return
 
-def related_resource_validator(key, item, index, field, errors):
-    related_resource_url_key = f'related_resource_url'
-    related_resource_url = item.get(related_resource_url_key, "")
+    for sf in field.get("subfields", []):
+        if sf.get("required", False):
+            name = sf.get("field_name")
+            label = _subfield_label(field, name, index)
+            composite_not_empty_subfield(key, label, item.get(name, ""), errors)
 
-    if related_resource_url and related_resource_url is not missing:
-        tk.get_validator('url_validator')(key, {key: related_resource_url}, errors, {})
+
+def _apply_subfield_validators(field, key, item, index, errors, context):
+    """
+    Runs each subfield's validators string (if present) against the item's value.
+    Stores transformed values back into item (eg strip_value).
+    """
+    for sf in field.get("subfields", []):
+        name = sf.get("field_name")
+        validators_str = sf.get("validators")
+        if not validators_str:
+            continue
+
+        raw = item.get(name, "")
+        new_value, msgs = _apply_navl_validators_to_value(validators_str, raw, context)
+        item[name] = new_value
+
+        if msgs:
+            label = _subfield_label(field, name, index)
+            for m in msgs:
+                add_error(errors, key, f"{label}: {m}")
+
+
+def _apply_composite_rules(field, key, item, index, errors):
+    """
+    Generic conditional requirements based on field['composite_rules'].
+    Supports:
+      - when_present: <field>
+      - when_equals: {field: <field>, value: <value>}
+      - require: [<field>, ...]
+    """
+    rules = field.get("composite_rules") or []
+    if not rules:
+        return
+
+    def is_present(v):
+        return v is not missing and v is not None and str(v).strip() != ""
+
+    for rule in rules:
+        required_fields = rule.get("require") or []
+
+        should_apply = False
+
+        if "when_present" in rule:
+            trigger = rule["when_present"]
+            should_apply = is_present(item.get(trigger, ""))
+
+        elif "when_equals" in rule:
+            we = rule["when_equals"] or {}
+            f = we.get("field")
+            expected = we.get("value")
+            actual = item.get(f, "")
+            should_apply = is_present(actual) and str(actual) == str(expected)
+
+        if not should_apply:
+            continue
+
+        for req_name in required_fields:
+            label = _subfield_label(field, req_name, index)
+            composite_not_empty_subfield(key, label, item.get(req_name, ""), errors)
+
 
 @scheming_validator
 @register_validator
 def composite_repeating_validator(field, schema):
     def validator(key, data, errors, context):
-        value = ""
+        # If field already posted as JSON (API clients), validate that too.
+        raw_value = data.get(key, "")
+        items = None
 
-        for name, text in data.items():
-            if name == key:
-                if text:
-                    value = text
+        if raw_value and raw_value is not missing:
+            if isinstance(raw_value, str):
+                try:
+                    items = json.loads(raw_value)
+                    if not isinstance(items, list):
+                        add_error(errors, key, invalid_error)
+                        items = None
+                except Exception:
+                    add_error(errors, key, invalid_error)
+                    items = None
 
-        # parse from extra into a list of dictionaries and save it as a json dump
-        if not value:
-            found = {}
-            prefix = key[-1] + '-'
-            extras = data.get(key[:-1] + ('__extras',), {})
+        found = {}
+        extras_to_delete = []
+        extras = None
 
-            extras_to_delete = []
-            for name, text in extras.items():
-                if not name.startswith(prefix):
-                    continue
+        # Typical form submission path (composite extras)
+        if items is None:
+            found, found_list, extras_to_delete, extras = _parse_composite_from_extras(key, data)
+            items = found_list
 
-                # if not text:
-                #    continue
+        # If empty
+        if not items:
+            data[key] = ""
+            if sh.scheming_field_required(field):
+                not_empty(key, data, errors, context)
+            return
 
-                index = int(name.split('-', 2)[1])
-                subfield = name.split('-', 2)[2]
-                extras_to_delete += [name]
+        clean_list = []
+        # Indices are 1-based in your UI messages; match your old behaviour
+        # If we parsed from extras, we have original indices; otherwise enumerate.
+        if found:
+            iterable = [(idx, found[idx]) for idx in sorted(found.keys())]
+        else:
+            iterable = [(i + 1, it) for i, it in enumerate(items)]
 
-                if index not in found.keys():
-                    found[index] = {}
-                found[index][subfield] = text
-            found_list = [element[1] for element in sorted(found.items())]
+        for index, item in iterable:
+            if not isinstance(item, dict):
+                add_error(errors, key, invalid_error)
+                continue
 
-            if not found_list:
-                data[key] = ""
-            else:
+            if composite_all_empty(field, item):
+                continue
 
-                # check if there are required subfields missing for every item
-                for index in found:
-                    item = found[index]
+            _apply_required_subfields(field, key, item, index, errors)
+            _apply_subfield_validators(field, key, item, index, errors, context)
+            _apply_composite_rules(field, key, item, index, errors)
 
-                    item_is_empty_and_optional = composite_all_empty(field, item) and not sh.scheming_field_required(field)
-                    for schema_subfield in field['subfields']:
-                        if schema_subfield.get('required', False) and not item_is_empty_and_optional:
-                            if type(schema_subfield.get('label', '')) is dict:
-                                subfield_label = schema_subfield.get('field_name', '') + " " + str(index)
-                            else:
-                                subfield_label = schema_subfield.get('label', schema_subfield.get('field_name', '')) + " " + str(index)
+            clean_list.append(item)
 
-                            subfield_value = item.get(schema_subfield.get('field_name', ''), "")
-                            composite_not_empty_subfield(key, subfield_label , subfield_value, errors)
+        data[key] = json.dumps(clean_list, ensure_ascii=False) if clean_list else ""
 
-                    # Call custom author and funder validation for each item
-                    author_validator(key , item, index, field, errors)
-                    funder_validator(key , item, index, field, errors)
-                    project_validator(key , item, index, field, errors)
-                    related_resource_validator(key , item, index, field, errors)
+        # delete extras to avoid duplicates in package_dict
+        if extras is not None and extras_to_delete:
+            for extra_name in extras_to_delete:
+                extras.pop(extra_name, None)
 
-                # remove empty elements from list
-                clean_list = []
-                for element in found_list:
-                    if not composite_all_empty(field, element):
-                        clean_list += [element]
-                # dump the list to a string
-                data[key] = json.dumps(clean_list, ensure_ascii=False)
-
-                # delete the extras to avoid duplicate fields
-                for extra in extras_to_delete:
-                    del extras[extra]
-
-        # check if the field is required
         if sh.scheming_field_required(field):
             not_empty(key, data, errors, context)
 
@@ -355,124 +415,6 @@ def owner_org_validator(key, data, errors, context):
             return
     ckan_owner_org_validator(key, data, errors, context)
 
-
-@scheming_validator
-@register_validator
-def instrument_number_validator(field, schema):
-    def validator(key, data, errors, context):
-
-        instrument_number = data.get(key)
-        owner_org_key = ('owner_org',)
-        owner_org = data.get(owner_org_key, missing)
-        current_instrument_id = data.get(('id',), None)
-
-        if owner_org is missing:
-            add_error(errors, owner_org_key, missing_error)
-            return
-
-        if instrument_number is missing or instrument_number == '':
-            add_error(errors, key, missing_error)
-            return
-
-        try:
-            package_search = tk.get_action('package_search')
-            search_result = package_search(context, {
-                'q': f'owner_org:{owner_org} AND instrument_number:{instrument_number}',
-                'rows': 1000  # Retrieve all potential results
-            })
-
-            if search_result['count'] > 0:
-                for result in search_result['results']:
-                    if result['id'] != current_instrument_id:
-                        org_name = tk.get_action('organization_show')({}, {'id': owner_org})['name']
-                        add_error(errors, key, f'instrument_number "{instrument_number}" already exists in organisation "{org_name}"')
-                        break  # Stop checking after the first duplicate is found
-        except NotFound:
-            add_error(errors, key, 'Error checking uniqueness of instrument_number')
-        except Exception as e:
-            add_error(errors, key, f'Error querying Solr: {str(e)}')
-
-        return
-
-    return validator
-
-from datetime import datetime
-
-@scheming_validator
-@register_validator
-def acquisition_date_validator(field, schema):
-    """
-    A validator to ensure the acquisition_start_date is today or before,
-    and that the acquisition_end_date is later than the start date.
-    """
-    def validator(key, data, errors, context):
-
-        acquisition_start_date_key = ('acquisition_start_date',)
-        acquisition_end_date_key = ('acquisition_end_date',)
-
-        acquisition_start_date_str = data.get(acquisition_start_date_key, missing)
-        acquisition_end_date_str = data.get(acquisition_end_date_key, missing)
-
-        if ((acquisition_start_date_str is missing and acquisition_end_date_str is missing) or
-                (acquisition_start_date_str is None and acquisition_end_date_str is None) or
-                (not acquisition_start_date_str.strip() and not acquisition_end_date_str.strip())):
-            return
-
-        try:
-            acquisition_start_date = datetime.strptime(acquisition_start_date_str, "%Y-%m-%d").date()
-        except ValueError:
-            add_error(errors, acquisition_start_date_key, 'Invalid date format. Please use YYYY-MM-DD.')
-            return
-
-        try:
-            acquisition_end_date = datetime.strptime(acquisition_end_date_str, "%Y-%m-%d").date()
-        except ValueError:
-            add_error(errors, acquisition_end_date_key, 'Invalid date format. Please use YYYY-MM-DD.')
-            return
-
-        if acquisition_start_date > datetime.now().date():
-            add_error(errors, acquisition_start_date_key, 'Acquisition start date must be today or before.')
-            return
-
-        if acquisition_start_date > acquisition_end_date:
-            add_error(errors, acquisition_end_date_key, 'Acquisition end date must be later than the start date.')
-            return
-
-    return validator
-
-@scheming_validator
-@register_validator
-def depth_validator(field, schema):
-    """
-    A validator to ensure the depth_from is less than depth_to
-    """
-    def validator(key, data, errors, context):
-
-        depth_from_key = ('depth_from',)
-        depth_to_key = ('depth_to',)
-
-        depth_from_str = data.get(depth_from_key, missing)
-        depth_to_str = data.get(depth_to_key, missing)
-
-        if all(val is missing or val is None or not str(val).strip() for val in [depth_from_str, depth_to_str]):
-            return
-
-        try:
-            depth_from = float(depth_from_str)
-        except (ValueError, TypeError):
-            add_error(errors, depth_from_key, invalid_error)
-            return
-
-        try:
-            depth_to = float(depth_to_str)
-        except (ValueError, TypeError):
-            add_error(errors, depth_to_key, invalid_error)
-            return
-
-        if depth_from >= depth_to:
-            add_error(errors, depth_to_key, _("Depth to must be greater than the depth from."))
-
-    return validator
 
 @scheming_validator
 @register_validator
@@ -568,9 +510,6 @@ def get_validators():
         "location_validator": location_validator,
         "composite_repeating_validator": composite_repeating_validator,
         "owner_org_validator": owner_org_validator,
-        "instrument_number_validator" : instrument_number_validator,
-        "acquisition_date_validator" : acquisition_date_validator,
-        "depth_validator" : depth_validator,
         "parent_validator" : parent_validator,
         "group_name_validator" : group_name_validator
     }

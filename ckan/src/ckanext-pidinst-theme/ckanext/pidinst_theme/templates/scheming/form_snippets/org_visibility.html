@@ -1,0 +1,58 @@
+{# This is specific to datasets' owner_org field and won't work #}
+{# if used with other fields #}
+
+
+{% macro organization_option_tag(organization, selected_org) %}
+  {% block organization_option scoped %}
+    <option value="{{ organization.id }}"{%
+      if selected_org %} selected="selected"{% endif
+      %}>{{ organization.display_name }}</option>
+  {% endblock %}
+{% endmacro %}
+
+  <div data-module="dataset-visibility">
+  {# snippet "scheming/form_snippets/_organization_select.html",
+    field=field,
+    data=data,
+    errors=errors,
+    organizations_available=h.organizations_available('create_dataset'),
+    org_required=not h.check_config_permission('create_unowned_dataset')
+      or h.scheming_field_required(field),
+    organization_option_tag=organization_option_tag #}
+
+    <select id="field-organizations" name="owner_org" style="display:none;">
+	{# Need to get this from config  #}
+        <option value="auscope"></option>
+    </select>
+
+    {% block package_metadata_fields_visibility %}
+    {# if the user is an editor they will see the visibility field #}
+    {% if h.users_role_in_org(current_user.name) == 'editor' or
+          h.users_role_in_org(current_user.name) == 'admin' %}
+      <div class="control-group form-group control-medium">
+        <label for="field-private" class="control-label">{{ _('Visibility') }}</label>
+        <div class="controls">
+          <select id="field-private" name="private" class="form-control form-select">
+            {% for option in [('True', _('Private')), ('False', _('Public'))] %}
+            <option value="{{ option[0] }}" {% if option[0] == data.private|trim %}selected="selected"{% endif %}>{{ option[1] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    {# if the user is only a member (or anon) they will not see the visibility field #}
+    {% else %}
+      <div class="control-group form-group control-medium">
+        <label for="field-private" class="control-label">{{ _('Visibility') }}</label>
+        <div class="controls">
+          <select id="field-private" name="private" class="form-control form-select">
+            {% for option in [('True', _('Private'))] %}
+            <option value="{{ option[0] }}" {% if option[0] == data.private|trim %}selected="selected"{% endif %}>{{ option[1] }}</option>
+            {% endfor %}
+          </select>
+          <small>This dataset will remain private until an editor reviews it and makes it public.</small>
+        </div>
+      </div>
+    <!--This dataset will be made private. Only editors will be able to make this dataset public.-->
+    {% endif %}
+    {% endblock %}
+  </div>
