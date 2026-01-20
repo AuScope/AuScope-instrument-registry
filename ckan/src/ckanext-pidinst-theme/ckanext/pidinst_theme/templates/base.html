@@ -5,8 +5,29 @@
 {% asset 'pidinst_theme/pidinst_theme-css' %}
 {% endblock %}
 
+{% block head_extras %}
+{{ super() }}
+{# RudderStack Analytics Integration #}
+{{ h.rudderstack_script() }}
+{% endblock %}
 
 {% block scripts %}
 {{ super() }}
 {% asset 'pidinst_theme/pidinst_theme-js' %}
+
+{# RudderStack User Identification #}
+{% if c.userobj %}
+<script type="text/javascript">
+  if (typeof rudderanalytics !== 'undefined') {
+    rudderanalytics.ready(function() {
+      rudderanalytics.identify('{{ c.userobj.id }}', {
+        name: '{{ c.userobj.display_name or c.userobj.name }}',
+        email: '{{ c.userobj.email }}',
+        username: '{{ c.userobj.name }}',
+        created: '{{ c.userobj.created }}'
+      });
+    });
+  }
+</script>
+{% endif %}
 {% endblock %}

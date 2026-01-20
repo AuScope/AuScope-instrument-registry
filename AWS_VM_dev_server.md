@@ -44,59 +44,6 @@ git clone https://github.com/AuScope/AuScope-instrument-registry.git .
 
 Create or use existing docker-compose.yml. Example structure:
 
-```yaml
-version: "3"
-
-services:
-  postgres:
-    image: postgres:14
-    environment:
-      POSTGRES_USER: ckan
-      POSTGRES_PASSWORD: ckan
-      POSTGRES_DB: ckan
-    volumes:
-      - /opt/ckan/postgres-data:/var/lib/postgresql/data
-    networks:
-      - ckan-network
-
-  solr:
-    image: ckan/ckan-solr:2.10-solr9
-    volumes:
-      - /opt/ckan/solr-data:/var/solr
-    networks:
-      - ckan-network
-
-  redis:
-    image: redis:7
-    volumes:
-      - /opt/ckan/redis-data:/data
-    networks:
-      - ckan-network
-
-  ckan:
-    build: .
-    ports:
-      - "5000:5000"
-    environment:
-      CKAN_SQLALCHEMY_URL: postgresql://ckan:ckan@postgres/ckan
-      CKAN_SOLR_URL: http://solr:8983/solr/ckan
-      CKAN_REDIS_URL: redis://redis:6379/0
-      CKAN_SITE_URL: https://instrument-test.data.auscope.org.au
-    volumes:
-      - /opt/ckan/data:/var/lib/ckan
-      - ./:/usr/lib/ckan/default/src/ckan # Mount source for development
-    depends_on:
-      - postgres
-      - solr
-      - redis
-    networks:
-      - ckan-network
-
-networks:
-  ckan-network:
-    driver: bridge
-```
-
 ## 4. Start CKAN
 
 ```bash
@@ -184,5 +131,55 @@ docker compose logs -f
 docker compose exec ckan bash
 
 # Rebuild CKAN container after code changes
-docker compose up -d --build ckan
+docker compose -f docker-compose.dev.yml up -d --build ckan
 ```
+
+# Open the AWS Ubuntu VM in VS Code (Remote – SSH)
+
+### 1) Install the extension
+
+In VS Code: **Extensions → “Remote - SSH”** (by Microsoft) → Install.
+
+### 2) Add an SSH host entry
+
+Open **Command Palette** → `Remote-SSH: Open SSH Configuration File…`
+Choose your config (Windows usually: `C:\Users\<you>\.ssh\config`) and add:
+
+```sshconfig
+Host ckan-dev
+  HostName instrument-test.data.auscope.org.au
+  User ubuntu
+  IdentityFile C:\Users\<you>\.ssh\ckan-dev
+  IdentitiesOnly yes
+```
+
+> Replace the `IdentityFile` path with your actual key file.
+
+### 3) Connect
+
+Command Palette → `Remote-SSH: Connect to Host…` → select **ckan-dev**
+
+When prompted for the remote OS, select **Linux** (Ubuntu).
+
+You should see `SSH: ckan-dev` in the bottom-left once connected.
+
+### 4) Open a folder on the VM
+
+In the **Remote** VS Code window:
+
+* **File → Open Folder…**
+* Enter the remote path (example):
+
+  * `/opt/ckan` (or wherever your repo is)
+* Click **OK**
+
+Now you can browse/edit files on the VM directly.
+
+### 5) If it prompts for OS again later
+
+Always pick **Linux** for Ubuntu. Picking Windows can cause errors like `powershell: command not found`.
+
+### Quick troubleshooting
+
+* **Timeout:** SSH port 22 not reachable (security group / IP).
+* **Permission denied:** wrong key or wrong user (Ubuntu AMI user is usually `ubuntu`).
