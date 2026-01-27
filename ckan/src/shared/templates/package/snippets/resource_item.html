@@ -1,0 +1,35 @@
+{% ckan_extends %}
+
+{# Add data attributes for resource download tracking #}
+{% block resource_item_explore %}
+<div class="dropdown btn-group" data-resource-id="{{ res.id }}" data-resource-name="{{ res.name or res.description }}" data-resource-format="{{ res.format }}">
+  {{ super() }}
+</div>
+{% endblock %}
+
+{% block resource_item_explore_inner %}
+  {% if res.url and h.is_url(res.url) %}
+  <li>
+    <a href="{{ res.url }}" 
+       class="resource-url-analytics" 
+       target="_blank"
+       data-resource-id="{{ res.id }}"
+       data-resource-name="{{ res.name or res.description }}"
+       data-format="{{ res.format }}">
+      <i class="fa fa-external-link"></i> {{ _('Go to resource') }}
+    </a>
+  </li>
+  {% endif %}
+  {% if res.url %}
+  <li>
+    <a href="{{ h.url_for('resource.download', id=pkg.name, resource_id=res.id) }}" 
+       class="resource-url-analytics"
+       data-resource-id="{{ res.id }}"
+       data-resource-name="{{ res.name or res.description }}"
+       data-format="{{ res.format }}">
+      <i class="fa fa-download"></i> {{ _('Download') }}
+    </a>
+  </li>
+  {% endif %}
+  {{ super() }}
+{% endblock %}

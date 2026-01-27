@@ -63,8 +63,8 @@ def package_create(next_action, context, data_dict):
 
     manage_parent_related_resource(data_dict)
 
-    # if 'private' in data_dict and data_dict['private'] == 'False':
-    #     data_dict['publication_date'] = datetime.now()
+    if 'private' in data_dict and data_dict['private'] == 'False':
+        data_dict['publication_date'] = datetime.now()
 
 
     # logger.info("package_create after data_dict: %s", pformat(data_dict))
@@ -78,11 +78,11 @@ def package_update(next_action, context, data_dict):
 
     manage_parent_related_resource(data_dict)
 
-    # package = get_package_object(context, {'id': data_dict['id']})
-    # if package.private and data_dict['private'] == 'False' and \
-    #         (not data_dict['publication_date'] or data_dict['publication_date'] == ''):
-    #     data_dict['publication_date'] = datetime.now()
-    # return next_action(context, data_dict)
+    package = get_package_object(context, {'id': data_dict['id']})
+    if package.private and data_dict['private'] == 'False' and \
+            (not data_dict['publication_date'] or data_dict['publication_date'] == ''):
+        data_dict['publication_date'] = datetime.now()
+
     return next_action(context, data_dict)
 
 logger = logging.getLogger(__name__)

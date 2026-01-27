@@ -148,6 +148,77 @@ dataset_fields:
     help_text: Technical description of the device and its capabilities
     groupBy: About Instrument
 
+  - field_name: user_keywords
+    label: User Specified Keywords
+    required: true
+    preset: tag_string_autocomplete
+    validators: not_empty tag_string_convert
+    help_text: Keywords help with the discovery of the instrument
+    groupBy: About Instrument
+
+  - field_name: locality
+    label: Locality
+    help_text: The locality or named place where the instrument is located
+    groupBy: Spatial & Temporal
+
+  - field_name: location_choice
+    label: Location Details
+    preset: radio
+    choices:
+      - value: noLocation
+        label: "No"
+      - value: area
+        label: Area on Map
+      - value: point
+        label: Single point on Map
+    default: noLocation
+    display_snippet: map_field.html
+    help_text: Choose how to specify the location.
+    validators: location_validator
+    groupBy: Spatial & Temporal
+
+  - field_name: map_display
+    label: Map Display
+    form_snippet: map_field_single_point.html
+    display_snippet: null
+    help_text: Interactive map for selecting coordinates.
+    groupBy: Spatial & Temporal
+
+  - field_name: location_data
+    label: Location Data
+    form_snippet: null
+    display_snippet: null
+    preset: json_object
+    groupBy: Spatial & Temporal
+
+  - field_name: spatial
+    label: Spatial
+    form_snippet: null
+    display_snippet: null
+    preset: json_object
+    groupBy: Spatial & Temporal
+
+  - field_name: elevation
+    label: Elevation (m)
+    help_text: The elevation of the geographic location specified above mean sea level in meters
+    form_snippet: null
+    display_snippet: null
+    groupBy: Spatial & Temporal
+
+  - field_name: epsg_code
+    label: Geographic Coordinate System
+    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
+    form_snippet: null
+    display_snippet: null
+    groupBy: Spatial & Temporal
+
+  - field_name: epsg
+    label: Geographic Coordinate System
+    form_snippet: hidden_field.html
+    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
+    display_snippet: null
+    groupBy: Spatial & Temporal    
+
   - field_name: instrument_type
     label: Instrument Type
     preset: composite_repeating
@@ -342,6 +413,91 @@ dataset_fields:
         help_text: Type of the identifier
 
   # XXX This will be auto-generated after DOI minting, see metadata document
+  - field_name: owner_org
+    label: Organization
+    form_snippet: org_visibility.html
+    groupBy: About Instrument
+
+  - field_name: supplementation_information
+    label: Supplemental Information
+    form_snippet: textarea.html
+    help_text: Any other descriptive information about the instrument that can promote its reuse
+    groupBy: Supporting Metadata
+
+  - field_name: publisher
+    label: Publisher
+    required: true
+    preset: select
+    choices:
+      - value: AuScope
+        label: AuScope
+    default: AuScope
+    form_include_blank_choice: false
+    help_text: The entity that publishes the instrument
+    form_snippet: hidden_field.html
+    display_snippet: publisher_field.html
+    groupBy: Supporting Metadata
+
+  - field_name: publisher_identifier
+    label: Publisher Identifier
+    required: true
+    preset: select
+    choices:
+      - value: "https://ror.org/04s1m4564"
+        label: https://ror.org/04s1m4564
+    default: https://ror.org/04s1m4564
+    form_include_blank_choice: false
+    form_snippet: hidden_field.html
+    display_snippet: null
+    help_text: The persistent identifier of the publisher
+    validators: ignore_missing unicode_safe strip_value url_validator
+    groupBy: Supporting Metadata
+
+  - field_name: publisher_identifier_type
+    label: Publisher Identifier Type
+    required: true
+    default: ROR
+    preset: select
+    choices:
+      - value: ROR
+        label: ROR
+    form_include_blank_choice: false
+    form_snippet: hidden_field.html
+    display_snippet: null
+    help_text: The type of the persistent identifier represents the publisher
+    groupBy: Supporting Metadata
+
+  - field_name: publication_date
+    label: Publication Date
+    form_snippet: hidden_field.html
+    preset: date
+    help_text: The date the instrument is published through the repository
+    groupBy: Supporting Metadata
+
+  - field_name: credit
+    label: Credit
+    form_snippet: textarea.html
+    help_text: The Credit field is where you acknowledge people or organisations who contributed
+    groupBy: Supporting Metadata
+
+  - field_name: primary_contact_name
+    label: Primary Contact Name
+    required: true
+    default: AuScope Instrument Repository
+    help_text: A primary contact can be approached by users requesting further information of the instrument
+    form_snippet: hidden_field.html
+    groupBy: Supporting Metadata   
+
+  - field_name: primary_contact_email
+    label: Primary Contact Email
+    required: true
+    default: help@data.auscope.org.au
+    display_snippet: email.html
+    # display_email_name_field: primary_contact_name
+    help_text: Email of the primary contact
+    form_snippet: hidden_field.html
+    groupBy: Supporting Metadata   
+
   - field_name: citation
     label: Citation
     form_snippet: null
@@ -349,280 +505,22 @@ dataset_fields:
     help_text: The full bibliographic citation of the instrument
     groupBy: Supporting Metadata
 
-  - field_name: owner_org
-    label: Organization
-    form_snippet: org_visibility.html
-    groupBy: About Instrument
+resource_fields:
+  - field_name: url
+    label: URL
+    preset: resource_url_upload
 
-resource_fields: []
-#   - field_name: user_keywords
-#     label: User Specified Keywords
-#     preset: tag_string_autocomplete
-#     validators: ignore_missing tag_string_convert
-#     help_text: Keywords help with the discovery of the instrument
-#     groupBy: Supporting Metadata
+  - field_name: name
+    label: Name
+    help: The name of the instrument
 
-#   - field_name: gcmd_keywords_code
-#     label: GCMD Science Keywords
-#     form_snippet: gcmd_field.html
-#     display_snippet: gcmd_field.html
-#     help_text: Global Change Master Directory (GCMD) science keywords. Choose the keywords that represent the instrument or its application.
-#     groupBy: Supporting Metadata
+  - field_name: description
+    label: Description
+    preset: markdown
+    form_placeholder: Some useful notes about the instrument
 
-#   - field_name: gcmd_keywords
-#     label: GCMD Science Keywords
-#     form_snippet: hidden_field.html
-#     help_text: Global Change Master Directory (GCMD) science keywords. Choose the keywords that represent the instrument or its application.
-#     display_snippet: null
-#     groupBy: Supporting Metadata
-
-#   - field_name: fields_of_research_code
-#     label: Fields of Research Code
-#     form_snippet: fields_of_research_field.html
-#     display_snippet: null
-#     help_text: The area(s) of study relevant to the instrument or its application, based on the ANZSRC Fields of Research (FoR) 2020
-#     groupBy: Supporting Metadata
-
-#   - field_name: fields_of_research
-#     label: Fields of Research
-#     form_snippet: hidden_field.html
-#     help_text: The classification code used for the subject term in ANZSRC Fields of Research (FoR) 2020
-#     display_snippet: fields_of_research_field.html
-#     groupBy: Supporting Metadata
-
-#   - field_name: locality
-#     label: Locality
-#     help_text: The locality or named place where the instrument is located
-#     groupBy: Spatial & Temporal
-
-#   - field_name: location_choice
-#     label: Location Details
-#     preset: radio
-#     choices:
-#       - value: noLocation
-#         label: "No"
-#       - value: area
-#         label: Area on Map
-#       - value: point
-#         label: Single point on Map
-#     default: noLocation
-#     display_snippet: map_field.html
-#     help_text: Choose how to specify the location.
-#     validators: location_validator
-#     groupBy: Spatial & Temporal
-
-#   - field_name: map_display
-#     label: Map Display
-#     form_snippet: map_field_single_point.html
-#     display_snippet: null
-#     help_text: Interactive map for selecting coordinates.
-#     groupBy: Spatial & Temporal
-
-#   - field_name: location_data
-#     label: Location Data
-#     form_snippet: null
-#     display_snippet: null
-#     preset: json_object
-#     groupBy: Spatial & Temporal
-
-#   - field_name: spatial
-#     label: Spatial
-#     form_snippet: null
-#     display_snippet: null
-#     preset: json_object
-#     groupBy: Spatial & Temporal
-
-#   - field_name: elevation
-#     label: Elevation (m)
-#     help_text: The elevation of the geographic location specified above mean sea level in meters
-#     form_snippet: null
-#     display_snippet: null
-#     groupBy: Spatial & Temporal
-
-#   - field_name: epsg_code
-#     label: Geographic Coordinate System
-#     help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
-#     form_snippet: null
-#     display_snippet: null
-#     groupBy: Spatial & Temporal
-
-#   - field_name: epsg
-#     label: Geographic Coordinate System
-#     form_snippet: hidden_field.html
-#     help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
-#     display_snippet: null
-#     groupBy: Spatial & Temporal
-
-#   - field_name: funder
-#     label: Funding Reference
-#     preset: composite_repeating
-#     form_snippet: composite_repeating_field.html
-#     validators: composite_repeating_validator
-#     form_blanks: 0
-#     groupBy: Funder Identifier
-#     subfields:
-#       - field_name: funder_name
-#         label: Funder Name
-#         required: true
-#         help_text: Information about financial support for the instrument. Provide the full (official) name of the funding provider, e.g., Australian Research Council (ARC)
-
-#       - field_name: funder_identifier
-#         label: Funder Identifier
-#         display_snippet: URL
-#         help_text: Unique identifier of the funding entity
-
-#       - field_name: funder_identifier_type
-#         label: Funder Identifier Scheme
-#         preset: select
-#         choices:
-#           - value: Crossref Funder ID
-#             label: Crossref Funder ID
-#           - value: GRID
-#             label: GRID
-#           - value: ISNI
-#             label: ISNI
-#           - value: ROR
-#             label: ROR
-#           - value: Wikidata
-#             label: Wikidata
-#           - value: Other
-#             label: Other
-#         help_text: The type of the funder identifier
-
-#       - field_name: funding_program
-#         label: Funding Program Name
-#         help_text: The name of the funding program through which the project grant was awarded
-
-#       - field_name: project_identifier
-#         label: Project Identifier
-#         display_snippet: URL
-#         help_text: The code assigned by the funder to a sponsored project
-
-#       - field_name: project_name
-#         label: Project Name
-#         help_text: The full name of the project
-
-#       - field_name: project_identifier_type
-#         label: Project Identifier Type
-#         preset: select
-#         choices:
-#           - value: RAiD
-#             label: RAiD
-#           - value: CORDIS Grant Agreement ID
-#             label: CORDIS Grant Agreement ID
-#           - value: GrantConnect ID
-#             label: GrantConnect ID
-#           - value: Other
-#             label: Other
-#         help_text: The type of project identifier
-
-#   - field_name: supplementation_information
-#     label: Supplemental Information
-#     form_snippet: textarea.html
-#     help_text: Any other descriptive information about the instrument that can promote its reuse
-#     groupBy: Supporting Metadata
-
-#   - field_name: publisher
-#     label: Publisher
-#     required: true
-#     preset: select
-#     choices:
-#       - value: AuScope
-#         label: AuScope
-#     default: AuScope
-#     form_include_blank_choice: false
-#     help_text: The entity that publishes the instrument
-#     form_snippet: hidden_field.html
-#     display_snippet: publisher_field.html
-#     groupBy: Supporting Metadata
-
-#   - field_name: publisher_identifier
-#     label: Publisher Identifier
-#     required: true
-#     preset: select
-#     choices:
-#       - value: "https://ror.org/04s1m4564"
-#         label: https://ror.org/04s1m4564
-#     default: https://ror.org/04s1m4564
-#     form_include_blank_choice: false
-#     form_snippet: hidden_field.html
-#     display_snippet: null
-#     help_text: The persistent identifier of the publisher
-#     validators: ignore_missing unicode_safe strip_value url_validator
-#     groupBy: Supporting Metadata
-
-#   - field_name: publisher_identifier_type
-#     label: Publisher Identifier Type
-#     required: true
-#     default: ROR
-#     preset: select
-#     choices:
-#       - value: ROR
-#         label: ROR
-#     form_include_blank_choice: false
-#     form_snippet: hidden_field.html
-#     display_snippet: null
-#     help_text: The type of the persistent identifier represents the publisher
-#     groupBy: Supporting Metadata
-
-#   - field_name: publication_date
-#     label: Publication Date
-#     form_snippet: hidden_field.html
-#     preset: date
-#     help_text: The date the instrument is published through the repository
-#     groupBy: Supporting Metadata
-
-#   - field_name: credit
-#     label: Credit
-#     form_snippet: textarea.html
-#     help_text: The Credit field is where you acknowledge people or organisations who contributed
-#     groupBy: Supporting Metadata
-
-#   - field_name: instrument_contact_name
-#     label: Instrument Contact Name
-#     required: true
-#     form_snippet: instrument_contact_name.html
-#     display_snippet: null
-#     help_text: A primary contact can be approached by users requesting further information of the instrument and its access
-#     groupBy: Supporting Metadata
-
-#   - field_name: instrument_contact_email
-#     label: Instrument Contact Email
-#     required: true
-#     display_snippet: email.html
-#     form_snippet: instrument_contact_email.html
-#     display_email_name_field: instrument_contact_name
-#     help_text: Email of the primary instrument contact
-#     validators: ignore_missing unicode_safe strip_value email_validator
-#     groupBy: Supporting Metadata
-
-#   - field_name: citation
-#     label: Citation
-#     form_snippet: null
-#     display_snippet: null
-#     help_text: The full bibliographic citation of the instrument
-#     groupBy: Supporting Metadata
-
-#   - field_name: owner_org
-#     label: Organization
-#     preset: dataset_organization
-
-# resource_fields:
-#   - field_name: url
-#     label: URL
-#     preset: resource_url_upload
-
-#   - field_name: name
-#     label: Name
-#     help: The name of the dataset
-
-#   - field_name: description
-#     label: Description
-#     preset: markdown
-#     form_placeholder: Some useful notes about the data
-
-#   - field_name: format
-#     label: Format
-#     preset: resource_format_autocomplete
+  - field_name: format
+    label: Format
+    preset: resource_format_autocomplete
 
 
