@@ -6,6 +6,7 @@ import os
 from ckanext.pidinst_theme.logic import validators
 from ckanext.pidinst_theme import views
 from ckanext.pidinst_theme import helpers
+from ckanext.pidinst_theme import analytics
 
 
 # import ckanext.pidinst_theme.cli as cli
@@ -28,6 +29,10 @@ def patched_build_metadata_dict(pkg_dict):
 
     # Correct the language field
     xml_dict['language'] = 'en'  # or some other logic to determine the correct language
+
+    # Remove geoLocations if present (user doesn't want locality in DOI)
+    if 'geoLocations' in xml_dict:
+        del xml_dict['geoLocations']
 
     # Return the modified metadata dict
     return xml_dict
@@ -83,9 +88,29 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         pass
 
     def after_dataset_create(self, context, pkg_dict):
+        # Track analytics event
+        user = context.get('user')
+        if user:
+            try:
+                analytics.track_dataset_created(user, pkg_dict)
+            except Exception as e:
+                logging.error(f"Failed to track dataset creation: {e}")
+        
         return action.create_package_relationship(context, pkg_dict)
 
     def after_dataset_update(self, context, pkg_dict):
+        # Track analytics event
+        user = context.get('user')
+        if user:
+            try:
+                analytics.track_dataset_updated(user, pkg_dict)
+                
+                # Check if DOI was just created (doi field exists and is not empty)
+                if pkg_dict.get('doi'):
+                    analytics.track_doi_created(user, pkg_dict, pkg_dict.get('doi'))
+            except Exception as e:
+                logging.error(f"Failed to track dataset update: {e}")
+        
         # self.process_doi_metadata(pkg_dict)
         return action.update_package_relationship(context, pkg_dict)
 

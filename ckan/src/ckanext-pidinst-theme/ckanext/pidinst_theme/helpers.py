@@ -230,6 +230,20 @@ def rudderstack_script():
     return Markup(script)
 
 
+def analytics_enabled():
+    """Check if analytics tracking is enabled"""
+    return toolkit.asbool(os.environ.get('RUDDERSTACK_ENABLED', 'false'))
+
+
+def get_analytics_config():
+    """Get analytics configuration for frontend"""
+    return {
+        'enabled': analytics_enabled(),
+        'write_key': os.environ.get('RUDDERSTACK_WRITE_KEY', ''),
+        'data_plane_url': os.environ.get('RUDDERSTACK_DATA_PLANE_URL', ''),
+    }
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -242,5 +256,7 @@ def get_helpers():
         "get_package": get_package,
         "get_user_role_in_organization" : get_user_role_in_organization,
         "custom_structured_data" : custom_structured_data,
-        "rudderstack_script": rudderstack_script
+        "rudderstack_script": rudderstack_script,
+        "analytics_enabled": analytics_enabled,
+        "get_analytics_config": get_analytics_config,
     }

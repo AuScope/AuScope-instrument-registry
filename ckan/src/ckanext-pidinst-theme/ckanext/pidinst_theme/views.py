@@ -18,6 +18,8 @@ import re
 from ckanext.pidinst_theme.logic import (
     email_notifications
 )
+from ckanext.pidinst_theme import analytics_views
+
 check_access = logic.check_access
 NotAuthorized = logic.NotAuthorized
 NotFound = logic.NotFound
@@ -223,4 +225,4 @@ def fetch_gcmd():
         return {"error": "Failed to fetch gcmd"}, 502
 
 def get_blueprints():
-    return [pidinst_theme]
+    return [pidinst_theme, analytics_views.analytics_bp]

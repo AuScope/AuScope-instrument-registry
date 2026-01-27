@@ -13,6 +13,7 @@ pidinst_theme-js:
     - js/jstree-view-module.js
     - js/parent-instrument-selector-module.js
     - js/facet-select-module.js
+    - js/analytics-tracking.js
     - js/pidinst_theme.js   
   extra:
     preload:

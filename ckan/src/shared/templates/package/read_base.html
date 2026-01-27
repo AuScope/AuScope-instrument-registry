@@ -1,0 +1,29 @@
+{% ckan_extends %}
+
+{# Add dataset ID for analytics tracking #}
+{% block primary_content_inner %}
+<div data-dataset-id="{{ pkg.id }}" data-module="dataset-view">
+  {{ super() }}
+</div>
+{% endblock %}
+
+{# Track page view via inline script #}
+{% block scripts %}
+{{ super() }}
+<script>
+  // Track dataset page view
+  if (typeof window.CKANAnalytics !== 'undefined') {
+    window.addEventListener('DOMContentLoaded', function() {
+      window.CKANAnalytics.track('Dataset Page View', {
+        dataset_id: '{{ pkg.id }}',
+        dataset_title: '{{ pkg.title }}',
+        dataset_name: '{{ pkg.name }}',
+        organization: '{{ pkg.organization.title if pkg.organization else "" }}',
+        has_doi: {% if pkg.doi %}true{% else %}false{% endif %},
+        num_resources: {{ pkg.resources|length }},
+        page_url: window.location.href
+      });
+    });
+  }
+</script>
+{% endblock %}
