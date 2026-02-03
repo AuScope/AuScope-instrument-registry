@@ -7,8 +7,8 @@ volumes:
   minio-data:
 
 services:
-  ckan-dev:
-    container_name: ckan-dev
+  ckan:
+    container_name: ckan
     build:
       context: ckan/
       dockerfile: Dockerfile.dev

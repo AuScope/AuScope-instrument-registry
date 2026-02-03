@@ -203,6 +203,21 @@ command: `python -m pdb /usr/lib/ckan/venv/bin/ckan --config /srv/app/ckan.ini r
 The Datastore database and user is created as part of the entrypoint scripts for the db container. There is also a Datapusher container
 running the latest version of Datapusher.
 
+## DataPusher setup (API token)
+
+DataPusher needs an API token to call CKAN and load tabular resources (e.g. CSV) into the DataStore.  
+Without a valid token, uploads will still work, but **DataStore active** will remain `False` and the **Data API** button will not appear.
+
+### 1) Create a dedicated API token (one-time)
+Create (or use) a dedicated CKAN user (recommended: `datapusher`) and generate a token. Alternatively, `ckan_admin` can be 
+used but not recommended. You can use the UI to create the API token for a user.
+
+### 2) Provide the token via environment variable
+
+Add the token to your .env (or Docker/K8s secret) as:
+
+DATAPUSHER_API_TOKEN=<paste-token-here>
+
 ## 10. NGINX
 
 The base Docker Compose configuration uses an NGINX image as the front-end (ie: reverse proxy). It includes HTTPS running on port number 8443. A "self-signed" SSL certificate is generated as part of the ENTRYPOINT. The NGINX `server_name` directive and the `CN` field in the SSL certificate have been both set to 'localhost'. This should obviously not be used for production.

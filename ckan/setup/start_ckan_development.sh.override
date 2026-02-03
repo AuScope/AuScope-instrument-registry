@@ -54,7 +54,8 @@ ckan config-tool $CKAN_INI ckan.datapusher.api_token=xxx
 
 # Set up the Secret key used by Beaker and Flask
 # This can be overriden using a CKAN___BEAKER__SESSION__SECRET env var
-if grep -E "beaker.session.secret ?= ?$" ckan.ini
+# if grep -E "beaker.session.secret ?= ?$" ckan.ini
+if grep -E "beaker.session.secret ?= ?$" "$CKAN_INI"
 then
     echo "Setting beaker.session.secret in ini file"
     ckan config-tool $CKAN_INI "beaker.session.secret=$(python3 -c 'import secrets; print(secrets.token_urlsafe())')"
@@ -82,9 +83,9 @@ ckan config-tool $SRC_DIR/ckan/test-core.ini \
 if echo "$CKAN__PLUGINS" | grep -q "pidinst_theme"; then
     ckan config-tool $CKAN_INI "ckan.auth.user_create_groups = false"
     ckan config-tool $CKAN_INI "ckan.auth.user_create_organizations = false"
-    ckan config-tool $CKAN_INI "ckan.dataset.create.require.resource = true"
-    ckan config-tool $CKAN_INI "ckan.dataset.create_on_ui_requires_resources = true"
-    ckan config-tool $CKAN_INI "scheming.organization_schemas  = ckanext.pidinst_theme:instrument_organization_schema.yaml"
+    ckan config-tool $CKAN_INI "ckan.dataset.create.require.resource=true"
+    ckan config-tool $CKAN_INI "ckan.dataset.create_on_ui_requires_resources=true"
+    ckan config-tool $CKAN_INI "scheming.organization_schemas=ckanext.pidinst_theme:instrument_organization_schema.yaml"
 
     export CKAN___SCHEMING__DATASET_SCHEMAS="ckanext.pidinst_theme:instrument_schema.yaml"
 
@@ -120,35 +121,42 @@ if echo "$CKAN__PLUGINS" | grep -q "pidinst_theme"; then
 fi
 
 ### Scheming Settings ###
-ckan config-tool $CKAN_INI "scheming.presets = ckanext.scheming:presets.json ckanext.repeating:presets.json ckanext.composite:presets.json"
-ckan config-tool $CKAN_INI "scheming.dataset_schemas = $CKAN___SCHEMING__DATASET_SCHEMAS"
+ckan config-tool $CKAN_INI "scheming.presets=ckanext.scheming:presets.json ckanext.repeating:presets.json ckanext.composite:presets.json"
+ckan config-tool $CKAN_INI "scheming.dataset_schemas=$CKAN___SCHEMING__DATASET_SCHEMAS"
 
 # DOI config
-ckan config-tool $CKAN_INI "ckanext.doi.account_name = my-account-name"
-ckan config-tool $CKAN_INI "ckanext.doi.account_password = my-password"
-ckan config-tool $CKAN_INI "ckanext.doi.prefix = 12.34567"
-ckan config-tool $CKAN_INI "ckanext.doi.publisher = my-publisher"
-ckan config-tool $CKAN_INI "ckanext.doi.test_mode = True" # Set to False for production DOI minting
+ckan config-tool $CKAN_INI "ckanext.doi.account_name=my-account-name"
+ckan config-tool $CKAN_INI "ckanext.doi.account_password=my-password"
+ckan config-tool $CKAN_INI "ckanext.doi.prefix=12.34567"
+ckan config-tool $CKAN_INI "ckanext.doi.publisher=my-publisher"
+ckan config-tool $CKAN_INI "ckanext.doi.test_mode=True" # Set to False for production DOI minting
 
-ckan config-tool $CKAN_INI "licenses_group_url= $CKAN__LICENSES_GROUP_URL"
+ckan config-tool $CKAN_INI "licenses_group_url=$CKAN__LICENSES_GROUP_URL"
 
 
-ckan config-tool $CKAN_INI "ckanext.spatial.default_map_provider = $CKANEXT__SPATIAL__DEFAULT__MAP__PROVIDER"
-ckan config-tool $CKAN_INI "ckanext.spatial.common_map.type = $CKANEXT__SPATIAL__COMMON__MAP__TYPE"
-ckan config-tool $CKAN_INI "ckanext.spatial.common_map.custom_url = $CKANEXT__SPATIAL__COMMON__MAP_CUSTOM__URL"
-ckan config-tool $CKAN_INI "ckanext.spatial.common_map.attribution = $CKANEXT__SPATIAL__COMMON__MAP_ATTRIBUTION"
+ckan config-tool $CKAN_INI "ckanext.spatial.default_map_provider=$CKANEXT__SPATIAL__DEFAULT__MAP__PROVIDER"
+ckan config-tool $CKAN_INI "ckanext.spatial.common_map.type=$CKANEXT__SPATIAL__COMMON__MAP__TYPE"
+ckan config-tool $CKAN_INI "ckanext.spatial.common_map.custom_url=$CKANEXT__SPATIAL__COMMON__MAP_CUSTOM__URL"
+ckan config-tool $CKAN_INI "ckanext.spatial.common_map.attribution=$CKANEXT__SPATIAL__COMMON__MAP_ATTRIBUTION"
 ckan config-tool $CKAN_INI "ckanext.spatial.search_backend=$CKANEXT__SPATIAL__SEARCH__BACKEND"
+
+# Only set datapusher token if provided
+if [ -n "${DATAPUSHER_API_TOKEN:-}" ]; then
+  ckan config-tool "$CKAN_INI" "ckan.datapusher.api_token=$DATAPUSHER_API_TOKEN"
+  echo "Configured ckan.datapusher.api_token from env var"
+else
+  # Make sure the placeholder doesn't get written, or clear it if present
+  ckan config-tool "$CKAN_INI" "ckan.datapusher.api_token="
+  echo "No DATAPUSHER_API_TOKEN provided; datapusher uploads will be unavailable until set"
+fi
 
 # Run the prerun script to init CKAN and create the default admin user
 echo "python3 prerun"
 python3 prerun.py
 
-echo "Set up ckan.datapusher.api_token in the CKAN config file"
-ckan config-tool $CKAN_INI "ckan.datapusher.api_token=$(ckan -c $CKAN_INI user token add ckan_admin datapusher | tail -n 1 | tr -d '\t')"
-
 # Run any startup scripts provided by images extending this one
 echo "Starting entrypoint scripts"
-if [[ -d "/docker-entrypoint.d" ]]
+if [ -d "/docker-entrypoint.d" ]
 then
     for f in /docker-entrypoint.d/*; do
         case "$f" in
