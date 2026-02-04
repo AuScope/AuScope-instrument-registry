@@ -304,3 +304,13 @@ To clone the ckanext-oidc-pkce submodule, please use below command:
 ```
 git submodule update --init --recursive
 ```
+
+
+# Schema
+This project implements the schema for PID for instrument known as PIDINST. Refer to below links to view the schema:
+
+https://docs.pidinst.org/en/1.0a1/white-paper/metadata-schema.html
+https://github.com/rdawg-pidinst/schema/blob/master/schema.rst
+
+And, below link informs in detail how to map PIDINST schema to DataCite schema:
+https://datacite-metadata-schema.readthedocs.io/en/4.5/mappings/pidinst/
