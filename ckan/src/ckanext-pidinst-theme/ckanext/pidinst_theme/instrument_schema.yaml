@@ -47,6 +47,11 @@ dataset_fields:
     form_placeholder: eg. my-instrument
     groupBy: About Instrument
 
+  - field_name: owner_org
+    label: Organization
+    form_snippet: org_visibility.html
+    groupBy: About Instrument    
+
   # - field_name: parent
   #   label: Parent Instrument
   #   form_snippet: instrument_parent_field.html
@@ -93,6 +98,34 @@ dataset_fields:
         label: Owner Identifier Type
         help_text: "Type of the identifier"
 
+  - field_name: instrument_type
+    label: Instrument Type
+    preset: composite_repeating
+    validators: composite_repeating_validator
+    form_snippet: composite_repeating_field.html
+    form_blanks: 1
+    groupBy: About Instrument
+    subfields:
+      - field_name: instrument_type_name
+        label: Instrument Type Name
+        required: true
+        help_text: Classification of the type of the instrument
+
+      - field_name: instrument_type_identifier
+        label: Instrument Type Identifier
+        help_text: Identifier for the instrument type
+
+      - field_name: instrument_type_identifier_type
+        label: Instrument Type Identifier Type
+        # Do we need to keep choices or there always free texts?
+        # preset: select
+        # choices:
+        #   - value: URL
+        #     label: URL
+        #   - value: Other
+        #     label: Other
+        help_text: "Type of the identifier"
+        
   - field_name: manufacturer
     label: Manufacturer
     preset: composite_repeating
@@ -148,9 +181,24 @@ dataset_fields:
     help_text: Technical description of the device and its capabilities
     groupBy: About Instrument
 
+  - field_name: gcmd_keywords_code
+    label: GCMD Science Keywords
+    # required: true
+    form_snippet: gcmd_field.html
+    display_snippet: gcmd_field.html
+    help_text: Global Change Master Directory (GCMD) science keywords
+    groupBy: About Instrument
+
+  - field_name: gcmd_keywords
+    label: GCMD Science Keywords 
+    form_snippet: hidden_field.html
+    help_text: Global Change Master Directory (GCMD) science keywords
+    display_snippet: null
+    groupBy: About Instrument
+
   - field_name: user_keywords
     label: User Specified Keywords
-    required: true
+    # required: true
     preset: tag_string_autocomplete
     validators: not_empty tag_string_convert
     help_text: Keywords help with the discovery of the instrument
@@ -218,34 +266,6 @@ dataset_fields:
     help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
     display_snippet: null
     groupBy: Spatial & Temporal    
-
-  - field_name: instrument_type
-    label: Instrument Type
-    preset: composite_repeating
-    validators: composite_repeating_validator
-    form_snippet: composite_repeating_field.html
-    form_blanks: 1
-    groupBy: Classification
-    subfields:
-      - field_name: instrument_type_name
-        label: Instrument Type Name
-        required: true
-        help_text: Classification of the type of the instrument
-
-      - field_name: instrument_type_identifier
-        label: Instrument Type Identifier
-        help_text: Identifier for the instrument type
-
-      - field_name: instrument_type_identifier_type
-        label: Instrument Type Identifier Type
-        # Do we need to keep choices or there always free texts?
-        # preset: select
-        # choices:
-        #   - value: URL
-        #     label: URL
-        #   - value: Other
-        #     label: Other
-        help_text: "Type of the identifier"
 
   - field_name: measured_variable
     label: Measured Variable
@@ -413,11 +433,6 @@ dataset_fields:
         help_text: Type of the identifier
 
   # XXX This will be auto-generated after DOI minting, see metadata document
-  - field_name: owner_org
-    label: Organization
-    form_snippet: org_visibility.html
-    groupBy: About Instrument
-
   - field_name: supplementation_information
     label: Supplemental Information
     form_snippet: textarea.html
