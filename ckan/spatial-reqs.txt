@@ -4,11 +4,18 @@ argparse
 pyparsing>=2.1.10
 requests>=1.1.0
 six
-cython==0.29.36; python_version < '3.9'
-pyproj==2.6.1; python_version < '3.9'
-# Require specific version of pyproj as latest requires PROJ < 9.2
-pyproj @ git+https://github.com/pyproj4/pyproj.git@b84639b0cb1928579648fb0687b212d007a3b9ca; python_version >= '3.9'
 
-Shapely==2.0.1
+# cython is generally not needed on py>=3.9 unless you build from source
+# cython==0.29.36; python_version < '3.9'
+
+# Old pins for py<3.9 are irrelevant in CKAN 2.11 (py3.10)
+# pyproj==2.6.1; python_version < '3.9'
+
+# Use a released pyproj that has wheels compatible with newer NumPy + PROJ
+pyproj>=3.6.0
+
+# Use a shapely release that has wheels compatible with NumPy 2
+Shapely>=2.0.5
+
 OWSLib==0.28.1
 geojson==3.0.1

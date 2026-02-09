@@ -1,11 +1,16 @@
-FROM ckan/ckan-base:2.10.1-dev
+FROM ckan/ckan-base:2.11.4
+
+# FROM ckan/ckan-base:2.10.1-dev
 #FROM ckan/ckan-base:2.9.9-dev
 
 
 # Set up environment variables
 ENV APP_DIR=/srv/app
 ENV TZ=UTC
+
+USER root
 RUN echo ${TZ} > /etc/timezone
+
 
 # Make sure both files are not exactly the same
 RUN if ! [ /usr/share/zoneinfo/${TZ} -ef /etc/localtime ]; then \
@@ -38,7 +43,19 @@ RUN if ! [ /usr/share/zoneinfo/${TZ} -ef /etc/localtime ]; then \
 #RUN  pip3 install -e git+https://github.com/ckan/ckanext-pages.git#egg=ckanext-pages
 
 ### Spatial extension ###
-RUN apk add python3-dev libxml2-dev libxslt-dev geos geos-dev proj proj-dev proj-util py3-shapely
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-dev \
+    gcc g++ make \
+    libxml2-dev \
+    libxslt1-dev \
+    libgeos-dev \
+    proj-bin \
+    proj-data \
+    libproj-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 
 RUN pip install future
 
@@ -110,3 +127,6 @@ RUN pip install $APP_DIR/src_extensions/ckanext-oidc-pkce && \
   pip install pandas openpyxl requests python-multipart
 
 RUN chmod +x ${APP_DIR}/start_ckan_development.sh
+
+
+USER ckan

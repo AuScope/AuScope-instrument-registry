@@ -1,4 +1,5 @@
-FROM ckan/ckan-base:2.10.1
+FROM ckan/ckan-base:2.11.4
+#FROM ckan/ckan-base:2.10.1
 #FROM ckan/ckan-base:2.9.9
 
 ARG BRANCH_NAME
@@ -11,6 +12,8 @@ LABEL commit_sha="$COMMIT_SHA"
 # Set up environment variables
 ENV APP_DIR=/srv/app
 ENV TZ=UTC
+
+USER root
 RUN echo ${TZ} > /etc/timezone
 
 # Make sure both files are not exactly the same
@@ -44,7 +47,14 @@ RUN if ! [ /usr/share/zoneinfo/${TZ} -ef /etc/localtime ]; then \
 #RUN  pip3 install -e git+https://github.com/ckan/ckanext-pages.git#egg=ckanext-pages
 
 ### Spatial extension ###
-RUN apk add python3-dev libxml2-dev libxslt-dev geos geos-dev proj proj-dev proj-util py3-shapely
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-dev \
+    gcc g++ make \
+    libxml2-dev \
+    libxslt1-dev \
+    libgeos-dev \
+    proj-bin proj-data libproj-dev \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install --upgrade pip
 
 RUN pip install future
@@ -180,3 +190,6 @@ RUN chmod +x ${APP_DIR}/start_ckan.sh
 #   pip install -e $APP_DIR/src_extensions/ckanext-igsn-theme
 
 # RUN chmod +x ${APP_DIR}/start_ckan.sh
+
+
+USER ckan
