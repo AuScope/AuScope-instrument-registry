@@ -125,11 +125,11 @@ def manage_parent_related_resource(data_dict):
     unique_related_resources = {frozenset(item.items()): item for item in related_resources}.values()
     related_resources = list(unique_related_resources)
 
-    related_resources = [res for res in related_resources if not (res.get('related_resource_type') == 'PhysicalObject' and res.get('relation_type') == 'IsDerivedFrom')]
+    related_resources = [res for res in related_resources if not (res.get('related_resource_type') == 'Instrument' and res.get('relation_type') == 'IsDerivedFrom')]
 
     # Add new related resource
     new_resource = {
-        'related_resource_type': 'PhysicalObject',
+        'related_resource_type': 'Instrument',
         'related_resource_title': parent.get('title'),
         'relation_type': 'IsDerivedFrom',
         'related_resource_url': None

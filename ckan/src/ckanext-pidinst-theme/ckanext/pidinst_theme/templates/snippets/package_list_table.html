@@ -1,0 +1,27 @@
+{% block package_list %} {% if packages %}
+<table class="table table-hover sortable-table">
+  <thead>
+    <tr>
+      <th>{{ _('Instrument') }}</th>
+      <th>{{ _('Organisation') }}</th>
+      <th>{{ _('Keywords') }}</th>
+      <th>{{ _('Description') }}</th>
+      <th>{{ _('Parent') }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% block package_list_inner %} {% for package in packages %} {% snippet 'snippets/package_item.html',
+    package=package, item_class=item_class, hide_resources=hide_resources %} {% endfor %} {% endblock %}
+  </tbody>
+</table>
+{% endif %} {% endblock %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    $(".sortable-table").DataTable({
+      searching: false,
+      lengthChange: false,
+      paging: false,
+    });
+  });
+</script>

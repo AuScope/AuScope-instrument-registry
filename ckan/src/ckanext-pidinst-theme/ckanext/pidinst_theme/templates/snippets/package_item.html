@@ -1,4 +1,6 @@
-{% set parent_id = package.parent %}
+{% ckan_extends %}
+
+<!-- {% set parent_id = package.parent %}
 
 
 <tr>
@@ -6,7 +8,6 @@
         {{package.title|truncate(80)}}
       </a></td>
     <td><a href="/organization/{{ package.organization.name }}">{{ package.organization.title }}</a></td>
-    <!-- <td>{{ package.num_resources }}</td> -->
     <td>{% for tag in package.tags %}
           <span class="badge" title="{{ tag.name }}">{{ tag.name|truncate(20) }}</span>{% endfor %}
     </td>
@@ -25,6 +26,4 @@
         <span>----</span>
     {% endif %}
     </td>
-    <!-- <td>{{ package.parent|default('----', true) }}</td> -->
-    <!-- <td>{{ package.metadata_modified }}</td> -->
-  </tr>
+  </tr> -->
