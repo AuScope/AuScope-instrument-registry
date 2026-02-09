@@ -50,7 +50,7 @@ dataset_fields:
   - field_name: owner_org
     label: Organization
     form_snippet: org_visibility.html
-    groupBy: About Instrument    
+    groupBy: About Instrument
 
   # - field_name: parent
   #   label: Parent Instrument
@@ -98,6 +98,19 @@ dataset_fields:
         label: Owner Identifier Type
         help_text: "Type of the identifier"
 
+      - field_name: owner_relationship_type
+        label: Owner Relationship Type
+        preset: select
+        required: true
+        choices:
+          - value: HostingInstitution
+            label: HostingInstitution
+          - value: DataCollector
+            label: DataCollector
+          - value: Sponsor
+            label: Sponsor
+        help_text: The type of the date
+
   - field_name: instrument_type
     label: Instrument Type
     preset: composite_repeating
@@ -125,7 +138,7 @@ dataset_fields:
         #   - value: Other
         #     label: Other
         help_text: "Type of the identifier"
-        
+
   - field_name: manufacturer
     label: Manufacturer
     preset: composite_repeating
@@ -190,7 +203,7 @@ dataset_fields:
     groupBy: About Instrument
 
   - field_name: gcmd_keywords
-    label: GCMD Science Keywords 
+    label: GCMD Science Keywords
     form_snippet: hidden_field.html
     help_text: Global Change Master Directory (GCMD) science keywords
     display_snippet: null
@@ -258,7 +271,7 @@ dataset_fields:
     form_snippet: hidden_field.html
     help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
     display_snippet: null
-    groupBy: Spatial & Temporal    
+    groupBy: Spatial & Temporal
 
   - field_name: measured_variable
     label: Measured Variable
@@ -494,7 +507,7 @@ dataset_fields:
     default: AuScope Instrument Repository
     help_text: A primary contact can be approached by users requesting further information of the instrument
     form_snippet: hidden_field.html
-    groupBy: Supporting Metadata   
+    groupBy: Supporting Metadata
 
   - field_name: primary_contact_email
     label: Primary Contact Email
@@ -504,7 +517,7 @@ dataset_fields:
     # display_email_name_field: primary_contact_name
     help_text: Email of the primary contact
     form_snippet: hidden_field.html
-    groupBy: Supporting Metadata   
+    groupBy: Supporting Metadata
 
   - field_name: citation
     label: Citation
@@ -530,5 +543,3 @@ resource_fields:
   - field_name: format
     label: Format
     preset: resource_format_autocomplete
-
-
