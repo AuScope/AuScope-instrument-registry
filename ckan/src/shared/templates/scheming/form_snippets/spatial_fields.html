@@ -3,7 +3,6 @@
 
 {% set dataset_type = dataset_type or 'dataset' %}
 {%- set schema = h.scheming_get_dataset_schema(dataset_type) -%}
-{%- set elevation = h.scheming_field_by_name(schema.dataset_fields , 'elevation') -%}
 {%- set epsg = h.scheming_field_by_name(schema.dataset_fields , 'epsg_code') -%}
 
 <div class="form-group" id="location_data_coordinates" style="display: none;">
@@ -55,19 +54,6 @@
             </tbody>
         </table>
     </div>
-    <div class="form-group" id="elevation_container">
-        <label for="field-elevation">Elevation</label>
-        <input class="form-control" id="field-elevation" name="elevation" value="{{ data['elevation'] }}" step="any" min="0">
-
-        {% if errors['elevation'] %}
-            {% for error in errors['elevation'] %}
-                <span class="error-block">{{ error }}</span>
-            {% endfor %}
-        {% endif %}
-
-        {%- snippet 'scheming/form_snippets/help_text.html', field=elevation -%}
-
-    </div>    
 </div>
 
 <div class="form-group" id="epsg_code_container" style="display: none;">

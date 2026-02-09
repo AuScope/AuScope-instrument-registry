@@ -215,8 +215,8 @@ dataset_fields:
     choices:
       - value: noLocation
         label: "No"
-      - value: area
-        label: Area on Map
+      # - value: area
+      #   label: Area on Map
       - value: point
         label: Single point on Map
     default: noLocation
@@ -244,13 +244,6 @@ dataset_fields:
     form_snippet: null
     display_snippet: null
     preset: json_object
-    groupBy: Spatial & Temporal
-
-  - field_name: elevation
-    label: Elevation (m)
-    help_text: The elevation of the geographic location specified above mean sea level in meters
-    form_snippet: null
-    display_snippet: null
     groupBy: Spatial & Temporal
 
   - field_name: epsg_code

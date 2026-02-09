@@ -42,12 +42,10 @@ def location_validator(field, schema):
         location_choice_key = ('location_choice',)
         location_data_key = ('location_data',)
         epsg_code_key = ('epsg_code',)
-        elevation_key = ('elevation',)
 
         location_choice = data.get(location_choice_key, missing)
         location_data = data.get(location_data_key, missing)
         epsg_code = data.get(epsg_code_key, missing)
-        elevation = data.get(elevation_key, missing)
 
         # Exit the validation for noLocation choice
         if location_choice == 'noLocation':
@@ -97,12 +95,6 @@ def location_validator(field, schema):
 
         if epsg_code is missing:
             add_error(errors, epsg_code_key, missing_error)
-
-        if elevation is not missing and elevation is not None and str(elevation).strip():
-            try:
-                elevation = float(elevation)
-            except (ValueError, TypeError):
-                add_error(errors, elevation_key, invalid_error)
 
         log = logging.getLogger(__name__)
         try:

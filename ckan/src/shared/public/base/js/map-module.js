@@ -8,7 +8,6 @@ ckan.module("map-module", function ($, _) {
             this.singleMode = this.options.singleMode;
             this.el.ready($.proxy(this.setupMap, this));
 
-            this.setupElevationField();
         },
 
         setupMap: function () {
@@ -565,23 +564,6 @@ ckan.module("map-module", function ($, _) {
             }
             var dataForSelect2 = { id: existingId, text: existingText };
             this.EPSGCodeElement.select2("data", dataForSelect2, true);
-        },
-
-        setupElevationField: function () {
-            document.getElementById("field-elevation").addEventListener("input", function (event) {
-                const inputField = event.target;
-                const value = inputField.value;
-                const validValue = value.replace(/[^0-9.]/g, "");
-                const parts = validValue.split(".");
-                if (parts.length > 2) {
-                    inputField.value = parts[0] + "." + parts.slice(1).join("");
-                } else {
-                    inputField.value = validValue;
-                }
-                if (parseFloat(inputField.value) < 0) {
-                    inputField.value = "";
-                }
-            });
-        },
+        },        
     };
 });

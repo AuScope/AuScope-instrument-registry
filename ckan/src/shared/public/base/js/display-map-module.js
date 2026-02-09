@@ -13,7 +13,7 @@ ckan.module('display-map-module', function ($, _) {
                 $('#epsg-info').show();
 
                 if (locationChoice == "point") {
-                    this.initializeMapWithPoints(allData['location_data'], allData['elevation']);
+                    this.initializeMapWithPoints(allData['location_data']);
                 } else if (locationChoice == "area") {
                     this.initializeMapWithBoundingBoxes(allData['location_data']);
                 }
@@ -21,7 +21,7 @@ ckan.module('display-map-module', function ($, _) {
                 $('#location-info').text('Location not specified.');
             }
         },
-        initializeMapWithPoints: function (geoJSONStr, elevation) {
+        initializeMapWithPoints: function (geoJSONStr) {
             var self = this;
             var customIconPath = 'base/vendor/leaflet/images/';
             L.Icon.Default.imagePath = this.options.site_url + customIconPath;
@@ -54,7 +54,6 @@ ckan.module('display-map-module', function ($, _) {
 
             if (pointFeatures.length === 0) {
                 $('#location-info').html('No point data available').attr('style', 'padding-top: 10px; font-size: small;');
-                $('#elevation-info').hide(); 
                 return;
             }
 
@@ -72,7 +71,6 @@ ckan.module('display-map-module', function ($, _) {
                 map.fitBounds(group.getBounds(), { padding: [50, 50] });
             }
             $('#location-info').html(orderText + '<br>' + pointsInfo).attr('style', 'padding-top: 10px; font-size: small;');
-            $('#elevation-info').show(); 
         },
 
 

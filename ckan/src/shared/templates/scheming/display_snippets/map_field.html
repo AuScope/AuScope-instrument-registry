@@ -7,14 +7,6 @@ data-all-data='{{ data | tojson | safe }}'>
     <div id="location-info" ></div>
 </div>
 
-<tr  id="elevation-info" style="display: none;" >
-    <th scope="row" class="dataset-label">
-        Elevation (m)</th>
-    <td class="dataset-details">
-        {{data['elevation']}}
-    </td>
-</tr>
-
 <tr id="epsg-info" style="display: none;">
     <th scope="row" class="dataset-label">
         Geographic Coordinate System</th>
