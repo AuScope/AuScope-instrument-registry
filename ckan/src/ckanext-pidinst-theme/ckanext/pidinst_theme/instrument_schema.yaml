@@ -309,6 +309,7 @@ dataset_fields:
     preset: composite_repeating
     form_snippet: composite_repeating_field.html
     validators: composite_repeating_validator
+    scheming_validators: [ensure_single_isnewversionof]
     form_blanks: 0
     groupBy: Related Resources
     composite_rules:

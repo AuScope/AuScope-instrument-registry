@@ -3,6 +3,7 @@ import ckan.logic as logic
 import ckan.authz as authz
 from datetime import date
 from ckan.logic import NotFound
+from ckan.lib.munge import munge_title_to_name
 import simplejson as json
 import logging
 import os
@@ -299,8 +300,14 @@ def prepare_dataset_for_cloning(original_pkg_dict, original_pkg_id):
 
     cloned_data['title'] = new_title
 
-    # Get or initialize relatedIdentifier field
-    related_identifiers = cloned_data.get('relatedIdentifier', [])
+    # Generate a slug for the URL so the form starts with a valid default
+    cloned_data['name'] = munge_title_to_name(new_title)
+
+    # Set visibility to private by default to prevent accidental DOI minting
+    cloned_data['private'] = True
+
+    # Get or initialize related_identifier_obj field (composite repeating field)
+    related_identifiers = cloned_data.get('related_identifier_obj', [])
     if isinstance(related_identifiers, str):
         try:
             related_identifiers = json.loads(related_identifiers)
@@ -313,32 +320,24 @@ def prepare_dataset_for_cloning(original_pkg_dict, original_pkg_id):
     original_doi = original_pkg_dict.get('doi', '')
     original_title = original_pkg_dict.get('title', '')
 
-    # Create the new relationship entry with all required fields
+    # Create the new relationship entry with all required fields matching schema
     new_relationship = {
-        'relatedIdentifier': original_doi if original_doi else toolkit.url_for('dataset.read',
+        'related_identifier': original_doi if original_doi else toolkit.url_for('dataset.read',
                                                                                   id=original_pkg_id,
                                                                                   qualified=True),
-        'relatedIdentifierName': original_title,
-        'relatedIdentifierType': 'DOI' if original_doi else 'URL',
-        'relationType': 'IsNewVersionOf'
+        'related_identifier_name': original_title,
+        'related_identifier_type': 'DOI' if original_doi else 'URL',
+        'relation_type': 'IsNewVersionOf',
+        '_is_version_relationship': True  # Mark this as a version relationship
     }
 
-    # Find and replace existing IsNewVersionOf relationship, or add new one
-    replaced = False
-    for i, rel in enumerate(related_identifiers):
-        if rel.get('relationType') == 'IsNewVersionOf':
-            # Replace the existing IsNewVersionOf relationship
-            related_identifiers[i] = new_relationship
-            replaced = True
-            break
+    # Find and remove existing IsNewVersionOf relationship from the list
+    related_identifiers = [rel for rel in related_identifiers if rel.get('relation_type') != 'IsNewVersionOf']
 
-    # If no existing IsNewVersionOf relationship was found, add the new one
-    if not replaced:
-        related_identifiers.append(new_relationship)
+    # Add the new IsNewVersionOf relationship at the START of the list
+    related_identifiers.insert(0, new_relationship)
 
-    cloned_data['relatedIdentifier'] = related_identifiers
-
-    # Clear resources - user may want to update these
+    cloned_data['related_identifier_obj'] = related_identifiers
     cloned_data['resources'] = []
 
     return cloned_data

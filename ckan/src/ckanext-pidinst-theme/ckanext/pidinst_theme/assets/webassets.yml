@@ -14,10 +14,11 @@ pidinst_theme-js:
     - js/parent-instrument-selector-module.js
     - js/facet-select-module.js
     - js/analytics-tracking.js
-    - js/pidinst_theme.js   
+    - js/related-identifier-readonly.js
+    - js/pidinst_theme.js
   extra:
     preload:
-      - vendor/jquery  
+      - vendor/jquery
       - vendor/bootstrap
 
 pidinst_theme-css:
@@ -26,6 +27,6 @@ pidinst_theme-css:
     - /shared/public/base/vendor/leaflet-draw/leaflet.draw.css
     - vendor/jstree/themes/default/style.min.css
     - vendor/dataTables/datatables.min.css
-    - /shared/public/shared_style.css    
+    - /shared/public/shared_style.css
     - css/pidinst_theme.css
   output: ckanext-pidinst_theme/%(version)s-pidinst_theme.css
