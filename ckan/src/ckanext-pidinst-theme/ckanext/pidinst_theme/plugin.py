@@ -95,7 +95,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                 analytics.track_dataset_created(user, pkg_dict)
             except Exception as e:
                 logging.error(f"Failed to track dataset creation: {e}")
-        
+
         return action.create_package_relationship(context, pkg_dict)
 
     def after_dataset_update(self, context, pkg_dict):
@@ -104,13 +104,13 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         if user:
             try:
                 analytics.track_dataset_updated(user, pkg_dict)
-                
+
                 # Check if DOI was just created (doi field exists and is not empty)
                 if pkg_dict.get('doi'):
                     analytics.track_doi_created(user, pkg_dict, pkg_dict.get('doi'))
             except Exception as e:
                 logging.error(f"Failed to track dataset update: {e}")
-        
+
         # self.process_doi_metadata(pkg_dict)
         return action.update_package_relationship(context, pkg_dict)
 

@@ -119,18 +119,18 @@ def rudderstack_script():
     """
     # Check if RudderStack is enabled
     rudderstack_enabled = toolkit.asbool(os.environ.get('RUDDERSTACK_ENABLED', 'false'))
-    
+
     if not rudderstack_enabled:
         return Markup('')
-    
+
     # Get configuration from environment variables
     write_key = os.environ.get('RUDDERSTACK_WRITE_KEY', '')
     data_plane_url = os.environ.get('RUDDERSTACK_DATA_PLANE_URL', '')
-    
+
     if not write_key or not data_plane_url:
         logging.warning('RudderStack enabled but WRITE_KEY or DATA_PLANE_URL not configured')
         return Markup('')
-    
+
     script = f'''
 <script type="text/javascript">
 (function() {{
@@ -218,7 +218,7 @@ def rudderstack_script():
         window.rudderAnalyticsMount();
       }}
       var loadOptions = {{}};
-      rudderanalytics.load("{write_key}", "{data_plane_url}", loadOptions);      
+      rudderanalytics.load("{write_key}", "{data_plane_url}", loadOptions);
       // Automatically track page view when SDK is ready
       rudderanalytics.ready(function() {{
         rudderanalytics.page();
@@ -244,6 +244,106 @@ def get_analytics_config():
     }
 
 
+def prepare_dataset_for_cloning(original_pkg_dict, original_pkg_id):
+    """
+    Prepare a dataset dict for cloning as a new version.
+    Removes fields that should not be copied and adds IsNewVersionOf relationship.
+
+    Args:
+        original_pkg_dict: The original package dictionary
+        original_pkg_id: The ID of the original package
+
+    Returns:
+        A modified copy of the package dict ready for creating a new version
+    """
+    import copy
+    import re
+    from datetime import datetime
+
+    # Create a deep copy to avoid modifying the original
+    cloned_data = copy.deepcopy(original_pkg_dict)
+
+    # Fields to remove (these should be generated fresh for the new version)
+    fields_to_remove = [
+        'id',
+        'name',  # Will be auto-generated
+        'doi',   # DOI should be generated for new version
+        'revision_id',
+        'metadata_created',
+        'metadata_modified',
+        'creator_user_id',
+        'num_resources',
+        'num_tags',
+        'organization',  # Will be set from form
+        'relationships_as_subject',
+        'relationships_as_object',
+        'state',  # Start fresh as draft
+        'version',  # User should specify new version
+    ]
+
+    for field in fields_to_remove:
+        cloned_data.pop(field, None)
+
+    # Generate a better default title with date
+    original_title = original_pkg_dict.get('title', '')
+    current_date = datetime.now().strftime('%Y-%m-%d')
+
+    # Check if title already has a date pattern like [YYYY-MM-DD] or (YYYY-MM-DD)
+    date_pattern = r'[\[\(]?\d{4}-\d{2}-\d{2}[\]\)]?'
+    if re.search(date_pattern, original_title):
+        # Replace existing date with new date
+        new_title = re.sub(date_pattern, f'[{current_date}]', original_title)
+    else:
+        # Append new date
+        new_title = f"{original_title} [{current_date}]"
+
+    cloned_data['title'] = new_title
+
+    # Get or initialize relatedIdentifier field
+    related_identifiers = cloned_data.get('relatedIdentifier', [])
+    if isinstance(related_identifiers, str):
+        try:
+            related_identifiers = json.loads(related_identifiers)
+        except:
+            related_identifiers = []
+    elif not isinstance(related_identifiers, list):
+        related_identifiers = []
+
+    # Prepare IsNewVersionOf relationship to the original instrument
+    original_doi = original_pkg_dict.get('doi', '')
+    original_title = original_pkg_dict.get('title', '')
+
+    # Create the new relationship entry with all required fields
+    new_relationship = {
+        'relatedIdentifier': original_doi if original_doi else toolkit.url_for('dataset.read',
+                                                                                  id=original_pkg_id,
+                                                                                  qualified=True),
+        'relatedIdentifierName': original_title,
+        'relatedIdentifierType': 'DOI' if original_doi else 'URL',
+        'relationType': 'IsNewVersionOf'
+    }
+
+    # Find and replace existing IsNewVersionOf relationship, or add new one
+    replaced = False
+    for i, rel in enumerate(related_identifiers):
+        if rel.get('relationType') == 'IsNewVersionOf':
+            # Replace the existing IsNewVersionOf relationship
+            related_identifiers[i] = new_relationship
+            replaced = True
+            break
+
+    # If no existing IsNewVersionOf relationship was found, add the new one
+    if not replaced:
+        related_identifiers.append(new_relationship)
+
+    cloned_data['relatedIdentifier'] = related_identifiers
+
+    # Clear resources - user may want to update these
+    cloned_data['resources'] = []
+
+    return cloned_data
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -259,4 +359,5 @@ def get_helpers():
         "rudderstack_script": rudderstack_script,
         "analytics_enabled": analytics_enabled,
         "get_analytics_config": get_analytics_config,
+        "prepare_dataset_for_cloning": prepare_dataset_for_cloning,
     }

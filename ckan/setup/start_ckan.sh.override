@@ -87,7 +87,7 @@ if [ -n "${DATAPUSHER_API_TOKEN:-}" ]; then
   echo "Configured ckan.datapusher.api_token from env var"
 else
   # Make sure the placeholder doesn't get written, or clear it if present
-  ckan config-tool "$CKAN_INI" "ckan.datapusher.api_token="
+#   ckan config-tool "$CKAN_INI" "ckan.datapusher.api_token="
   echo "No DATAPUSHER_API_TOKEN provided; datapusher uploads will be unavailable until set"
 fi
 

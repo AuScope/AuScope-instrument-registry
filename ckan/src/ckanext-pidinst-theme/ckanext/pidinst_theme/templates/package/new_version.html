@@ -1,0 +1,25 @@
+{% extends "page.html" %} {% block subtitle %}{{ _('Create New Version') }}{% endblock %} {% block
+breadcrumb_content %}
+<li class="active">{% link_for _('Datasets'), named_route='dataset.search' %}</li>
+<li class="active">{{ _('Create New Version') }}</li>
+{% endblock %} {% block primary_content %}
+<article class="module">
+  <div class="module-content">
+    <h1 class="page-heading">{{ _('Create New Version') }}</h1>
+    {% if data._original_package_title or data._original_package_name %}
+    <p class="text-muted">
+      {{ _('Creating a new version of') }}:
+      <strong>{{ data._original_package_title or data._original_package_name }}</strong>
+    </p>
+    {% endif %}
+    <div class="alert alert-info">
+      <i class="fa fa-info-circle"></i>
+      {{ _('The data below has been copied from the original instrument. Please review and update as needed
+      for the new version. A relationship to the original version will be automatically created.') }}
+    </div>
+  </div>
+
+  {% snippet 'scheming/package/snippets/package_form.html', data=data, errors=errors,
+  error_summary=error_summary, dataset_type=dataset_type, stage=stage, form_style='new', pkg_dict=pkg_dict %}
+</article>
+{% endblock %} {% block secondary_content %} {% endblock %}
