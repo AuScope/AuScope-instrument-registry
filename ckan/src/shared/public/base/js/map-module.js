@@ -1,6 +1,6 @@
 ckan.module("map-module", function ($, _) {
     return {
-        options: { singleMode: true },
+        options: { singleMode: true, enableBoundingBox: false },
         initialize: function () {
             this.EPSGTextElement = $("#field-epsg");
             this.EPSGCodeElement = $("#field-epsg_code");
@@ -30,18 +30,19 @@ ckan.module("map-module", function ($, _) {
 
             this.resetMap();
             var selected = $("input[type=radio][name=location_choice]:checked").val();
-            if (selected == "area" || selected == "point") {
-                var allData = JSON.parse(this.el.attr("data-all-data"));
-                let geoJSONStr = allData["location_data"];
-                this.initializeFromGeoJSON(geoJSONStr);
-                this.showMapAndInvalidate();
-            }
-            if (selected == "area") {
+            var allData = JSON.parse(this.el.attr("data-all-data"));
+            let geoJSONStr = allData["location_data"];
+            this.initializeFromGeoJSON(geoJSONStr);
+            this.showMapAndInvalidate();
+
+            // If bounding boxes are enabled via options, allow area selection
+            if (this.options.enableBoundingBox && selected == "area") {
                 this.initializeDrawControl();
                 this.updateBoundsTable();
                 this.updateBoundsFromTable(false);
                 $("#bounding_box_coordinates").show();
-            } else if (selected == "point") {
+            } else {
+                // Default to point/marker mode
                 this.initializeMarkerControl();
                 this.updateMarkerTable();
                 this.updateMarkerFromTable(false);
@@ -56,11 +57,11 @@ ckan.module("map-module", function ($, _) {
                 self.updateMarkerTable();
                 self.updateBoundsTable();
                 var choice = $(this).val();
-                if (choice == "area") {
+                if (choice == "area" && self.options.enableBoundingBox) {
                     self.showMapAndInvalidate();
                     self.initializeDrawControl();
                     $("#bounding_box_coordinates").show();
-                } else if (choice == "point") {
+                } else {
                     self.showMapAndInvalidate();
                     self.initializeMarkerControl();
                     $("#point_container").show();
