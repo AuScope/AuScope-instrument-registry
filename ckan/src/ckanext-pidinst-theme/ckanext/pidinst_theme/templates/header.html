@@ -1,18 +1,4 @@
-{% ckan_extends %} 
-{% block header_account_notlogged %}
-<li>{% link_for _('Log in (AAF)'), named_route='oidc_pkce.login' %}</li>
-
-<li>
-  <a
-    href="#"
-    role="button"
-    class="btn btn-info btn-sm"
-    data-bs-toggle="modal"
-    data-bs-target="#aafLoginModal"
-  >
-    Don't have AAF?
-  </a>
-</li>
+{% ckan_extends %} {% block header_account_notlogged %}
 
 <li>{% link_for _('Log in'), named_route='user.login' %}</li>
 
@@ -51,19 +37,12 @@
   </div>
 </div>
 
-{% endblock %} 
-
-{% block header_site_navigation_tabs %} 
-  {% set org_type = h.default_group_type('organization')%} 
-  {% set group_type = h.default_group_type('group') %} 
-
-  {{ h.build_nav_main(
-  (org_type ~ '.index', h.humanize_entity_type('organization', org_type, 'main nav') or _('Organisations'), ['organization']), 
-  (dataset_type ~ '.search', h.humanize_entity_type('package', dataset_type, 'main nav') or _('Instruments'), ["dataset","resource"]),
-  ('home.about', _('About')) ) }}
-{% endblock %} 
-
-{% block header_logo %}
+{% endblock %} {% block header_site_navigation_tabs %} {% set org_type =
+h.default_group_type('organization')%} {% set group_type = h.default_group_type('group') %} {{
+h.build_nav_main( (org_type ~ '.index', h.humanize_entity_type('organization', org_type, 'main nav') or
+_('Organisations'), ['organization']), (dataset_type ~ '.search', h.humanize_entity_type('package',
+dataset_type, 'main nav') or _('Instruments'), ["dataset","resource"]), ('home.about', _('About')) ) }} {%
+endblock %} {% block header_logo %}
 <a class="logo" href="{{ h.url_for('home.index') }}">
   <img
     src="{{ h.url_for_static_or_external('/base/images/AuScope Logo Icon.png') }}"

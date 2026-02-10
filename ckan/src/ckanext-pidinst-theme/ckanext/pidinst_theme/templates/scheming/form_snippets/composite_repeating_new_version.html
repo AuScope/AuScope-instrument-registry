@@ -1,0 +1,183 @@
+{% import 'macros/form.html' as form %}
+{% asset 'composite/composite-repeating_js' %}
+{% asset 'composite/composite_css' %}
+
+{%- snippet 'scheming/form_snippets/composite_header.html', field=field, inline=field.help_inline -%}
+
+{# Use composite helper exactly like the original #}
+{% set field_dict_list = h.composite_repeating_get_value_dict_list(
+  field.field_name,
+  field.subfields,
+  data,
+  field.form_blanks if 'form_blanks' in field else 1
+) %}
+
+<div data-module="composite-repeating" id="composite-repeating-div-{{ field.field_name }}">
+
+{% for field_dict in field_dict_list %}
+  {% set subfields_repeating_label = field.get("subfields_label", "") %}
+  {% set index = loop.index %}
+
+  {# ✅ Your marker (set by cloning code) #}
+  {% set row_readonly = (field_dict.get('relation_type') == 'IsNewVersionOf') %}
+
+  <div class="composite-control-repeating{% if row_readonly %} is-readonly{% endif %}"
+       {% if row_readonly %}data-row-readonly="true"{% endif %}>
+
+    {% for subfield in field.subfields %}
+      {% set subfield_form_snippet = subfield.get("form_snippet", "default") %}
+      {% set subfield_index = loop.index %}
+
+      {% if subfield_form_snippet == "default" %}
+
+        {% set name = field.field_name + '-' + index|string + '-' + subfield.field_name %}
+        {% set default_value = subfield.get("default_value", "") %}
+        {% set value = field_dict.get(subfield.field_name, default_value) %}
+
+        {% if subfield.help_text %}
+          {% set composite_classes = "form-control composite-subfield-with-help" if subfield_index > 1 else "medinput composite-subfield composite-first-subfield" %}
+        {% else %}
+          {% set composite_classes = "form-control composite-subfield" if subfield_index > 1 else "medinput composite-subfield composite-first-subfield" %}
+        {% endif %}
+
+        {# ---- SELECT / CHOICES ---- #}
+        {% if subfield.get('choices', false) %}
+          {# We render selects here instead of calling composite_select.html,
+             so we can inject disabled + hidden mirror cleanly. #}
+
+          {% set attrs = subfield.form_attrs if 'form_attrs' in subfield else {} %}
+          {% if row_readonly %}
+            {% set attrs = attrs.update({'disabled': 'disabled'}) or attrs %}
+          {% endif %}
+
+          {%- call form.input_block(
+            for='field-' + name,
+            label=h.scheming_language_text(subfield.label) + subfields_repeating_label + ' ' + index|string,
+            error=errors[name],
+            classes=['control-full'],
+            control_classes=[],
+            extra_html="",
+            is_required=h.scheming_field_required(subfield)
+          ) -%}
+
+            <select id="{{ id or name }}"
+                    name="{{ name }}"
+                    class="{{ composite_classes }}"
+                    {{ form.attributes(attrs) }}>
+              <option value=""></option>
+              {% for c in subfield.choices %}
+                {% set opt_val = c.value if c is mapping else c %}
+                {% set opt_lab = c.label if c is mapping else c %}
+                <option value="{{ opt_val }}"
+                        {% if value == opt_val %}selected="selected"{% endif %}>
+                  {{ opt_lab }}
+                </option>
+              {% endfor %}
+            </select>
+
+            {% if subfield_index > 1 %}
+              {%- snippet 'scheming/form_snippets/subfield_snippets/composite_help_text.html', field=subfield -%}
+            {% endif %}
+
+            {# ✅ Disabled fields don’t submit; mirror it #}
+            {% if row_readonly %}
+              <input type="hidden" name="{{ name }}" value="{{ value | empty_and_escape }}">
+            {% endif %}
+
+          {% endcall %}
+
+        {# ---- TEXT/DATE INPUTS ---- #}
+        {% else %}
+          {% set type = "text" %}
+          {% set classes = ['control-full'] %}
+          {% set attrs = subfield.form_attrs if 'form_attrs' in subfield else {} %}
+          {% set placeholder = subfield.form_placeholder if 'form_placeholder' in subfield else '' %}
+
+          {% if subfield.get("preset", "") == "date" %}
+            {% set value = (field_dict.get(subfield.field_name, default_value) or '').split()[0] %}
+            {% set type = "date" %}
+            {% set classes = [] %}
+          {% endif %}
+
+          {% if row_readonly %}
+            {% set attrs = attrs.update({'disabled': 'disabled'}) or attrs %}
+          {% endif %}
+
+          {%- call form.input_block(
+            for='field-' + name,
+            label=h.scheming_language_text(subfield.label) + subfields_repeating_label + ' ' + index|string,
+            error=errors[name],
+            classes=classes,
+            control_classes=[],
+            extra_html="",
+            is_required=h.scheming_field_required(subfield)
+          ) -%}
+
+            <input id="{{ id or name }}"
+                   type="{{ type }}"
+                   name="{{ name }}"
+                   value="{{ value | empty_and_escape }}"
+                   placeholder="{{ placeholder }}"
+                   {{ form.attributes(attrs) }}
+                   class="{{ composite_classes }}" />
+
+            {% if subfield_index > 1 %}
+              {%- snippet 'scheming/form_snippets/subfield_snippets/composite_help_text.html', field=subfield -%}
+            {% endif %}
+
+            {# ✅ Disabled fields don’t submit; mirror it #}
+            {% if row_readonly %}
+              <input type="hidden" name="{{ name }}" value="{{ value | empty_and_escape }}">
+            {% endif %}
+
+          {% endcall %}
+
+        {% endif %}
+
+        {% if subfield_index == 1 and subfield.help_text %}
+          {%- set markup_text = h.composite_get_markup(subfield.help_text) -%}
+          <div class="info-block composite-subfield-info-first">
+            <i class="fa fa-info-circle"></i>
+            {{ markup_text|safe }}
+          </div>
+        {% endif %}
+
+      {% else %}
+        {# custom subfield snippet #}
+        {% if subfield_form_snippet != None %}
+          {%- snippet 'scheming/form_snippets/' + subfield_form_snippet,
+            field=subfield, subfield_index=index|string, parent=field.field_name -%}
+        {% endif %}
+      {% endif %}
+
+    {% endfor %}
+
+    {# Preserve your marker through POST (optional but useful) #}
+    {% if row_readonly %}
+      <input type="hidden" name="{{ field.field_name + '-' + index|string + '-_is_version_relationship' }}" value="true">
+    {% endif %}
+  </div>
+{% endfor %}
+</div>
+
+<hr>
+
+<style>
+  /* Visual cue (optional) */
+  .composite-control-repeating.is-readonly {
+    opacity: 0.8;
+  }
+
+  #composite-repeating-div-related_identifier_obj
+    .composite-control-repeating.is-readonly
+    .btn-danger {
+    display: none !important;
+  }
+
+  /* Optional: block only the row action buttons if you want to prevent deleting the version row.
+     If this disables too much, remove it or narrow the selector once you know the button classes. */
+  .composite-control-repeating.is-readonly button {
+    pointer-events: none;
+    opacity: 0.6;
+  }
+</style>
