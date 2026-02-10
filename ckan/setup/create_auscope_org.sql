@@ -1,7 +1,8 @@
 DO $$
 DECLARE
   user_id uuid;
-  org_id  uuid := '12345678-1234-1234-1234-123456789012'::uuid;
+  org_uuid uuid := '12345678-1234-1234-1234-123456789012'::uuid;
+  org_id_text text;
 BEGIN
   SELECT id INTO user_id
   FROM public."user"
@@ -15,7 +16,7 @@ BEGIN
       (id, name, title, description, state, type, approval_status, image_url, is_organization)
     VALUES
       (
-        org_id,
+        org_uuid,
         'auscope',
         'AuScope',
         'AuScope is Australia''s provider of research infrastructure to the national geoscience community working on fundamental geoscience questions and grand challenges — climate change, natural resources security and natural hazards. We are funded by the Australian Government via the Department of Education (NCRIS). You can find our team, tools, data, analytics and services at Geoscience Australia, CSIRO, state and territory geological surveys and universities across the Australian continent.',
@@ -27,23 +28,28 @@ BEGIN
       );
   END IF;
 
-  SELECT id INTO org_id
+  -- Re-read org id from DB, and keep both forms
+  SELECT id INTO org_uuid
   FROM public."group"
   WHERE name = 'auscope' AND type = 'organization'
   LIMIT 1;
 
+  org_id_text := org_uuid::text;
+
+  -- Membership: in your DB member.group_id and member.table_id are TEXT
   IF user_id IS NOT NULL THEN
     IF NOT EXISTS (
-      SELECT 1 FROM public.member m
-      WHERE m.group_id = org_id
+      SELECT 1
+      FROM public.member m
+      WHERE m.group_id   = org_id_text
         AND m.table_name = 'user'
-        AND m.table_id = user_id::text   -- 👈 cast fixes the error
-        AND m.capacity = 'admin'
+        AND m.table_id   = user_id::text
+        AND m.capacity   = 'admin'
     ) THEN
       INSERT INTO public.member
         (id, group_id, table_id, state, table_name, capacity)
       VALUES
-        ('abcdefgh-abcd-abcd-abcd-abcdefghijkl', org_id, user_id::text, 'active', 'user', 'admin');
+        ('abcdefgh-abcd-abcd-abcd-abcdefghijkl', org_id_text, user_id::text, 'active', 'user', 'admin');
     END IF;
   END IF;
 END $$;
