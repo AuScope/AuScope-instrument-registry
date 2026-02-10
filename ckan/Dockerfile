@@ -54,8 +54,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxslt1-dev \
     libgeos-dev \
     proj-bin proj-data libproj-dev \
+    postgresql-client \
+    supervisor \
+    procps \    
     && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --upgrade pip
+RUN pip install flask-debugtoolbar
 
 RUN pip install future
 

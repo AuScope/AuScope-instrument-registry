@@ -54,12 +54,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     proj-bin \
     proj-data \
     libproj-dev \
+    postgresql-client \
+    supervisor \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 
 RUN pip install future
 
 RUN pip install --upgrade pip
+RUN pip install flask-debugtoolbar
+
 RUN pip install -e "git+https://github.com/ckan/ckanext-spatial.git#egg=ckanext-spatial"
 COPY spatial-reqs.txt /tmp/spatial-reqs.txt
 RUN pip install -r /tmp/spatial-reqs.txt

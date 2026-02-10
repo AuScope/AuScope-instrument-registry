@@ -6,6 +6,19 @@ APP_DIR=$(dirname "$CKAN_INI")
 SRC_EXTENSIONS_DIR=$APP_DIR/src_extensions
 echo "Ckan app directory: $APP_DIR"
 
+
+
+if ! grep -qE '^SECRET_KEY\s*=' "$CKAN_INI" || grep -qE '^SECRET_KEY\s*=\s*$' "$CKAN_INI"; then
+  echo "Setting SECRET_KEY in ini file"
+  ckan config-tool "$CKAN_INI" "SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe())')"
+fi
+
+# Optional (still useful for forms/csrf)
+if ! grep -qE '^WTF_CSRF_SECRET_KEY\s*=' "$CKAN_INI" || grep -qE '^WTF_CSRF_SECRET_KEY\s*=\s*$' "$CKAN_INI"; then
+  ckan config-tool "$CKAN_INI" "WTF_CSRF_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe())')"
+fi
+
+
 # Set up the Secret key used by Beaker and Flask
 # This can be overriden using a CKAN___BEAKER__SESSION__SECRET env var
 if grep -E "beaker.session.secret ?= ?$" ckan.ini
@@ -26,10 +39,6 @@ if echo "$CKAN__PLUGINS" | grep -q "pidinst_theme"; then
     ckan config-tool $CKAN_INI "ckan.auth.user_create_organizations = false"
     ckan config-tool $CKAN_INI "ckan.dataset.create.require.resource = false"
     ckan config-tool $CKAN_INI "ckan.dataset.create_on_ui_requires_resources = true"
-    ckan config-tool $CKAN_INI "scheming.organization_schemas  = ckanext.pidinst_theme:instrument_organization_schema.yaml"
-
-    export CKAN___SCHEMING__DATASET_SCHEMAS="ckanext.pidinst_theme:instrument_schema.yaml"
-
 
     ckan config-tool $CKAN_INI "ckan.locale_default = en_AU"
 fi
@@ -63,8 +72,12 @@ fi
 
 
 # This seems to be necessary as the envvar equivlents are not resolved
-ckan config-tool $CKAN_INI "scheming.presets = ckanext.scheming:presets.json ckanext.repeating:presets.json ckanext.composite:presets.json"
-ckan config-tool $CKAN_INI "scheming.dataset_schemas = $CKAN___SCHEMING__DATASET_SCHEMAS"
+ckan config-tool "$CKAN_INI" -s DEFAULT \
+  "scheming.presets=ckanext.scheming:presets.json ckanext.repeating:presets.json ckanext.composite:presets.json" \
+  "scheming.dataset_schemas=${CKAN___SCHEMING__DATASET_SCHEMAS:-ckanext.pidinst_theme:instrument_schema.yaml}" \
+  "scheming.organization_schemas=${CKAN___SCHEMING__ORGANIZATION_SCHEMAS:-ckanext.pidinst_theme:instrument_organization_schema.yaml}"
+
+
 
 # DOI config
 ckan config-tool $CKAN_INI "ckanext.doi.account_name = my-account-name"
@@ -136,7 +149,7 @@ UWSGI_OPTS="--plugins http,python \
 if [ $? -eq 0 ]
 then
     # Start supervisord
-    supervisord --configuration /etc/supervisord.conf &
+    supervisord -c /etc/supervisor/supervisord.conf &
     # Start uwsgi
     su ckan -c "/usr/sbin/uwsgi $UWSGI_OPTS"
 else

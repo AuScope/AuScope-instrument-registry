@@ -9,6 +9,8 @@ volumes:
 services:
   ckan:
     container_name: ckan
+    user: "root"
+    entrypoint: ["/bin/bash", "/srv/app/start_ckan_development.sh"]
     build:
       context: ckan/
       dockerfile: Dockerfile.dev
