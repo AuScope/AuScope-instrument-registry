@@ -320,10 +320,6 @@ dataset_fields:
         label: Related Identifier
         help_text: Identifiers of related resources
 
-      - field_name: related_identifier_name
-        label: Related Identifier Name
-        help_text: A name for the related resource, may be used to give a hint on the context of that resource
-
       - field_name: related_identifier_type
         label: Related Identifier Type
         required: true
@@ -371,36 +367,52 @@ dataset_fields:
             label: w3id
         help_text: Type of the identifier
 
+      - field_name: related_identifier_name
+        label: Related Identifier Name
+        help_text: A name for the related resource (optional)
+
+      - field_name: related_resource_type
+        label: Resource Type
+        required: true
+        preset: select
+        form_attrs:
+          data-pidinst-reltype-driver: "1"
+        choices:
+          - value: Document
+            label: Document
+          - value: Instrument
+            label: Instrument
+          - value: Metadata
+            label: Metadata
+          - value: Dataset
+            label: Dataset
+          - value: Version
+            label: Version
+        help_text: Choose what kind of thing this identifier refers to. This will filter Relation Type options.
+
       - field_name: relation_type
         label: Relation Type
         required: true
         preset: select
+        form_attrs:
+          data-pidinst-reltype-target: "1"
         choices:
           - value: IsDescribedBy
-            label: IsDescribedBy
-          - value: IsNewVersionOf
-            label: IsNewVersionOf
-          - value: IsPreviousVersionOf
-            label: IsPreviousVersionOf
-          - value: HasComponent
-            label: HasComponent
-          - value: IsComponentOf
-            label: IsComponentOf
-          - value: References
-            label: References
-          - value: HasMetadata
-            label: HasMetadata
-          - value: WasUsedIn
-            label: WasUsedIn
-          - value: IsIdenticalTo
-            label: IsIdenticalTo
-          - value: IsAttachedTo
-            label: IsAttachedTo
-          - value: IsPartOf
-            label: IsPartOf
+            label: IsDescribedBy (The instrument is described by the document)
           - value: HasPart
-            label: HasPart
+            label: HasPart (The instrument has the related resource as a part)
+          - value: IsPartOf
+            label: IsPartOf (The instrument is part of the related resource)
+          - value: HasMetadata
+            label: HasMetadata (The instrument has related metadata for the resource)
+          - value: IsMetadataFor
+            label: IsMetadataFor (The resource has metadata describing the instrument)
+          - value: Collects
+            label: Collects (The instrument collects the related dataset)
+          - value: IsNewVersionOf
+            label: IsNewVersionOf (The instrument is a new version of the related resource)
         help_text: Description of the relationship
+
 
   - field_name: alternate_identifier_obj
     label: Alternate Identifier

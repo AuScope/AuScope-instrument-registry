@@ -328,6 +328,7 @@ def prepare_dataset_for_cloning(original_pkg_dict, original_pkg_id):
         'related_identifier_name': original_title,
         'related_identifier_type': 'DOI' if original_doi else 'URL',
         'relation_type': 'IsNewVersionOf',
+        'related_resource_type': 'Version',
         '_is_version_relationship': True  # Mark this as a version relationship
     }
 

@@ -96,6 +96,11 @@ breadcrumb_content %}
         name="related_identifier_obj-0-relation_type"
         value="{{ version_rel.relation_type }}"
       />
+      <input
+        type="hidden"
+        name="related_identifier_obj-0-related_resource_type"
+        value="{{ version_rel.related_resource_type }}"
+      />
       {# stash originals for server-side validation/repair #}
       <input type="hidden" name="_original_related_identifier" value="{{ version_rel.related_identifier }}" />
       <input
