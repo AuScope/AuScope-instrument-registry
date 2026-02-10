@@ -8,6 +8,10 @@ from ckanext.pidinst_theme import views
 from ckanext.pidinst_theme import helpers
 from ckanext.pidinst_theme import analytics
 
+import ckan.model as model
+import logging
+log = logging.getLogger(__name__)
+
 
 # import ckanext.pidinst_theme.cli as cli
 from ckanext.pidinst_theme.logic import (
@@ -54,6 +58,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IValidators)
     plugins.implements(plugins.ITranslation)
     plugins.implements(plugins.IFacets, inherit=True)
+    plugins.implements(plugins.IDatasetForm, inherit=True)
 
     # ITranslation
     def i18n_domain(self):
@@ -88,6 +93,25 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         pass
 
     def after_dataset_create(self, context, pkg_dict):
+        # 1) Ensure version_handler_id is set on first creation
+        try:
+            if not pkg_dict.get("version_handler_id"):
+                pkg_id = pkg_dict["id"]
+
+                patch_ctx = dict(context)
+                patch_ctx["ignore_auth"] = True
+
+                toolkit.get_action("package_patch")(
+                    patch_ctx,
+                    {"id": pkg_id, "version_handler_id": pkg_id}
+                )
+
+                # also update local copy so subsequent code sees it
+                pkg_dict["version_handler_id"] = pkg_id
+
+        except Exception as e:
+            logging.exception("Failed to set version_handler_id on create: %s", e)
+
         # Track analytics event
         user = context.get('user')
         if user:
@@ -163,3 +187,60 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         facets_dict['instrument_type'] = toolkit._('Instrument Type')
         facets_dict['locality'] = toolkit._('Locality')
         return facets_dict
+
+    # IDatasetForm
+    def before_dataset_view(self, pkg_dict):
+        vhid = pkg_dict.get("version_handler_id")
+        if not vhid:
+            pkg_dict["is_latest"] = True
+            pkg_dict["versions"] = []
+            return pkg_dict
+
+        # Build action context correctly
+        user = getattr(toolkit.c, "user", None)
+        auth_user_obj = getattr(toolkit.c, "userobj", None)
+
+        ctx = {
+            "model": model,
+            "session": model.Session,
+            "user": user,
+            "auth_user_obj": auth_user_obj,
+        }
+
+        # IMPORTANT: fq must match how you stored it; your API shows version_handler_id works
+        fq = f'version_handler_id:"{vhid}"'
+
+        res = toolkit.get_action("package_search")(
+            ctx,
+            {
+                "q": "*:*",
+                "fq": fq,
+                "rows": 200,
+                "sort": "metadata_created desc",
+            },
+        )
+
+        results = res.get("results", []) or []
+        log.warning("version_handler_id=%s fq=%s count=%s", vhid, fq, len(results))
+
+        if not results:
+            pkg_dict["is_latest"] = True
+            pkg_dict["versions"] = []
+            return pkg_dict
+
+        latest_id = results[0].get("id")
+        pkg_dict["is_latest"] = (pkg_dict.get("id") == latest_id)
+
+        pkg_dict["versions"] = [
+            {
+                "id": p.get("id"),
+                "name": p.get("name"),
+                "title": p.get("title") or p.get("name"),
+                "url": toolkit.url_for("dataset.read", id=(p.get("name") or p.get("id")), qualified=True),
+                "version_number": p.get("version_number"),
+                "metadata_created": p.get("metadata_created"),
+            }
+            for p in results
+        ]
+
+        return pkg_dict

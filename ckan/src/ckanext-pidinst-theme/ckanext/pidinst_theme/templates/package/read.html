@@ -10,7 +10,7 @@
 </h1>
 
 {% block version_actions %} {% if h.check_access('package_create') and not pkg.state == 'deleted' and not
-pkg.private %}
+pkg.private and pkg.is_latest %}
 <div class="module-content">
   <a
     href="{{ h.url_for('pidinst_theme.new_version', id=pkg.name) }}"

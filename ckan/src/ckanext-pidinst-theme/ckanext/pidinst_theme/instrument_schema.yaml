@@ -43,10 +43,19 @@ dataset_fields:
 
   - field_name: version_number
     label: Version
-    required: true
+    required: false
     form_snippet: hidden_field.html
     display_snippet: null
+    validators: ignore_missing int_validator
     default: 1
+    groupBy: About Instrument
+
+  - field_name: version_handler_id
+    label: Version Handler ID
+    # form_snippet: hidden_field.html
+    # display_snippet: null
+    validators: ignore_missing
+    required: false
     groupBy: About Instrument
 
   - field_name: name
