@@ -15,5 +15,9 @@
       {%- snippet 'scheming/form_snippets/composite_repeating.html',
           field=field, data=data, errors=errors -%}
     {% endif %}
+
+    {% if field.field_name == 'version_number' %}
+    <h1>Version: {{ data.get(field.field_name, "N/A") }}</h1>
+    {% endif %}
   </div>
 {% endblock %}

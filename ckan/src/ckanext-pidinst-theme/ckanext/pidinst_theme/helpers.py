@@ -300,6 +300,9 @@ def prepare_dataset_for_cloning(original_pkg_dict, original_pkg_id):
 
     cloned_data['title'] = new_title
 
+
+    cloned_data['version_number'] = int(original_pkg_dict.get('version_number', 1)) + 1
+
     # Generate a slug for the URL so the form starts with a valid default
     cloned_data['name'] = munge_title_to_name(new_title)
 
