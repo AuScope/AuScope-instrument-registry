@@ -4,7 +4,7 @@ pidinst_theme-js:
     - vendor/leaflet/leaflet.js
     - vendor/leaflet-draw/leaflet.draw.js
     - vendor/dataTables/datatables.min.js
-    - vendor/jstree/jstree.min.js    
+    - vendor/jstree/jstree.min.js
     - js/map-module.js
     - js/display-map-module.js
     - js/composite-repeating-module.js
@@ -14,7 +14,6 @@ pidinst_theme-js:
     - js/parent-instrument-selector-module.js
     - js/facet-select-module.js
     - js/analytics-tracking.js
-    - js/related-identifier-readonly.js
     - js/pidinst_theme.js
   extra:
     preload:
@@ -27,6 +26,6 @@ pidinst_theme-css:
     - vendor/leaflet-draw/leaflet.draw.css
     - vendor/jstree/themes/default/style.min.css
     - vendor/dataTables/datatables.min.css
-    - css/shared_style.css    
+    - css/shared_style.css
     - css/pidinst_theme.css
   output: ckanext-pidinst_theme/%(version)s-pidinst_theme.css
