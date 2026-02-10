@@ -1,0 +1,335 @@
+/* =====================================================
+   Page-Specific Styles
+   Homepage, masthead, footer, and other page layouts
+   ===================================================== */
+
+/* =====================================================
+   Account Masthead (Top Bar)
+   ===================================================== */
+
+.account-masthead {
+  background: none;
+  background-color: var(--color-background-default);
+}
+
+.account-masthead .account .notifications a span {
+  background-color: var(--color-aus-black);
+}
+
+.account-masthead .account ul li {
+  border-left: none;
+}
+
+.account-masthead,
+.account-masthead .account ul li a {
+  background: none;
+  background-color: var(--color-background-default);
+  color: var(--color-aus-black);
+  font-size: 1rem;
+  border: none;
+  box-shadow: none;
+  text-decoration: none;
+}
+
+.account-masthead .account ul li a:hover {
+  background-color: var(--color-aus-royal-blue);
+  color: var(--bs-white);
+  text-decoration: none;
+}
+
+/* =====================================================
+   Main Masthead (Navigation Bar)
+   ===================================================== */
+
+.navbar-light .navbar-toggler {
+  color: var(--color-aus-royal-blue);
+  border-color: var(--color-aus-royal-blue);
+  background-color: var(--color-aus-royal-blue-bright);
+}
+
+.masthead {
+  background: none;
+  background-color: var(--color-background-default);
+}
+
+.masthead .main-navbar ul li a {
+  color: var(--color-aus-black);
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+
+.masthead .main-navbar ul li:hover a,
+.masthead .main-navbar ul li:focus a,
+.masthead .main-navbar ul li.active a,
+.masthead .main-navbar ul li a:active {
+  background-color: var(--color-aus-royal-blue);
+  color: var(--bs-white);
+  text-decoration: none;
+}
+
+.masthead .main-navbar ul li a.active {
+  color: var(--bs-white);
+  background-color: var(--color-aus-royal-blue);
+  text-decoration: none;
+}
+
+.masthead .navigation .nav-pills li a:hover {
+  background-color: rgb(48, 48, 48);
+  color: var(--color-aus-royal-blue);
+}
+
+/* Dropdown menu styling */
+.masthead .main-navbar .dropdown .dropdown-menu li a {
+  font-size: 1rem;
+  color: var(--color-aus-black);
+  display: block;
+  width: 100%;
+  background-color: transparent;
+  text-decoration: none;
+}
+
+.masthead .main-navbar .dropdown .dropdown-menu li:hover a,
+.masthead .main-navbar .dropdown .dropdown-menu li:focus a,
+.masthead .main-navbar .dropdown .dropdown-menu li.active a,
+.masthead .main-navbar .dropdown .dropdown-menu li a:active {
+  color: var(--bs-white);
+  background-color: var(--color-aus-royal-blue);
+  text-decoration: none;
+}
+
+.masthead .main-navbar .dropdown .dropdown-menu {
+  padding-right: 0;
+}
+
+/* Logo styling */
+.logo-text {
+  font-weight: bold;
+  margin: 10px 0 0 10px;
+  font-size: x-large;
+  color: var(--color-aus-royal-blue);
+}
+
+.logo {
+  text-align: center;
+}
+
+.logo img,
+.logo .logo-text {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* =====================================================
+   Homepage Styles
+   ===================================================== */
+
+.hero .box {
+  border: none;
+}
+
+.homepage .module-search .tags {
+  background-color: var(--color-aus-royal-blue);
+}
+
+.homepage .module-search .tags h3 {
+  color: var(--bs-white);
+  font-size: 1rem;
+}
+
+.homepage [role="main"] {
+  border-top: none;
+}
+
+/* =====================================================
+   Footer Styles  –  brand primary bg, white text
+   ===================================================== */
+
+.site-footer {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  background: var(--color-aus-royal-blue);
+  color: #fff;
+}
+
+.site-footer,
+.site-footer p,
+.site-footer label,
+.site-footer small,
+.site-footer h3,
+.site-footer strong,
+.site-footer a {
+  color: #fff;
+}
+
+.site-footer a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.site-footer a:hover {
+  color: var(--bs-teal);
+}
+
+.site-footer a.social-media-link {
+  text-decoration: none;
+  margin-right: 8px;
+}
+
+.social-media-link i {
+  font-size: 1.5em;
+  color: #fff;
+  transition: color 0.15s ease;
+}
+
+.social-media-link:hover i {
+  color: var(--bs-teal);
+}
+
+.site-footer img {
+  max-width: 160px;
+  height: auto !important;
+  /* Make logos white via brightness filter */
+  filter: brightness(0) invert(1);
+}
+
+.site-footer strong {
+  font-family: 'Calibre-Medium', sans-serif;
+  letter-spacing: 0.035em;
+}
+
+.site-footer *,
+.site-footer *::before,
+.site-footer *::after {
+  box-sizing: border-box;
+}
+
+.site-footer .col-md-4 {
+  margin-top: 40px;
+  margin-bottom: 40px;
+}
+
+.footer-bottom {
+  margin: 0;
+  padding: 1.25rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.footer-bottom p {
+  margin-top: 5px;
+  margin-bottom: 0;
+}
+
+.footer-bottom em {
+  color: rgba(255, 255, 255, 0.8);
+  font-style: normal;
+  font-size: 0.875rem !important;
+}
+
+/* =====================================================
+   Stages Component (Page-specific)
+   ===================================================== */
+
+.stages {
+  margin: 0;
+  list-style: none;
+  color: #aeaeae;
+  counter-reset: none;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  padding: 0;
+}
+
+.stages::after {
+  display: block;
+  clear: both;
+  content: "";
+}
+
+.stages li::before {
+  display: block;
+  clear: both;
+  content: "";
+  z-index: 2;
+  position: relative;
+}
+
+.stages li {
+  line-height: 27px;
+  counter-increment: none;
+  width: 100%;
+  background-color: transparent;
+  float: left;
+  padding: 10px 20px;
+  position: relative;
+  z-index: 0;
+}
+
+.stages li.active:after {
+  border-color: var(--color-aus-royal-blue);
+  border-top-color: var(--color-aus-royal-blue);
+  border-bottom-color: var(--color-aus-royal-blue);
+}
+
+.stages li.active:before {
+  color: var(--color-aus-royal-blue);
+  background: #fff;
+}
+
+.stages li.active .highlight {
+  color: #fff;
+  background: var(--color-aus-royal-blue);
+}
+
+/* =====================================================
+   Badge Component (Page-specific)
+   ===================================================== */
+
+.badge {
+  display: inline-block;
+  padding: 0.2em 0.55em;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.6;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  border-radius: 2px;
+  border: 1px solid #9e9e9e;
+  background-color: transparent;
+  color: #555;
+  margin-right: 0.3rem;
+  margin-bottom: 0.25rem;
+}
+
+/* =====================================================
+   Leaflet Map Styles
+   ===================================================== */
+
+.leaflet-draw-toolbar a {
+  background-image: url('/base/vendor/leaflet-draw/images/spritesheet.png') !important;
+  background-repeat: no-repeat !important;
+  color: transparent !important;
+}
+
+/* =====================================================
+   Custom Select Form Group
+   ===================================================== */
+
+.form-group.mediunput.composite-select.control-select .controls select:first-of-type {
+  width: 90%;
+  min-width: 50%;
+  max-width: 90%;
+  margin-bottom: 15px;
+  height: 34px;
+  padding: 6px 12px;
+  font-size: 14px;
+  line-height: 1.42857143;
+  color: #555555;
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  border-radius: var(--bs-border-radius);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+}

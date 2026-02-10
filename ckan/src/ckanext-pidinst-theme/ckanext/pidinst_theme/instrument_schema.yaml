@@ -188,11 +188,30 @@ dataset_fields:
         label: Model Identifier Type
         help_text: "Type of the identifier"
 
-  - field_name: description
-    label: Description
-    preset: markdown
-    help_text: Technical description of the device and its capabilities
+  - field_name: date
+    label: Date
+    preset: composite_repeating
+    validators: composite_repeating_validator
+    form_snippet: composite_repeating_field.html
+    form_blanks: 1
     groupBy: About Instrument
+    subfields:
+      - field_name: date_value
+        label: Date
+        preset: date
+        required: true
+        help_text: Dates relevant to the instrument
+
+      - field_name: date_type
+        label: Date Type
+        preset: select
+        required: true
+        choices:
+          - value: Commissioned
+            label: Commissioned
+          - value: DeCommissioned
+            label: DeCommissioned
+        help_text: The type of the date
 
   - field_name: gcmd_keywords_code
     label: GCMD Science Keywords
@@ -217,93 +236,25 @@ dataset_fields:
     help_text: Keywords help with the discovery of the instrument
     groupBy: About Instrument
 
-  - field_name: locality
-    label: Locality
-    help_text: The locality or named place where the instrument is located
-    groupBy: Spatial & Temporal
-
-  - field_name: location_choice
-    label: Location Details
-    preset: radio
-    choices:
-      - value: noLocation
-        label: "No"
-      # - value: area
-      #   label: Area on Map
-      - value: point
-        label: Single point on Map
-    default: noLocation
-    display_snippet: map_field.html
-    help_text: Choose how to specify the location.
-    validators: location_validator
-    groupBy: Spatial & Temporal
-
-  - field_name: map_display
-    label: Map Display
-    form_snippet: map_field_single_point.html
-    display_snippet: null
-    help_text: Interactive map for selecting coordinates.
-    groupBy: Spatial & Temporal
-
-  - field_name: location_data
-    label: Location Data
-    form_snippet: null
-    display_snippet: null
-    preset: json_object
-    groupBy: Spatial & Temporal
-
-  - field_name: spatial
-    label: Spatial
-    form_snippet: null
-    display_snippet: null
-    preset: json_object
-    groupBy: Spatial & Temporal
-
-  - field_name: epsg_code
-    label: Geographic Coordinate System
-    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
-    form_snippet: null
-    display_snippet: null
-    groupBy: Spatial & Temporal
-
-  - field_name: epsg
-    label: Geographic Coordinate System
-    form_snippet: hidden_field.html
-    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
-    display_snippet: null
-    groupBy: Spatial & Temporal
-
   - field_name: measured_variable
     label: Measured Variable
     preset: tag_string_autocomplete
     help_text: The variable(s) that this instrument measures or observes
-    groupBy: Classification
+    groupBy: About Instrument
 
-  - field_name: date
-    label: Date
-    preset: composite_repeating
-    validators: composite_repeating_validator
-    form_snippet: composite_repeating_field.html
-    form_blanks: 1
-    groupBy: Temporal
-    subfields:
-      - field_name: date_value
-        label: Date
-        preset: date
-        required: true
-        help_text: Dates relevant to the instrument
+  - field_name: description
+    label: Description
+    preset: markdown
+    help_text: Technical description of the device and its capabilities
+    groupBy: About Instrument
 
-      - field_name: date_type
-        label: Date Type
-        preset: select
-        required: true
-        choices:
-          - value: Commissioned
-            label: Commissioned
-          - value: DeCommissioned
-            label: DeCommissioned
-        help_text: The type of the date
+  - field_name: credit
+    label: Credit
+    form_snippet: textarea.html
+    help_text: The Credit field is where you acknowledge people or organisations who contributed
+    groupBy: Supporting Metadata
 
+  # =================== RELATED RESOURCES ===================
   - field_name: related_identifier_obj
     label: Related Identifier
     preset: composite_repeating
@@ -451,12 +402,64 @@ dataset_fields:
             label: Other
         help_text: Type of the identifier
 
+  # ================ GEOLOCATION ================
+  - field_name: locality
+    label: Locality
+    help_text: The locality or named place where the instrument is located
+    groupBy: Spatial & Temporal
+
+  - field_name: location_choice
+    label: Location Details
+    preset: radio
+    choices:
+      - value: noLocation
+        label: "No"
+      # - value: area
+      #   label: Area on Map
+      - value: point
+        label: Single point on Map
+    default: noLocation
+    display_snippet: map_field.html
+    help_text: Choose how to specify the location.
+    validators: location_validator
+    groupBy: Spatial & Temporal
+
+  - field_name: map_display
+    label: Map Display
+    form_snippet: map_field_single_point.html
+    display_snippet: null
+    help_text: Interactive map for selecting coordinates.
+    groupBy: Spatial & Temporal
+
+  - field_name: location_data
+    label: Location Data
+    form_snippet: null
+    display_snippet: null
+    preset: json_object
+    groupBy: Spatial & Temporal
+
+  - field_name: spatial
+    label: Spatial
+    form_snippet: null
+    display_snippet: null
+    preset: json_object
+    groupBy: Spatial & Temporal
+
+  - field_name: epsg_code
+    label: Geographic Coordinate System
+    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
+    form_snippet: null
+    display_snippet: null
+    groupBy: Spatial & Temporal
+
+  - field_name: epsg
+    label: Geographic Coordinate System
+    form_snippet: hidden_field.html
+    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
+    display_snippet: null
+    groupBy: Spatial & Temporal
+
   # XXX This will be auto-generated after DOI minting, see metadata document
-  - field_name: supplementation_information
-    label: Supplemental Information
-    form_snippet: textarea.html
-    help_text: Any other descriptive information about the instrument that can promote its reuse
-    groupBy: Supporting Metadata
 
   - field_name: publisher
     label: Publisher
@@ -508,11 +511,6 @@ dataset_fields:
     help_text: The date the instrument is published through the repository
     groupBy: Supporting Metadata
 
-  - field_name: credit
-    label: Credit
-    form_snippet: textarea.html
-    help_text: The Credit field is where you acknowledge people or organisations who contributed
-    groupBy: Supporting Metadata
 
   - field_name: primary_contact_name
     label: Primary Contact Name

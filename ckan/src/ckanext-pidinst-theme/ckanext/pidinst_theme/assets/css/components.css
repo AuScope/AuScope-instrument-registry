@@ -1,0 +1,695 @@
+/* =====================================================
+   Components – CKAN Widget Kit
+   Flat, minimal design inspired by data.gov.au
+   ===================================================== */
+
+/* =====================================================
+   1. Modules / Cards  –  flat, borderless
+   ===================================================== */
+
+.module {
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: 1.25rem;
+}
+
+.module-heading {
+  margin: 0;
+  padding: 0.75rem 0;
+  font-family: 'Calibre-Medium', sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  color: #333;
+  background-color: transparent;
+  border-top: none;
+  border-bottom: 1px solid #ddd;
+  border-radius: 0;
+}
+
+.module-content {
+  padding: 0.75rem 0;
+}
+
+.module-narrow .module-content {
+  padding: 0.5rem 0;
+}
+
+/* Heading used on organisation pages */
+.module-heading-org {
+  margin: 0;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  background-color: transparent;
+  border: none;
+}
+
+/* =====================================================
+   2. Dataset list items  –  separated by thin lines
+   ===================================================== */
+
+.dataset-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dataset-item {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 0;
+  padding: 1.25rem 0;
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.dataset-item:last-child {
+  border-bottom: none;
+}
+
+.dataset-heading {
+  margin: 0 0 0.25rem;
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.dataset-heading a {
+  color: var(--color-aus-royal-blue);
+  text-decoration: none;
+}
+
+.dataset-heading a:hover {
+  color: var(--color-aus-royal-blue-dark);
+  text-decoration: underline;
+}
+
+/* Organisation link below heading */
+.dataset-item .dataset-heading + .dataset-organization {
+  font-size: 0.875rem;
+  color: var(--color-aus-royal-blue-bright);
+  margin-bottom: 0.375rem;
+}
+
+/* Description text */
+.dataset-item .notes {
+  color: #555;
+  font-size: 0.9375rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Resources row */
+.dataset-resources {
+  margin-top: 0.5rem;
+  padding: 0;
+  border: none;
+}
+
+/* =====================================================
+   3. Resource format labels / badges
+   Bordered uppercase pills like data.gov.au
+   ===================================================== */
+
+.label,
+.format-label,
+.tag,
+.dataset-resources .format-label {
+  display: inline-block;
+  padding: 0.2em 0.55em;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  border-radius: 2px;
+  border: 1px solid #9e9e9e;
+  background-color: transparent;
+  color: #555;
+  margin-right: 0.3rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.6;
+}
+
+/* =====================================================
+   4. Facets / Filters sidebar  –  checkbox style, collapsible
+   ===================================================== */
+
+/* Section wrapper */
+.module.module-narrow.module-shallow {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  margin-bottom: 0.5rem;
+  padding: 0;
+}
+
+/* Section heading – acts as collapse toggle */
+.module.module-narrow .module-heading,
+.facet-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #333;
+  background: transparent;
+  border-top: none;
+  border-bottom: 1px solid #ddd;
+  cursor: pointer;
+  user-select: none;
+}
+
+.module.module-narrow .module-heading::after,
+.facet-section-heading::after {
+  content: '\f077';  /* fa-chevron-up */
+  font-family: 'Font Awesome 5 Free', 'FontAwesome';
+  font-weight: 900;
+  font-size: 0.75rem;
+  color: #666;
+  transition: transform 0.2s ease;
+}
+
+.module.module-narrow .module-heading.collapsed::after,
+.facet-section-heading.collapsed::after {
+  transform: rotate(180deg);
+}
+
+/* Checkbox list inside each facet */
+.nav-facet,
+.module-narrow .nav-aside,
+.facet-check-list {
+  list-style: none;
+  padding: 0.5rem 0 0;
+  margin: 0;
+}
+
+.nav-facet li,
+.module-narrow .nav-aside li,
+.facet-check-list li {
+  margin-bottom: 0.375rem;
+}
+
+.nav-facet li label,
+.facet-check-list li label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #333;
+  cursor: pointer;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.nav-facet li label input[type="checkbox"],
+.facet-check-list li label input[type="checkbox"] {
+  margin-top: 0.2rem;
+  accent-color: var(--color-aus-royal-blue);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+/* Count in parentheses */
+.facet-count {
+  color: #888;
+  font-size: 0.8125rem;
+}
+
+/* Facet search input */
+.module-narrow .module-content input[type="text"],
+.facet-search-input {
+  width: 100%;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.875rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  margin-bottom: 0.5rem;
+}
+
+.facet-search-input:focus {
+  border-color: #66afe9;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(102, 175, 233, 0.2);
+}
+
+/* Link-style facets (fallback for non-checkbox facets) */
+.nav-facet li a,
+.module-narrow .nav-aside li a {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0;
+  color: #333;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.nav-facet li a:hover,
+.module-narrow .nav-aside li a:hover {
+  color: var(--color-aus-royal-blue);
+  text-decoration: underline;
+}
+
+.nav-facet li.active a,
+.module-narrow .nav-aside li.active a {
+  color: var(--color-aus-royal-blue);
+  font-weight: 500;
+}
+
+/* =====================================================
+   5. Forms & Inputs
+   ===================================================== */
+
+.form-control,
+.form-select,
+select.form-control,
+input[type="text"],
+input[type="email"],
+input[type="search"],
+input[type="url"],
+input[type="password"],
+textarea {
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  box-shadow: none;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus,
+.form-select:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="search"]:focus,
+input[type="url"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+  border-color: #66afe9;
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(102, 175, 233, 0.2);
+}
+
+/* Search form on search page */
+.search-form .search-input {
+  position: relative;
+}
+
+.search-form .search-input .form-control {
+  padding-right: 2.5rem;
+}
+
+/* Homepage search box */
+.homepage .module-search .module-content {
+  color: var(--color-aus-black);
+  background-color: #fff;
+  border-radius: 4px;
+  padding: 1.5rem;
+}
+
+.homepage .module-search {
+  padding: 0;
+}
+
+/* Select2 dropdown styling */
+.select2-container .select2-choice,
+.select2-container .select2-choices {
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  box-shadow: none;
+}
+
+.select2-container.select2-container-active .select2-choice,
+.select2-container.select2-container-active .select2-choices {
+  border-color: #66afe9;
+  box-shadow: 0 0 0 2px rgba(102, 175, 233, 0.2);
+}
+
+.select2-search-choice-close {
+  left: 0 !important;
+}
+
+/* Composite fields */
+.composite-panel-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  margin-top: 10px;
+  background-color: #f5f5f5;
+  color: #333;
+  cursor: pointer;
+  border-radius: 3px 3px 0 0;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border: 1px solid #ddd;
+}
+
+.composite-content {
+  display: none;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  padding: 10px 12px;
+  background-color: #fafafa;
+}
+
+.composite-content.active {
+  display: block;
+}
+
+.composite-content .form-control,
+.composite-content .medinput,
+.composite-content .controls {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* =====================================================
+   6. Buttons
+   ===================================================== */
+
+.btn {
+  font-family: var(--bs-body-font-family);
+  font-weight: 500;
+  padding: 0.5rem 1.25rem;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  box-shadow: none;
+  font-size: 0.9375rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:focus {
+  box-shadow: 0 0 0 2px rgba(102, 175, 233, 0.3);
+  outline: none;
+}
+
+/* Primary */
+.btn-primary {
+  color: #fff;
+  background-color: var(--color-aus-royal-blue);
+  border-color: var(--color-aus-royal-blue);
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active {
+  background-color: var(--color-aus-royal-blue-dark);
+  border-color: var(--color-aus-royal-blue-dark);
+  color: #fff;
+}
+
+.btn-check:checked + .btn-primary,
+.btn-check:active + .btn-primary,
+.show > .btn-primary.dropdown-toggle {
+  background-color: var(--color-aus-royal-blue-dark);
+  border-color: var(--color-aus-royal-blue-dark);
+}
+
+/* Success */
+.btn-success {
+  color: #fff;
+  background-color: var(--color-aus-royal-blue-bright);
+  border-color: var(--color-aus-royal-blue);
+}
+
+.btn-success:hover,
+.btn-success:focus,
+.btn-success:active {
+  background-color: var(--color-aus-royal-blue-dark);
+  border-color: var(--color-aus-royal-blue-dark);
+  color: #fff;
+}
+
+/* Danger */
+.btn-danger,
+.control-custom.disabled .checkbox.btn {
+  color: #fff;
+  background-color: var(--bs-tangerine);
+  border-color: var(--bs-tangerine);
+}
+
+.btn-danger:hover,
+.btn-danger:focus,
+.btn-danger:active {
+  background-color: var(--bs-red);
+  border-color: var(--bs-red);
+  color: #fff;
+}
+
+/* Default / Secondary */
+.btn-default,
+.btn-secondary {
+  color: #333;
+  background-color: #fff;
+  border-color: #ccc;
+}
+
+.btn-default:hover,
+.btn-secondary:hover {
+  background-color: #f5f5f5;
+  border-color: #aaa;
+}
+
+/* =====================================================
+   7. Pagination
+   ===================================================== */
+
+.pagination {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  gap: 0.25rem;
+}
+
+.pagination .page-item {
+  margin: 0;
+}
+
+.pagination .page-link {
+  display: block;
+  padding: 0.4rem 0.75rem;
+  color: var(--color-aus-royal-blue);
+  text-decoration: none;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  transition: background-color 0.15s ease;
+}
+
+.pagination .page-link:hover {
+  background-color: #f5f5f5;
+  border-color: var(--color-aus-royal-blue);
+  color: var(--color-aus-royal-blue-dark);
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--color-aus-royal-blue);
+  border-color: var(--color-aus-royal-blue);
+  color: #fff;
+}
+
+.pagination .page-item.disabled .page-link {
+  color: #999;
+  pointer-events: none;
+  background-color: #f9f9f9;
+  border-color: #ddd;
+}
+
+/* =====================================================
+   8. Resource navigation
+   ===================================================== */
+
+.nav-resource .resource-item {
+  border-bottom: 1px solid #eee;
+  padding: 0.75rem 0;
+}
+
+.nav-resource .resource-item:last-child {
+  border-bottom: none;
+}
+
+.nav-resource .resource-item .nav-format-label {
+  display: flex;
+  align-items: center;
+}
+
+.nav-resource .resource-item .heading {
+  color: #333;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.nav-resource .nav-format-label .format-label {
+  width: 30px;
+  height: 32.5px;
+  margin: -14px 0 0 -14px;
+  font: normal;
+}
+
+/* =====================================================
+   9. Cards (generic — accordion cards etc.)
+   ===================================================== */
+
+.card {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  box-shadow: none;
+}
+
+.card-header {
+  background-color: #fafafa;
+  color: #333;
+  cursor: pointer;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0.75rem 1rem;
+}
+
+.card-header h4 {
+  margin-bottom: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.card-header .btn-link {
+  color: #333;
+  text-decoration: none;
+  background-color: transparent;
+  padding-left: 0;
+  font-weight: 500;
+  width: 100%;
+  text-align: left;
+}
+
+.card-header .btn-link:hover,
+.card-header .btn-link:focus {
+  text-decoration: none;
+  color: var(--color-aus-royal-blue);
+}
+
+.card-header .btn-link:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.card-body {
+  padding: 1rem;
+  background-color: #fff;
+}
+
+/* =====================================================
+   10. Tables
+   ===================================================== */
+
+.schema-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  margin: 20px 0;
+  box-shadow: none;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.schema-table th,
+.schema-table td {
+  text-align: left;
+  padding: 12px 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.schema-table thead {
+  background-color: #f5f5f5;
+  color: #333;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.schema-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+.schema-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* =====================================================
+   11. Miscellaneous
+   ===================================================== */
+
+.form-actions .control-required-message {
+  float: left;
+  margin-left: 0;
+  margin-bottom: 0;
+  line-height: 30px;
+}
+
+.collapse-button {
+  cursor: pointer;
+  background-color: transparent;
+  border: none;
+  font-size: 1.25em;
+  margin-right: 10px;
+}
+
+.toggle-indicator {
+  padding-right: 10px;
+  padding-left: 5px;
+}
+
+.hidden-panel {
+  display: none;
+}
+
+.image-caption {
+  position: absolute;
+  bottom: 0;
+  color: #fff;
+  background-color: var(--color-aus-royal-blue);
+  width: 100%;
+  text-align: center;
+  padding: 10px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.media-image-wrapper:hover .image-caption {
+  opacity: 1;
+}
+
+.media-overlay .media-heading {
+  background-color: var(--color-aus-royal-blue);
+  font-size: 1rem;
+}
+
+.context-info .image img,
+.context-info .image a {
+  display: block;
+  width: 200px;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.form-group .info-block code {
+  font-size: 0.875em;
+  color: #6e6e6e;
+  word-wrap: break-word;
+}
+
+.citation-guide a {
+  color: #0563C1;
+}

@@ -1,0 +1,85 @@
+/* =====================================================
+   Design Tokens - CSS Variables & Fonts
+   Contains only :root variables and @font-face declarations
+   ===================================================== */
+
+:root {
+  /* Brand Colors */
+  --color-background-default: #f2f2f1;
+  --color-aus-royal-blue: #282572;
+  --color-aus-royal-blue-bright: #2e2b8a;
+  --color-aus-royal-blue-dark: #221f61;
+  --color-aus-black: #231f20;
+  
+  /* Bootstrap Color Tokens */
+  --bs-teal: #59c2aa;
+  --bs-gray: #d8d9d7;
+  --bs-white: #ffffff;
+  --bs-red: #ea1e31;
+  --bs-tangerine: #ec5661;
+  
+  /* Typography */
+  --bs-font-sans-serif: 'Calibre-light', Arial, sans-serif;
+  --bs-font-serif: 'Karmina', Georgia, serif;
+  --bs-font-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --bs-body-font-family: var(--bs-font-sans-serif);
+  --bs-body-font-size: 1.063rem;
+  --bs-body-font-weight: 400;
+  --bs-body-line-height: 1.5;
+  
+  /* Bootstrap Variable Mappings */
+  --bs-body-bg: var(--color-background-default);
+  --bs-body-color: var(--color-aus-black);
+  --bs-primary: var(--color-aus-royal-blue);
+  --bs-primary-rgb: 40, 37, 114;
+  --bs-success: var(--color-aus-royal-blue-bright);
+  --bs-danger: var(--bs-tangerine);
+  --bs-link-color: var(--color-aus-royal-blue);
+  --bs-link-hover-color: var(--color-aus-royal-blue-dark);
+  --bs-link-decoration: underline;
+  
+  /* Border & Spacing */
+  --bs-border-color: #dee2e6;
+  --bs-border-radius: 0.375rem;
+  --bs-border-radius-sm: 0.25rem;
+  --bs-border-radius-lg: 0.5rem;
+  --bs-border-radius-pill: 50rem;
+  
+  /* Shadows */
+  --bs-box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --bs-box-shadow-sm: 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.075);
+  --bs-box-shadow-lg: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  
+  /* Component-specific tokens */
+  --card-bg: var(--bs-white);
+  --card-border-color: #e0e0e0;
+  --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --card-shadow-hover: 0 4px 8px rgba(0, 0, 0, 0.12);
+  
+  /* Focus state */
+  --bs-focus-ring-color: rgba(40, 37, 114, 0.25);
+}
+
+/* =====================================================
+   Font Face Declarations
+   ===================================================== */
+
+@font-face {
+  font-family: 'Calibre-light';
+  src: url('/base/fonts/CalibreWeb-Light.eot');
+  src: url('/base/fonts/CalibreWeb-Light.eot?#iefix') format('embedded-opentype'),
+       url('/base/fonts/CalibreWeb-Light.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calibre-Medium';
+  src: url('/base/fonts/CalibreWeb-Medium.eot');
+  src: url('/base/fonts/CalibreWeb-Medium.eot?#iefix') format('embedded-opentype'),
+       url('/base/fonts/CalibreWeb-Medium.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}

@@ -13,6 +13,7 @@ pidinst_theme-js:
     - js/jstree-view-module.js
     - js/parent-instrument-selector-module.js
     - js/facet-select-module.js
+    - js/facet-collapse-module.js
     - js/analytics-tracking.js
     - js/pidinst_theme.js
   extra:
@@ -28,4 +29,8 @@ pidinst_theme-css:
     - vendor/dataTables/datatables.min.css
     - css/shared_style.css
     - css/pidinst_theme.css
+    - css/tokens.css
+    - css/base.css
+    - css/components.css
+    - css/pages.css
   output: ckanext-pidinst_theme/%(version)s-pidinst_theme.css

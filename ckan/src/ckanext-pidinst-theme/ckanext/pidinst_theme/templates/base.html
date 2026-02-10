@@ -6,6 +6,8 @@
 {% endblock %}
 
 {% block head_extras %}
+<link rel="preload" href="/base/fonts/CalibreWeb-Light.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/base/fonts/CalibreWeb-Medium.woff2" as="font" type="font/woff2" crossorigin>
 {{ super() }}
 {# RudderStack Analytics Integration #}
 {{ h.rudderstack_script() }}
