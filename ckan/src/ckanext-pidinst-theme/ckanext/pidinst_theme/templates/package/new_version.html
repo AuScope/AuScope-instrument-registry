@@ -1,0 +1,122 @@
+{% extends "page.html" %} {% block subtitle %}{{ _('Create New Version') }}{% endblock %} {% block
+breadcrumb_content %}
+<li class="active">{% link_for _('Datasets'), named_route='dataset.search' %}</li>
+<li class="active">{{ _('Create New Version') }}</li>
+{% endblock %} {% block styles %} {{ super() }}
+<style>
+  /* Scoped to this page/module only */
+  .module[data-module="related-identifier-readonly"] .version-rel-dl {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 6px;
+    margin-bottom: 0;
+  }
+
+  .module[data-module="related-identifier-readonly"] .version-rel-dl dt,
+  .module[data-module="related-identifier-readonly"] .version-rel-dl dd {
+    margin: 0;
+  }
+
+  .module[data-module="related-identifier-readonly"] .version-rel-dl dt {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .module[data-module="related-identifier-readonly"] .version-rel-dl dd code {
+    word-break: break-all;
+    white-space: normal;
+  }
+
+  /* Responsive fallback */
+  @media (max-width: 767px) {
+    .module[data-module="related-identifier-readonly"] .version-rel-dl {
+      grid-template-columns: 1fr;
+    }
+    .module[data-module="related-identifier-readonly"] .version-rel-dl dt {
+      margin-top: 6px;
+    }
+  }
+</style>
+{% endblock %} {% block primary_content %}
+<article class="module" data-module="related-identifier-readonly">
+  <div class="module-content">
+    <h1 class="page-heading">{{ _('Create New Version') }}</h1>
+
+    {% if data._original_package_title or data._original_package_name %}
+    <p class="text-muted">
+      {{ _('Creating a new version of') }}:
+      <strong>{{ data._original_package_title or data._original_package_name }}</strong>
+    </p>
+    {% endif %}
+
+    <div class="alert alert-info">
+      <i class="fa fa-info-circle"></i>
+      {{ _('The data below has been copied from the original instrument. Please review and update as needed
+      for the new version. A relationship to the original version will be automatically created.') }}
+    </div>
+
+    {% if data.related_identifier_obj and data.related_identifier_obj|length > 0 %} {% set version_rel =
+    data.related_identifier_obj[0] %} {% if version_rel.relation_type == 'IsNewVersionOf' %}
+    <div class="alert alert-success" style="border-left: 4px solid #5bc0de">
+      <h4 style="margin-top: 0"><i class="fa fa-lock"></i> {{ _('Version Relationship (Read-only)') }}</h4>
+
+      {# changed class from dl-horizontal to version-rel-dl #}
+      <dl class="version-rel-dl">
+        <dt>{{ _('Relation Type') }}:</dt>
+        <dd><strong>{{ version_rel.relation_type }}</strong></dd>
+
+        <dt>{{ _('Related Identifier') }}:</dt>
+        <dd><code>{{ version_rel.related_identifier }}</code></dd>
+
+        <dt>{{ _('Related Identifier Name') }}:</dt>
+        <dd>{{ version_rel.related_identifier_name }}</dd>
+
+        <dt>{{ _('Related Identifier Type') }}:</dt>
+        <dd>{{ version_rel.related_identifier_type }}</dd>
+      </dl>
+
+      <input
+        type="hidden"
+        name="related_identifier_obj-0-related_identifier"
+        value="{{ version_rel.related_identifier }}"
+      />
+      <input
+        type="hidden"
+        name="related_identifier_obj-0-related_identifier_name"
+        value="{{ version_rel.related_identifier_name }}"
+      />
+      <input
+        type="hidden"
+        name="related_identifier_obj-0-related_identifier_type"
+        value="{{ version_rel.related_identifier_type }}"
+      />
+      <input
+        type="hidden"
+        name="related_identifier_obj-0-relation_type"
+        value="{{ version_rel.relation_type }}"
+      />
+      {# stash originals for server-side validation/repair #}
+      <input type="hidden" name="_original_related_identifier" value="{{ version_rel.related_identifier }}" />
+      <input
+        type="hidden"
+        name="_original_related_identifier_name"
+        value="{{ version_rel.related_identifier_name }}"
+      />
+      <input
+        type="hidden"
+        name="_original_related_identifier_type"
+        value="{{ version_rel.related_identifier_type }}"
+      />
+      <input type="hidden" name="_original_relation_type" value="{{ version_rel.relation_type }}" />
+      <input type="hidden" name="_original_package_id" value="{{ data._original_package_id }}" />
+      <input type="hidden" name="_original_package_name" value="{{ data._original_package_name }}" />
+    </div>
+    {% endif %} {% endif %}
+  </div>
+
+  {% snippet 'scheming/package/snippets/package_form.html', data=data, errors=errors,
+  error_summary=error_summary, dataset_type=dataset_type, stage=stage, form_style='new', pkg_dict=pkg_dict %}
+</article>
+{% endblock %} {% block secondary_content %}{% endblock %} {% block scripts %} {{ super() }} {% asset
+'pidinst_theme/pidinst_theme-js' %} {% endblock %}

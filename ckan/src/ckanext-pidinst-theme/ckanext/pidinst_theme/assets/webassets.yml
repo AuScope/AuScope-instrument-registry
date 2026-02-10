@@ -14,10 +14,11 @@ pidinst_theme-js:
     - js/parent-instrument-selector-module.js
     - js/facet-select-module.js
     - js/analytics-tracking.js
-    - js/pidinst_theme.js   
+    - js/related-identifier-readonly.js
+    - js/pidinst_theme.js
   extra:
     preload:
-      - vendor/jquery  
+      - vendor/jquery
       - vendor/bootstrap
 
 pidinst_theme-css:

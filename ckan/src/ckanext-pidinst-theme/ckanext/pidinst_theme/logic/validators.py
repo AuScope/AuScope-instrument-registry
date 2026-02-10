@@ -35,6 +35,78 @@ def add_error(errors, key, error_message):
     errors[key] = errors.get(key, [])
     errors[key].append(error_message)
 
+
+@scheming_validator
+@register_validator
+def ensure_single_isnewversionof(field, schema):
+    """
+    Ensure exactly one IsNewVersionOf relationship exists in related_identifier_obj.
+    If missing, reinsert based on hidden original fields.
+    If multiple, collapse to one and warn.
+    """
+    def validator(key, data, errors, context):
+        related_key = key
+        value = data.get(related_key, [])
+
+        # Expect list of dicts
+        if value in (missing, None):
+            value = []
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except Exception:
+                value = []
+        if not isinstance(value, list):
+            value = []
+
+        # Pull originals from hidden fields
+        orig_rel = {
+            'related_identifier': data.get(('_original_related_identifier',), ''),
+            'related_identifier_name': data.get(('_original_related_identifier_name',), ''),
+            'related_identifier_type': data.get(('_original_related_identifier_type',), 'DOI'),
+            'relation_type': data.get(('_original_relation_type',), 'IsNewVersionOf') or 'IsNewVersionOf',
+        }
+
+        # Fallback to dataset URL if no identifier
+        if not orig_rel['related_identifier']:
+            pkg_id = data.get(('_original_package_id',), '') or data.get(('id',), '')
+            if pkg_id:
+                try:
+                    orig_rel['related_identifier'] = tk.url_for('dataset.read', id=pkg_id, qualified=True)
+                except Exception:
+                    orig_rel['related_identifier'] = ''
+
+        # Collect non-version relationships
+        non_version = [rel for rel in value if rel.get('relation_type') != 'IsNewVersionOf']
+
+        # Build the single enforced version relationship
+        version_rel = {
+            'related_identifier': orig_rel.get('related_identifier', ''),
+            'related_identifier_name': orig_rel.get('related_identifier_name', ''),
+            'related_identifier_type': orig_rel.get('related_identifier_type', 'DOI'),
+            'relation_type': 'IsNewVersionOf',
+        }
+
+        # Ensure version relationship has a value
+        if not version_rel['related_identifier']:
+            errors[related_key] = errors.get(related_key, [])
+            errors[related_key].append(_('Missing IsNewVersionOf related identifier'))
+            return
+
+        # Prepend the version relationship, rest follow
+        new_list = [version_rel] + non_version
+
+        # Write back
+        data[related_key] = new_list
+
+        # If more than one version relationship was present, add a warning
+        num_version = sum(1 for rel in value if rel.get('relation_type') == 'IsNewVersionOf')
+        if num_version > 1:
+            errors[related_key] = errors.get(related_key, [])
+            errors[related_key].append(_('Only one IsNewVersionOf relationship is allowed; extra entries were removed'))
+
+    return validator
+
 @scheming_validator
 @register_validator
 def location_validator(field, schema):

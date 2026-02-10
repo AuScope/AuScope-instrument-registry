@@ -1,38 +1,28 @@
-{% ckan_extends %}
-  {% block package_description %}
-    {% if pkg.private %}
-      <span class="dataset-private badge badge-inverse pull-right">
-        <i class="fa fa-lock"></i>
-        {{ _('Private') }}
-      </span>
-    {% endif %}
-    <h1>
-      {% block page_heading %}
-        {{ h.dataset_display_name(pkg) }}
-        {% if pkg.state.startswith('draft') %}
-          [{{ _('Draft') }}]
-        {% endif %}
-        {% if pkg.state == 'deleted' %}
-          [{{ _('Deleted') }}]
-        {% endif %}
-      {% endblock %}
-    </h1>
-    {% block package_notes %}
-      {% if pkg.description %}
-        <div class="notes embedded-content">
-          {{ h.render_markdown(h.get_translated(pkg, 'description')) }}
-        </div>
-      {% endif %}
-    {% endblock %}
+{% ckan_extends %} {% block package_description %} {% if pkg.private %}
+<span class="dataset-private badge badge-inverse pull-right">
+  <i class="fa fa-lock"></i>
+  {{ _('Private') }}
+</span>
+{% endif %}
+<h1>
+  {% block page_heading %} {{ h.dataset_display_name(pkg) }} {% if pkg.state.startswith('draft') %} [{{
+  _('Draft') }}] {% endif %} {% if pkg.state == 'deleted' %} [{{ _('Deleted') }}] {% endif %} {% endblock %}
+</h1>
 
-    {% block package_cite %}
-      {% if pkg.citation %}
-        <h2>{{ _('Cite this as') }}</h2>
-        <div class="citation embedded-content">
-          {{ h.render_markdown(h.get_translated(pkg, 'citation')) }}
-        </div>
-      {% endif %}
-    {% endblock %}
-
-   
-  {% endblock %}
+{% block version_actions %} {% if h.check_access('package_create') and not pkg.state == 'deleted' and not
+pkg.private %}
+<div class="module-content">
+  <a
+    href="{{ h.url_for('pidinst_theme.new_version', id=pkg.name) }}"
+    class="btn btn-primary"
+    title="{{ _('Create a new version of this instrument') }}"
+  >
+    <i class="fa fa-code-fork"></i> {{ _('Create New Version') }}
+  </a>
+</div>
+{% endif %} {% endblock %} {% block package_notes %} {% if pkg.description %}
+<div class="notes embedded-content">{{ h.render_markdown(h.get_translated(pkg, 'description')) }}</div>
+{% endif %} {% endblock %} {% block package_cite %} {% if pkg.citation %}
+<h2>{{ _('Cite this as') }}</h2>
+<div class="citation embedded-content">{{ h.render_markdown(h.get_translated(pkg, 'citation')) }}</div>
+{% endif %} {% endblock %} {% endblock %}

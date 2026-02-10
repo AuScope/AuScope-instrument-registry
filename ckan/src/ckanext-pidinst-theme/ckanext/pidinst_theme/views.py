@@ -224,5 +224,65 @@ def fetch_gcmd():
     else:
         return {"error": "Failed to fetch gcmd"}, 502
 
+
+@pidinst_theme.route('/dataset/<id>/new_version', methods=['GET', 'POST'])
+def new_version(id):
+    """
+    Create a new version of an existing dataset/instrument.
+    Clones the current dataset with prepopulated data and adds IsNewVersionOf relationship.
+    """
+    context = {'user': current_user.name}
+
+    try:
+        # Check if user has permission to create packages
+        check_access('package_create', context)
+    except NotAuthorized:
+        return base.abort(403, toolkit._('Unauthorized to create datasets'))
+
+    try:
+        # Get the original package data
+        original_pkg = get_action('package_show')(context, {'id': id})
+
+        # Prepare cloned data using helper function
+        cloned_data = h.prepare_dataset_for_cloning(original_pkg, id)
+
+        # Add metadata to track this is a new version
+        cloned_data['_is_new_version'] = True
+        cloned_data['_original_package_id'] = id
+        cloned_data['_original_package_name'] = original_pkg.get('name', '')
+        cloned_data['_original_package_title'] = original_pkg.get('title', '')
+
+        # Store in session for the form to pick up
+        session['package_new_version_data'] = cloned_data
+        session.modified = True
+
+        # Get the dataset type
+        dataset_type = original_pkg.get('type', 'dataset')
+
+        # Set up proper context for template rendering
+        # Set form action to the standard package create endpoint
+        g.form_action = toolkit.url_for(dataset_type + '.new')
+
+        extra_vars = {
+            'data': cloned_data,
+            'errors': {},
+            'error_summary': {},
+            'dataset_type': dataset_type,
+            'stage': ['active', ''],
+            'form_style': 'new',
+            'pkg_dict': {},
+        }
+
+        # Render using the proper package/new template structure
+        return toolkit.render('package/new_version.html', extra_vars=extra_vars)
+
+    except NotFound:
+        return base.abort(404, toolkit._('Dataset not found'))
+    except Exception as e:
+        log.error(f'Error creating new version: {str(e)}')
+        toolkit.h.flash_error(toolkit._('An error occurred while preparing the new version'))
+        return toolkit.redirect_to('dataset.read', id=id)
+
+
 def get_blueprints():
     return [pidinst_theme, analytics_views.analytics_bp]
