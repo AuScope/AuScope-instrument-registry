@@ -10,7 +10,7 @@
   --bs-red: #ea1e31;
   --bs-tangerine: #ec5661;
   --color-aus-black: #231f20;
-  --bs-font-sans-serif: 'Calibre-light', Arial, sans-serif;
+  --bs-font-sans-serif: "Calibre-light", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
   --bs-font-serif: 'Karmina', Georgia, serif;
   
   --bs-font-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -29,6 +29,7 @@
     url('/base/fonts/CalibreWeb-Light.woff') format('woff');
     font-weight: normal;
     font-style: normal;
+    font-display: swap; /* key */
 }
 
 @font-face {
@@ -37,7 +38,8 @@
     src: url('/base/fonts/CalibreWeb-Medium.eot?#iefix') format('embedded-opentype'),
     url('/base/fonts/CalibreWeb-Medium.woff') format('woff');
     font-weight: normal;
-    font-style: normal
+    font-style: normal;
+    font-display: swap; /* key */
 } 
 
 .homepage .hero, 
