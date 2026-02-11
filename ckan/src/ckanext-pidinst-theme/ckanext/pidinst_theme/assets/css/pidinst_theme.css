@@ -32,17 +32,29 @@
   z-index: 0;
 }
 
+/* Base badge (default = primary) */
 .badge {
   display: inline-block;
   padding: 0.25em 0.6em;
   font-size: 75%;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1;
   text-align: center;
   white-space: nowrap;
   vertical-align: baseline;
   border-radius: 0.375rem;
-  background-color: #2e2b8a; /* Primary blue */
-  color: white; /* Text color */
-  margin-right: 5px; /* Space between badges */
+  margin-right: 5px;
+
+  /* Default variant: primary (filled) */
+  background-color: #2e2b8a;
+  color: #fff;
+  border: 1px solid #2e2b8a;
 }
+
+/* Variant palette */
+.badge-primary { color: #fff; background-color: #2e2b8a; border-color: #2e2b8a; }
+
+.badge-success { color: #198754; background-color: transparent; border-color: #198754; }
+.badge-warning { color: #b78103; background-color: transparent; border-color: #b78103; }
+.badge-info    { color: #0aa2c0; background-color: transparent; border-color: #0aa2c0; }
+.badge-danger  { color: #dc3545; background-color: transparent; border-color: #dc3545; }

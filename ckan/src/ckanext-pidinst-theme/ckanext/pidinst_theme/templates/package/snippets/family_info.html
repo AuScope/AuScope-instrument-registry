@@ -12,16 +12,23 @@
   <h2 class="module-heading">
     <i class="fa fa-code-fork"></i> {{ _('Other Versions') }}
   </h2>
-
+  {% set ns2 = namespace(marked_latest=false) %}
   <ul class="pidinst-versions-list">
     {% for v in (pkg.versions or []) %}
       {% if v.id != pkg.id %}
         <li class="pidinst-versions-item">
           <a class="pidinst-versions-link" href="{{ v.url }}">
             <span class="pidinst-versions-name">{{ v.title or v.name }}</span>
+            <span class="pidinst-versions-right">
+            {% if not ns2.marked_latest and v.version_number > pkg.version_number %}
+              <span class="pidinst-badge pidinst-badge-latest">{{ _('Latest') }}</span>
+              {% set ns2.marked_latest = true %}
+            {% endif %}
+
             {% if v.version_number %}
               <span class="pidinst-versions-meta">v{{ v.version_number }}</span>
             {% endif %}
+          </span>
           </a>
         </li>
       {% endif %}
@@ -154,6 +161,28 @@
   .pidinst-versions-link:hover {
     background: #f6f7f9;
     text-decoration: none;
+  }
+
+  .pidinst-versions-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+
+  .pidinst-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    line-height: 1.2;
+    border: 1px solid #d9e2ff;
+    background: #eef3ff;
+    color: #1f3a8a;
+    white-space: nowrap;
+  }
+
+  .pidinst-badge-latest {
+    font-weight: 600;
   }
 
 </style>

@@ -9,6 +9,41 @@
   _('Draft') }}] {% endif %} {% if pkg.state == 'deleted' %} [{{ _('Deleted') }}] {% endif %} {% endblock %}
 </h1>
 
+{# --- Newer version alert (only when viewing an older version) --- #}
+{% if pkg.versions and not pkg.is_latest %}
+  {# Find latest version (max by version_number) #}
+  {% set latest = (pkg.versions | sort(attribute='version_number') | last) %}
+
+  <div class="alert alert-warning" role="alert" style="margin-top: 10px;">
+    <strong>{{ _('New version available') }}</strong>
+    — {{ _('You are viewing an older version of this instrument.') }}
+    {{ _('Latest is') }} <strong>v{{ latest.version_number }}</strong>:
+    <a href="{{ latest.url }}">{{ latest.title }}</a>
+
+    <span>
+      <a class="btn btn-sm btn-primary" href="{{ latest.url }}">
+        {{ _('Go to latest') }}
+      </a>
+    </span>
+  </div>
+{% endif %}
+
+{# Version badges: only show if there is more than one version #}
+{% set versions = pkg.versions or [] %}
+{% set vcount = versions | length %}
+
+{% if vcount > 1 %}
+  <span class="badge badge-info" title="{{ _('Instrument version') }}">
+    v{{ pkg.version_number }}
+  </span>
+
+  {% if pkg.is_latest %}
+    <span class="badge badge-success" title="{{ _('Latest version') }}">
+      {{ _('Latest') }}
+    </span>
+  {% endif %}
+{% endif %}
+
 {% block version_actions %} {% if h.check_access('package_create') and not pkg.state == 'deleted' and not
 pkg.private and pkg.is_latest %}
 <div class="module-content">
