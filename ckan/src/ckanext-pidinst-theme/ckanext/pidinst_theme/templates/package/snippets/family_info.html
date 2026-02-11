@@ -1,8 +1,44 @@
 {% block info %}
+{# Determine if there are any other versions #}
+{% set ns = namespace(has_other=false) %}
+{% for v in (pkg.versions or []) %}
+  {% if v.id != pkg.id %}
+    {% set ns.has_other = true %}
+  {% endif %}
+{% endfor %}
+
+{% if ns.has_other %}
+<div class="module module-narrow module-shallow context-info pidinst-versions-box">
+  <h2 class="module-heading">
+    <i class="fa fa-code-fork"></i> {{ _('Other Versions') }}
+  </h2>
+
+  <ul class="pidinst-versions-list">
+    {% for v in (pkg.versions or []) %}
+      {% if v.id != pkg.id %}
+        <li class="pidinst-versions-item">
+          <a class="pidinst-versions-link" href="{{ v.url }}">
+            <span class="pidinst-versions-name">{{ v.title or v.name }}</span>
+            {% if v.version_number %}
+              <span class="pidinst-versions-meta">v{{ v.version_number }}</span>
+            {% endif %}
+          </a>
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+
+
+{# Display family information if this instrument is part of a family #}
 <div class="module module-narrow module-shallow context-info">
   <h2 class="module-heading"><i class="fa fa-sitemap"></i> Instrument Family</h2>
-  <div data-module="jstree-view-module" data-id="{{ pkg.id }}" data-title="{{ pkg.title }}">
-    <div id="tree"></div>
+  <div data-module="jstree-view-module" data-id="{{ pkg.id }}" data-title="Linked Instruments">
+    <div id="tree">
+      
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -82,4 +118,42 @@
   .jstree-ocl:hover {
     background-color: darkgray; /* Change background on hover */
   }
+
+  /* remove the old box styling border/top line */
+.pidinst-versions-box {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  /* list should not have outer border */
+  .pidinst-versions-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  /* remove per-item separators */
+  .pidinst-versions-item + .pidinst-versions-item {
+    border-top: none;
+  }
+
+  /* keep a clean clickable row */
+  .pidinst-versions-link {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 10px;
+    text-decoration: none;
+    border-radius: 4px;
+  }
+
+  .pidinst-versions-link:hover {
+    background: #f6f7f9;
+    text-decoration: none;
+  }
+
 </style>

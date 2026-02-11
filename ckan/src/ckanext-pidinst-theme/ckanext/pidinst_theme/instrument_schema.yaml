@@ -52,8 +52,8 @@ dataset_fields:
 
   - field_name: version_handler_id
     label: Version Handler ID
-    # form_snippet: hidden_field.html
-    # display_snippet: null
+    form_snippet: hidden_field.html
+    display_snippet: null
     validators: ignore_missing
     required: false
     groupBy: About Instrument
