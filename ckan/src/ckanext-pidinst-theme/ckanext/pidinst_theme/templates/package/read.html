@@ -1,9 +1,26 @@
-{% ckan_extends %} {% block package_description %} {% if pkg.private %}
-<span class="dataset-private badge badge-inverse pull-right">
+{% ckan_extends %} {% block package_description %} 
+{# Version badges: only show if there is more than one version #}
+{% set versions = pkg.versions or [] %}
+{% set vcount = versions | length %}
+
+{% if vcount > 1 %}
+  <span class="badge badge-info" title="{{ _('Instrument version') }}">
+    v{{ pkg.version_number }}
+  </span>
+
+  {% if pkg.is_latest %}
+    <span class="badge badge-success" title="{{ _('Latest version') }}">
+      {{ _('Latest') }}
+    </span>
+  {% endif %}
+{% endif %}
+{% if pkg.private %}
+<span class="dataset-private badge badge-info pull-right">
   <i class="fa fa-lock"></i>
   {{ _('Private') }}
 </span>
 {% endif %}
+
 <h1>
   {% block page_heading %} {{ h.dataset_display_name(pkg) }} {% if pkg.state.startswith('draft') %} [{{
   _('Draft') }}] {% endif %} {% if pkg.state == 'deleted' %} [{{ _('Deleted') }}] {% endif %} {% endblock %}
@@ -26,22 +43,6 @@
       </a>
     </span>
   </div>
-{% endif %}
-
-{# Version badges: only show if there is more than one version #}
-{% set versions = pkg.versions or [] %}
-{% set vcount = versions | length %}
-
-{% if vcount > 1 %}
-  <span class="badge badge-info" title="{{ _('Instrument version') }}">
-    v{{ pkg.version_number }}
-  </span>
-
-  {% if pkg.is_latest %}
-    <span class="badge badge-success" title="{{ _('Latest version') }}">
-      {{ _('Latest') }}
-    </span>
-  {% endif %}
 {% endif %}
 
 {% block version_actions %} {% if h.check_access('package_create') and not pkg.state == 'deleted' and not
