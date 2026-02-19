@@ -32,20 +32,24 @@ ckan.module("map-module", function ($, _) {
             var allData = JSON.parse(this.el.attr("data-all-data"));
             let geoJSONStr = allData["location_data"];
             this.initializeFromGeoJSON(geoJSONStr);
-            this.showMapAndInvalidate();
+            
+            // Only show map if location choice is not "noLocation"
+            if (selected && selected != "noLocation") {
+                this.showMapAndInvalidate();
 
-            // If bounding boxes are enabled via options, allow area selection
-            if (this.options.enableBoundingBox && selected == "area") {
-                this.initializeDrawControl();
-                this.updateBoundsTable();
-                this.updateBoundsFromTable(false);
-                $("#bounding_box_coordinates").show();
-            } else {
-                // Default to point/marker mode
-                this.initializeMarkerControl();
-                this.updateMarkerTable();
-                this.updateMarkerFromTable(false);
-                $("#point_container").show();
+                // If bounding boxes are enabled via options, allow area selection
+                if (this.options.enableBoundingBox && selected == "area") {
+                    this.initializeDrawControl();
+                    this.updateBoundsTable();
+                    this.updateBoundsFromTable(false);
+                    $("#bounding_box_coordinates").show();
+                } else {
+                    // Default to point/marker mode
+                    this.initializeMarkerControl();
+                    this.updateMarkerTable();
+                    this.updateMarkerFromTable(false);
+                    $("#point_container").show();
+                }
             }
 
             $("html,body").scrollTop(0);
@@ -56,7 +60,10 @@ ckan.module("map-module", function ($, _) {
                 self.updateMarkerTable();
                 self.updateBoundsTable();
                 var choice = $(this).val();
-                if (choice == "area" && self.options.enableBoundingBox) {
+                if (choice == "noLocation") {
+                    // Don't show map for "No" selection
+                    return;
+                } else if (choice == "area" && self.options.enableBoundingBox) {
                     self.showMapAndInvalidate();
                     self.initializeDrawControl();
                     $("#bounding_box_coordinates").show();
