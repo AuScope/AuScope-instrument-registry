@@ -121,7 +121,7 @@ breadcrumb_content %}
   </div>
 
   {% snippet 'scheming/package/snippets/package_form.html', data=data, errors=errors,
-  error_summary=error_summary, dataset_type=dataset_type, stage=stage, form_style='new', pkg_dict=pkg_dict %}
+  error_summary=error_summary, dataset_type=dataset_type, stage=stage, form_style='new_version', pkg_dict=pkg_dict %}
 </article>
 {% endblock %} {% block secondary_content %}{% endblock %} {% block scripts %} {{ super() }} {% asset
 'pidinst_theme/pidinst_theme-js' %} {% endblock %}

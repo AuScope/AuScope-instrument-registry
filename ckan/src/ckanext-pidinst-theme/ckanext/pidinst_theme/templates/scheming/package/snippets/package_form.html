@@ -106,6 +106,27 @@ entity_type='dataset', object_type=dataset_type -%}
       {# Set the field default value before rendering but only if
       it doesn't already exist in data which would mean the form
       has been submitted. #}
+      {# ---- Pre-populate one default FundingReference row on CREATE ONLY ---- #}
+      {% if form_style == 'new'
+        and not data.get('id')
+        and field.field_name == 'funder' %}
+        {% do data.__setitem__(field.field_name, [ {
+          "funder_name": "AuScope",
+          "funder_identifier_type": "ROR",
+          "funder_identifier": "https://ror.org/04s1m4564",
+          "scheme_uri": "https://ror.org/",
+          "award_number": "",
+          "award_uri": "",
+          "award_title": ""
+        } ]) %}
+      {% else %}
+        {# Existing default handling #}
+        {% if field.default_jinja2 %}
+          {% do data.__setitem__(field.field_name, h.scheming_render_from_string(field.default_jinja2)) %}
+        {% elif field.default %}
+          {% do data.__setitem__(field.field_name, field.default) %}
+        {% endif %}
+      {% endif %}
       {% if field.default_jinja2 %}
       {% do data.__setitem__(
       field.field_name,
