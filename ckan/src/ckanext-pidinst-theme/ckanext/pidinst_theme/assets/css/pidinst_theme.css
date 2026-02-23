@@ -58,3 +58,216 @@
 .badge-warning { color: #b78103; background-color: transparent; border-color: #b78103; }
 .badge-info    { color: #0aa2c0; background-color: transparent; border-color: #0aa2c0; }
 .badge-danger  { color: #dc3545; background-color: transparent; border-color: #dc3545; }
+
+/* =====================================================
+   Dataset Item Cards with Instrument Cover Images
+===================================================== */
+
+/* Main dataset item container */
+.dataset-item {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 1px solid #e8e8e8;
+  list-style: none;
+  padding: 0 !important;
+}
+
+.dataset-item:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Wrapper for flexbox layout */
+.dataset-item .dataset-item-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 180px;
+}
+
+/* Image container - left side */
+.dataset-item .dataset-item-image {
+  flex-shrink: 0;
+  width: 240px;
+  min-height: 180px;
+  background: #f8f8f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Instrument cover images */
+.dataset-item .instrument-cover {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Placeholder for missing images */
+.dataset-item .instrument-cover.placeholder {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Placeholder icon */
+.dataset-item .placeholder-icon {
+  width: 64px;
+  height: 64px;
+  color: rgba(255, 255, 255, 0.6);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* Content container - right side */
+.dataset-item .dataset-item-content {
+  flex: 1;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Dataset heading */
+.dataset-item .dataset-heading {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.dataset-item .dataset-heading a {
+  color: #2e2b8a;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.dataset-item .dataset-heading a:hover {
+  color: #221f61;
+  text-decoration: underline;
+}
+
+/* Notes/description */
+.dataset-item .notes {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+/* Responsive design - stack on mobile */
+@media (max-width: 768px) {
+  .dataset-item .dataset-item-wrapper {
+    flex-direction: column;
+  }
+  
+  .dataset-item .dataset-item-image {
+    width: 100%;
+    min-height: 200px;
+  }
+  
+  .dataset-item .dataset-item-content {
+    padding: 16px;
+  }
+  
+  .dataset-item .instrument-cover {
+    min-height: 200px;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .dataset-item .dataset-item-image {
+    min-height: 160px;
+  }
+  
+  .dataset-item .instrument-cover {
+    min-height: 160px;
+  }
+  
+  .dataset-item .dataset-heading {
+    font-size: 1.1rem;
+  }
+}
+
+/* =====================================================
+   Package Read Page - Full Width Cover Image
+===================================================== */
+
+.package-cover-container {
+  margin: 24px 0;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.package-cover-container .instrument-cover {
+  width: 100%;
+  height: auto;
+  max-height: 500px;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .package-cover-container .instrument-cover {
+    max-height: 300px;
+  }
+}
+
+/* =====================================================
+   Resource Form – Cover Photo Checkbox
+===================================================== */
+
+.cover-photo-field {
+  margin: 12px 0 16px;
+  padding: 10px 14px;
+  background: #f0f7ff;
+  border: 1px solid #c8ddf0;
+  border-radius: 6px;
+}
+
+.cover-photo-form-group {
+  margin-bottom: 0;
+}
+
+.cover-photo-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: 0;
+  user-select: none;
+}
+
+.cover-photo-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #1a73e8;
+}
+
+.cover-photo-label-text {
+  font-size: 0.95em;
+}
+
+.cover-photo-label-text .fa-image {
+  color: #5a8bb8;
+  margin-right: 2px;
+}
+
+.cover-photo-help {
+  margin: 6px 0 0 26px;
+  font-size: 0.85em;
+  color: #6c757d;
+}

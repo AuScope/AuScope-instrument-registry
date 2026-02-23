@@ -1,140 +1,146 @@
 {% extends 'package/new_package_form.html' %}
 
 {% block stages %}
-{%- set pages = h.scheming_get_dataset_form_pages(dataset_type) -%}
-{%- if pages -%}
-{%- set active_page = data.get('_form_page', 1) | int -%}
-<ol class="stages stage-1">
-  {%- for p in pages -%}
-  <li class="{{
-          'first ' if loop.first else ''}}{{
-          'active ' if loop.index == active_page else '' }}"
-    style="width:{{ 100 / (loop.length + (0 if form_style == 'edit' else 1)) }}%">
-    <span class="highlight" style="padding-right:0">{% if loop.index < active_page or (form_style=='edit' and loop.index
-        !=active_page) %}<a href="{{
-              h.url_for(dataset_type +
-                  ('.scheming_edit_page' if form_style == 'edit' else '.scheming_new_page'),
-                package_type=dataset_type,
-                id=data.name or data.id,
-                page=loop.index)
-            }}">{{ h.scheming_language_text(p.title) }}</a>{%
-        else %}{{ h.scheming_language_text(p.title) }}{% endif %}
-    </span>
-  </li>
-  {%- endfor -%}
-  {%- if form_style != 'edit' -%}
-  <li class="last {{ s2 }}" style="width:{{ 100 / (pages | length + 1) }}%">
-    {% if s2 != 'complete' %}
-    <span class="highlight">{{ _('Add data') }}</span>
-    {% else %}
-    {% if s1 == 'active' %}
-    {# stage 1 #}
-    <button class="highlight" name="save" value="go-resources" type="submit">{{ _('Add data') }}</button>
-    {% else %}
-    {% link_for _('Add data'), named_route='dataset.new', class_="highlight" %}
-    {% endif %}
-    {% endif %}
-  </li>
+  {%- set pages = h.scheming_get_dataset_form_pages(dataset_type) -%}
+  {%- if pages -%}
+    {%- set active_page = data.get('_form_page', 1) | int -%}
+    <ol class="stages stage-1">
+      {%- for p in pages -%}
+        <li class="{{ 'first ' if loop.first else '' }}{{ 'active ' if loop.index == active_page else '' }}"
+            style="width:{{ 100 / (loop.length + (0 if form_style == 'edit' else 1)) }}%">
+          <span class="highlight" style="padding-right:0">
+            {%- if loop.index < active_page or (form_style == 'edit' and loop.index != active_page) -%}
+              <a href="{{ h.url_for(dataset_type + ('.scheming_edit_page' if form_style == 'edit' else '.scheming_new_page'),
+                                    package_type=dataset_type,
+                                    id=data.name or data.id,
+                                    page=loop.index) }}">
+                {{ h.scheming_language_text(p.title) }}
+              </a>
+            {%- else -%}
+              {{ h.scheming_language_text(p.title) }}
+            {%- endif -%}
+          </span>
+        </li>
+      {%- endfor -%}
+
+      {%- if form_style != 'edit' -%}
+        <li class="last {{ s2 }}" style="width:{{ 100 / (pages | length + 1) }}%">
+          {%- if s2 != 'complete' -%}
+            <span class="highlight">{{ _('Add data') }}</span>
+          {%- else -%}
+            {%- if s1 == 'active' -%}
+              {# stage 1 #}
+              <button class="highlight" name="save" value="go-resources" type="submit">{{ _('Add data') }}</button>
+            {%- else -%}
+              {% link_for _('Add data'), named_route='dataset.new', class_='highlight' %}
+            {%- endif -%}
+          {%- endif -%}
+        </li>
+      {%- endif -%}
+    </ol>
+  {%- else -%}
+    {{ super() }}
   {%- endif -%}
-</ol>
-{%- else -%}
-{{ super() }}
-{%- endif -%}
 {% endblock %}
 
 {% block errors %}
-{%- if errors -%}
-{%- set schema = h.scheming_get_dataset_schema(dataset_type) -%}
-{%- snippet 'scheming/snippets/errors.html',
-errors=errors, fields=schema.dataset_fields,
-entity_type='dataset', object_type=dataset_type -%}
-{%- endif -%}
+  {%- if errors -%}
+    {%- set schema = h.scheming_get_dataset_schema(dataset_type) -%}
+    {%- snippet 'scheming/snippets/errors.html',
+        errors=errors,
+        fields=schema.dataset_fields,
+        entity_type='dataset',
+        object_type=dataset_type -%}
+  {%- endif -%}
 {% endblock %}
 
 
 {% block basic_fields %}
-{%- if not dataset_type -%}
-<p>
-  dataset_type not passed to template. your version of CKAN
-  might not be compatible with ckanext-scheming
-</p>
-{%- endif -%}
+  {%- if not dataset_type -%}
+    <p>
+      dataset_type not passed to template. your version of CKAN
+      might not be compatible with ckanext-scheming
+    </p>
+  {%- endif -%}
 
-{%- set schema = h.scheming_get_dataset_schema(dataset_type) -%}
-{%- set pages = h.scheming_get_dataset_form_pages(dataset_type) -%}
-{%- if pages -%}
-{%- set active_page = data.get('_form_page', 1) | int -%}
-{%- set fields = pages[active_page - 1]['fields'] -%}
-{%- else -%}
-{%- set fields = schema.dataset_fields -%}
-{%- endif -%}
+  {%- set schema = h.scheming_get_dataset_schema(dataset_type) -%}
+  {%- set pages = h.scheming_get_dataset_form_pages(dataset_type) -%}
+  {%- if pages -%}
+    {%- set active_page = data.get('_form_page', 1) | int -%}
+    {%- set fields = pages[active_page - 1]['fields'] -%}
+  {%- else -%}
+    {%- set fields = schema.dataset_fields -%}
+  {%- endif -%}
 
-{# Group fields by their 'groupBy' attribute or put them in a 'General' group if 'groupBy' is not present #}
-{%- set grouped_fields = {} %}
-{%- for field in fields %}
-{# Determine the group name: use 'groupBy' if present, otherwise use 'General' #}
-{%- set group_name = field.groupBy if field.groupBy else 'General' %}
-{# Check if the group already exists in grouped_fields; if not, initialize it #}
-{%- if group_name not in grouped_fields %}
-{# Initialize the list for this group_name key #}
-{%- set _ignore = grouped_fields.update({group_name: [field]}) %}
-{%- else %}
-{# Append the field to the existing list for this group_name key #}
-{%- set _list = grouped_fields[group_name] %}
-{%- set _ignore = _list.append(field) %}
-{%- set _ignore = grouped_fields.update({group_name: _list}) %}
-{%- endif %}
-{%- endfor %}
+  {# Group fields by their 'groupBy' attribute or put them in a 'General' group if 'groupBy' is not present #}
+  {%- set grouped_fields = {} -%}
+  {%- for field in fields -%}
+    {# Determine the group name: use 'groupBy' if present, otherwise use 'General' #}
+    {%- set group_name = field.groupBy if field.groupBy else 'General' -%}
+    {# Check if the group already exists in grouped_fields; if not, initialize it #}
+    {%- if group_name not in grouped_fields -%}
+      {# Initialize the list for this group_name key #}
+      {%- set _ignore = grouped_fields.update({group_name: [field]}) -%}
+    {%- else -%}
+      {# Append the field to the existing list for this group_name key #}
+      {%- set _list = grouped_fields[group_name] -%}
+      {%- set _ignore = _list.append(field) -%}
+      {%- set _ignore = grouped_fields.update({group_name: _list}) -%}
+    {%- endif -%}
+  {%- endfor -%}
 
-{# Render fields #}
-{%- for group, group_fields in grouped_fields.items() %}
-<div class="card {{ 'hidden-panel' if group == 'General' }}">
-  <div class="card-header" id="heading{{ loop.index }}">
-    <h4 class="mb-0">
-      <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}"
-        aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse{{ loop.index }}">
-        {{ group }}
-      </button>
-    </h4>
-  </div>
-  <div id="collapse{{ loop.index }}" class="collapse {{ 'show' if loop.index<=2 else '' }}"
-    aria-labelledby="heading{{ loop.index }}">
-    <div class="card-body">
-      {%- for field in group_fields %}
-      {%- if field.form_snippet is not none -%}
-      {%- if field.field_name not in data %}
-      {# Set the field default value before rendering but only if
-      it doesn't already exist in data which would mean the form
-      has been submitted. #}
-      {% if field.default_jinja2 %}
-      {% do data.__setitem__(
-      field.field_name,
-      h.scheming_render_from_string(field.default_jinja2)) %}
-      {% elif field.default %}
-      {% do data.__setitem__(field.field_name, field.default) %}
-      {% endif %}
-      {% endif -%}
-      {%- snippet 'scheming/snippets/form_field.html',
-      field=field,
-      data=data,
-      errors=errors,
-      licenses=c.licenses,
-      entity_type='dataset',
-      object_type=dataset_type
-      -%}
-      {%- endif -%}
-      {%- endfor %}
+  {# Render fields #}
+  {%- for group, group_fields in grouped_fields.items() -%}
+    <div class="card {{ 'hidden-panel' if group == 'General' }}">
+      <div class="card-header" id="heading{{ loop.index }}">
+        <h4 class="mb-0">
+          <button class="btn btn-link" type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapse{{ loop.index }}"
+                  aria-expanded="{{ 'true' if loop.first else 'false' }}"
+                  aria-controls="collapse{{ loop.index }}">
+            {{ group }}
+          </button>
+        </h4>
+      </div>
+
+      <div id="collapse{{ loop.index }}"
+           class="collapse {{ 'show' if loop.index <= 2 else '' }}"
+           aria-labelledby="heading{{ loop.index }}">
+        <div class="card-body">
+          {%- for field in group_fields -%}
+            {%- if field.form_snippet is not none -%}
+              {%- if field.field_name not in data -%}
+                {# Set the field default value before rendering but only if
+                   it doesn't already exist in data which would mean the form
+                   has been submitted. #}
+                {%- if field.default_jinja2 -%}
+                  {%- do data.__setitem__(field.field_name, h.scheming_render_from_string(field.default_jinja2)) -%}
+                {%- elif field.default -%}
+                  {%- do data.__setitem__(field.field_name, field.default) -%}
+                {%- endif -%}
+              {%- endif -%}
+
+              {%- snippet 'scheming/snippets/form_field.html',
+                  field=field,
+                  data=data,
+                  errors=errors,
+                  licenses=c.licenses,
+                  entity_type='dataset',
+                  object_type=dataset_type -%}
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+      </div>
     </div>
-  </div>
-</div>
-{%- endfor %}
+  {%- endfor -%}
 
-{%- if pages -%}
-<input type="hidden" name="_ckan_phase" value="{{ active_page }}" />
-{%- elif not schema.get('resource_fields') -%}
-<!-- force controller to skip resource-editing step for this type -->
-<input type="hidden" name="_ckan_phase" value="" />
-{%- endif -%}
+  {%- if pages -%}
+    <input type="hidden" name="_ckan_phase" value="{{ active_page }}" />
+  {%- elif not schema.get('resource_fields') -%}
+    <!-- force controller to skip resource-editing step for this type -->
+    <input type="hidden" name="_ckan_phase" value="" />
+  {%- endif -%}
 
 {% endblock %}
 
@@ -142,13 +148,13 @@ entity_type='dataset', object_type=dataset_type -%}
 {% endblock %}
 
 {% block save_button_text %}
-{%- set pages = h.scheming_get_dataset_form_pages(dataset_type) -%}
-{%- if pages and form_style == 'edit' -%}
-{%- set active_page = data.get('_form_page', 1) | int -%}
-{{ _('Update {page}').format(page=h.scheming_language_text(pages[active_page-1].title)) }}
-{%- elif pages -%}
-{{ _('Next') }}
-{%- else -%}
-{{ super() }}
-{%- endif -%}
+  {%- set pages = h.scheming_get_dataset_form_pages(dataset_type) -%}
+  {%- if pages and form_style == 'edit' -%}
+    {%- set active_page = data.get('_form_page', 1) | int -%}
+    {{ _('Update {page}').format(page=h.scheming_language_text(pages[active_page-1].title)) }}
+  {%- elif pages -%}
+    {{ _('Next') }}
+  {%- else -%}
+    {{ super() }}
+  {%- endif -%}
 {% endblock %}

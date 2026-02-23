@@ -1,29 +1,29 @@
 {% ckan_extends %}
 
-<!-- {% set parent_id = package.parent %}
+{% block content %}
+  <div class="dataset-item-wrapper">
+    <div class="dataset-item-image">
+      {% set cover_url = h.pidinst_cover_image_url(package) %}
+      {% if cover_url %}
+        <img class="instrument-cover" src="{{ cover_url }}" alt="Instrument cover">
+      {% else %}
+        <div class="instrument-cover placeholder">
+          <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+        </div>
+      {% endif %}
+    </div>
+    <div class="dataset-item-content">
+      {{ super() }}
+    </div>
+  </div>
+{% endblock %}
 
-
-<tr>
-    <td><a href="{{ h.url_for('%s.read' % package.type, id=package.name) }}">
-        {{package.title|truncate(80)}}
-      </a></td>
-    <td><a href="/organization/{{ package.organization.name }}">{{ package.organization.title }}</a></td>
-    <td>{% for tag in package.tags %}
-          <span class="badge" title="{{ tag.name }}">{{ tag.name|truncate(20) }}</span>{% endfor %}
-    </td>
-    <td title="{{ package.description }}">{{ package.description|truncate(150) }}</td>
-    <td>
-    {% if parent_id %}
-        {% set pkg = h.get_package(parent_id) %}  {# Attempt to fetch the package details by ID #}
-
-        {% if pkg %}
-            {% set pkg_link = h.url_for('dataset.read', id=parent_id) %}
-            <a href="{{ pkg_link }}">{{ pkg.title }}</a>
-        {% else %}
-            <span>No valid parent found</span>
-        {% endif %}
-    {% else %}
-        <span>----</span>
-    {% endif %}
-    </td>
-  </tr> -->
+{% block heading %}
+  <h2 class="dataset-heading" data-analytics-action="search-click">
+    {{ super() }}
+  </h2>
+{% endblock %}

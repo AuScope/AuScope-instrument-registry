@@ -1,0 +1,47 @@
+{#
+  Cover photo checkbox – shown only for image resources (JS controls visibility).
+  Uses a hidden input fallback so unchecked always submits "false".
+#}
+{% import 'macros/form.html' as form %}
+
+{%- set is_checked = data.get(field.field_name) in (true, 'true', 'True') -%}
+{%- set current_resource_id = data.get('id', '') -%}
+{#- Only look for an existing cover photo on OTHER resources.
+    If this resource is already the cover photo, skip the lookup entirely
+    so we never prompt the user about their own resource. -#}
+{%- set existing_cover = none if is_checked else h.get_cover_photo_info(package_id, current_resource_id) -%}
+{%- set current_url = data.get('url', '') -%}
+{%- set current_format = data.get('format', '') -%}
+
+<div class="cover-photo-field"
+     id="cover-photo-container"
+     data-module="cover-photo"
+     data-module-existing-cover-resource-id="{{ existing_cover.id if existing_cover else '' }}"
+     data-module-existing-cover-resource-name="{{ existing_cover.name if existing_cover else '' }}"
+     data-module-current-resource-id="{{ current_resource_id }}"
+     data-module-current-resource-url="{{ current_url }}"
+     data-module-current-resource-format="{{ current_format }}"
+     data-module-is-currently-cover="{{ 'true' if is_checked else 'false' }}"
+     style="display:none;">
+  <div class="form-group cover-photo-form-group">
+    <label class="cover-photo-label" for="field-{{ field.field_name }}">
+      {# Hidden input ensures "false" is submitted when the checkbox is unchecked.
+         JS disables this whenever the checkbox is checked so only one value is POSTed. #}
+      <input type="hidden" id="field-{{ field.field_name }}-hidden" name="{{ field.field_name }}" value="false">
+      <input type="checkbox"
+             class="cover-photo-checkbox"
+             id="field-{{ field.field_name }}"
+             name="{{ field.field_name }}"
+             value="true"
+             {{ 'checked' if is_checked }} />
+      <span class="cover-photo-label-text">
+        <i class="fa fa-image"></i> {{ _('Use as cover photo') }}
+      </span>
+    </label>
+    {% if field.help_text %}
+      <p class="help-block cover-photo-help">
+        {{ h.scheming_language_text(field.help_text) }}
+      </p>
+    {% endif %}
+  </div>
+</div>

@@ -1,64 +1,115 @@
-{% ckan_extends %} {% block package_description %} 
-{# Version badges: only show if there is more than one version #}
-{% set versions = pkg.versions or [] %}
-{% set vcount = versions | length %}
+{% extends "package/read_base.html" %}
 
-{% if vcount > 1 %}
-  <span class="badge badge-info" title="{{ _('Instrument version') }}">
-    v{{ pkg.version_number }}
-  </span>
+{% block primary_content_inner %}
+  {{ super() }}
 
-  {% if pkg.is_latest %}
-    <span class="badge badge-success" title="{{ _('Latest version') }}">
-      {{ _('Latest') }}
-    </span>
-  {% endif %}
-{% endif %}
-{% if pkg.private %}
-<span class="dataset-private badge badge-info pull-right">
-  <i class="fa fa-lock"></i>
-  {{ _('Private') }}
-</span>
-{% endif %}
+  {% block package_badges %}
+    {# Version badges: only show if there is more than one version #}
+    {%- set versions = pkg.versions or [] -%}
+    {%- set vcount = versions | length -%}
 
-<h1>
-  {% block page_heading %} {{ h.dataset_display_name(pkg) }} {% if pkg.state.startswith('draft') %} [{{
-  _('Draft') }}] {% endif %} {% if pkg.state == 'deleted' %} [{{ _('Deleted') }}] {% endif %} {% endblock %}
-</h1>
+    {%- if vcount > 1 -%}
+      <span class="badge badge-info" title="{{ _('Instrument version') }}">
+        v{{ pkg.version_number }}
+      </span>
 
-{# --- Newer version alert (only when viewing an older version) --- #}
-{% if pkg.versions and not pkg.is_latest %}
-  {# Find latest version (max by version_number) #}
-  {% set latest = (pkg.versions | sort(attribute='version_number') | last) %}
+      {%- if pkg.is_latest -%}
+        <span class="badge badge-success" title="{{ _('Latest version') }}">
+          {{ _('Latest') }}
+        </span>
+      {%- endif -%}
+    {%- endif -%}
 
-  <div class="alert alert-warning" role="alert" style="margin-top: 10px;">
-    <strong>{{ _('New version available') }}</strong>
-    — {{ _('You are viewing an older version of this instrument.') }}
-    {{ _('Latest is') }} <strong>v{{ latest.version_number }}</strong>:
-    <a href="{{ latest.url }}">{{ latest.title }}</a>
+    {%- if pkg.private -%}
+      <span class="dataset-private badge badge-info pull-right">
+        <i class="fa fa-lock"></i>
+        {{ _('Private') }}
+      </span>
+    {%- endif -%}
+  {% endblock %}
 
-    <span>
-      <a class="btn btn-sm btn-primary" href="{{ latest.url }}">
-        {{ _('Go to latest') }}
-      </a>
-    </span>
-  </div>
-{% endif %}
+  {% block page_heading %}
+    <h1>
+      {{ h.dataset_display_name(pkg) }}
+      {%- if pkg.state.startswith('draft') -%}
+        [{{ _('Draft') }}]
+      {%- endif -%}
+      {%- if pkg.state == 'deleted' -%}
+        [{{ _('Deleted') }}]
+      {%- endif -%}
+    </h1>
+  {% endblock %}
 
-{% block version_actions %} {% if h.check_access('package_create') and not pkg.state == 'deleted' and not
-pkg.private and pkg.is_latest %}
-<div class="module-content">
-  <a
-    href="{{ h.url_for('pidinst_theme.new_version', id=pkg.name) }}"
-    class="btn btn-primary"
-    title="{{ _('Create a new version of this instrument') }}"
-  >
-    <i class="fa fa-code-fork"></i> {{ _('Create New Version') }}
-  </a>
-</div>
-{% endif %} {% endblock %} {% block package_notes %} {% if pkg.description %}
-<div class="notes embedded-content">{{ h.render_markdown(h.get_translated(pkg, 'description')) }}</div>
-{% endif %} {% endblock %} {% block package_cite %} {% if pkg.citation %}
-<h2>{{ _('Cite this as') }}</h2>
-<div class="citation embedded-content">{{ h.render_markdown(h.get_translated(pkg, 'citation')) }}</div>
-{% endif %} {% endblock %} {% endblock %}
+  {% block version_alert %}
+    {# Newer version alert (only when viewing an older version) #}
+    {%- if pkg.versions and not pkg.is_latest -%}
+      {# Find latest version (max by version_number) #}
+      {%- set latest = (pkg.versions | sort(attribute='version_number') | last) -%}
+
+      <div class="alert alert-warning" role="alert" style="margin-top: 10px;">
+        <strong>{{ _('New version available') }}</strong>
+        — {{ _('You are viewing an older version of this instrument.') }}
+        {{ _('Latest is') }} <strong>v{{ latest.version_number }}</strong>:
+        <a href="{{ latest.url }}">{{ latest.title }}</a>
+
+        <span>
+          <a class="btn btn-sm btn-primary" href="{{ latest.url }}">
+            {{ _('Go to latest') }}
+          </a>
+        </span>
+      </div>
+    {%- endif -%}
+  {% endblock %}
+
+  {% block version_actions %}
+    {%- if h.check_access('package_create') and not pkg.state == 'deleted' and not pkg.private and pkg.is_latest -%}
+      <div class="module-content">
+        <a href="{{ h.url_for('pidinst_theme.new_version', id=pkg.name) }}"
+           class="btn btn-primary"
+           title="{{ _('Create a new version of this instrument') }}">
+          <i class="fa fa-code-fork"></i> {{ _('Create New Version') }}
+        </a>
+      </div>
+    {%- endif -%}
+  {% endblock %}
+
+  {% block package_notes %}
+    {%- if pkg.description -%}
+      <div class="notes embedded-content">
+        {{ h.render_markdown(h.get_translated(pkg, 'description')) }}
+      </div>
+    {%- endif -%}
+  {% endblock %}
+
+  {% block package_cover_image %}
+    {%- set cover_url = h.pidinst_cover_image_url(pkg) -%}
+    {%- if cover_url -%}
+      <div class="package-cover-container">
+        <img class="instrument-cover" src="{{ cover_url }}" alt="{{ pkg.title }}">
+      </div>
+    {%- endif -%}
+  {% endblock %}
+
+  {% block package_cite %}
+    {%- if pkg.citation -%}
+      <h2>{{ _('Cite this as') }}</h2>
+      <div class="citation embedded-content">
+        {{ h.render_markdown(h.get_translated(pkg, 'citation')) }}
+      </div>
+    {%- endif -%}
+  {% endblock %}
+
+  {% block package_tags %}
+    {% snippet "package/snippets/tags.html", tags=pkg.tags %}
+  {% endblock %}
+
+  {% block package_additional_info %}
+    {% snippet "package/snippets/additional_info.html", pkg_dict=pkg %}
+  {% endblock %}
+
+  {% block package_resources %}
+    {% snippet "package/snippets/resources_list.html", pkg=pkg, resources=pkg.resources,
+      can_edit=h.check_access('package_update', {'id':pkg.id }) %}
+  {% endblock %}
+
+{% endblock %}

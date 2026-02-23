@@ -14,6 +14,7 @@ pidinst_theme-js:
     - js/parent-instrument-selector-module.js
     - js/facet-select-module.js
     - js/analytics-tracking.js
+    - js/cover-photo-module.js
     - js/pidinst_theme.js
   extra:
     preload:

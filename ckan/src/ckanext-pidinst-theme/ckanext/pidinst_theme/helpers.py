@@ -363,6 +363,43 @@ def pidinst_upload_help_html():
         '</div>'
     )
 
+def get_cover_photo_info(package_id, current_resource_id=None):
+    """Return info about the existing cover photo resource for a dataset,
+    excluding *current_resource_id* (the resource being edited).
+
+    Returns a dict ``{'id': ..., 'name': ...}`` or ``None``.
+    """
+    if not package_id:
+        return None
+    context = {'ignore_auth': True}
+    try:
+        pkg = toolkit.get_action('package_show')(context, {'id': package_id})
+    except Exception:
+        return None
+    for r in pkg.get('resources', []):
+        cover_val = (r.get('extras') or {}).get('pidinst_is_cover_image') or r.get('pidinst_is_cover_image')
+        if cover_val in (True, 'true', 'True'):
+            if current_resource_id and r['id'] == current_resource_id:
+                continue
+            return {'id': r['id'], 'name': r.get('name') or 'Unnamed resource'}
+    return None
+
+
+def pidinst_cover_image_url(pkg_dict):
+    resources = pkg_dict.get("resources") or []
+    cover = None
+    for r in resources:
+        extras = r.get("extras") or {}
+        # Check for boolean True, string "true", or string "True"
+        cover_img_value = extras.get("pidinst_is_cover_image") or r.get("pidinst_is_cover_image")
+        if cover_img_value in (True, "true", "True"):
+            cover = r
+            break
+
+    if not cover:
+        return None
+    return toolkit.url_for("resource.download", id=pkg_dict["name"], resource_id=cover["id"])
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -380,4 +417,6 @@ def get_helpers():
         "get_analytics_config": get_analytics_config,
         "prepare_dataset_for_cloning": prepare_dataset_for_cloning,
         "pidinst_upload_help_html": pidinst_upload_help_html,
+        "pidinst_cover_image_url": pidinst_cover_image_url,
+        "get_cover_photo_info": get_cover_photo_info,
     }

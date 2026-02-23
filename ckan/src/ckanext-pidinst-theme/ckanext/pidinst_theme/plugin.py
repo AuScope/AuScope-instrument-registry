@@ -49,6 +49,7 @@ doi_metadata.build_metadata_dict = patched_build_metadata_dict
 class PidinstThemePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IPackageController, inherit=True)
+    plugins.implements(plugins.IResourceController, inherit=True)
 
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
@@ -189,6 +190,42 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         return facets_dict
 
     # IDatasetForm
+    # ------------------------------------------------------------------
+    # IResourceController – enforce "one cover photo per dataset"
+    # ------------------------------------------------------------------
+
+    def after_resource_create(self, context, resource):
+        self._enforce_single_cover_photo(context, resource)
+
+    def after_resource_update(self, context, resource):
+        self._enforce_single_cover_photo(context, resource)
+
+    def _enforce_single_cover_photo(self, context, resource):
+        """If *resource* is flagged as cover photo, clear the flag on every
+        other resource in the same dataset."""
+        cover_val = resource.get('pidinst_is_cover_image')
+        if cover_val not in (True, 'true', 'True'):
+            return
+
+        package_id = resource.get('package_id')
+        if not package_id:
+            return
+
+        try:
+            ctx = {'ignore_auth': True}
+            pkg = toolkit.get_action('package_show')(ctx, {'id': package_id})
+            for r in pkg.get('resources', []):
+                if r['id'] == resource['id']:
+                    continue
+                r_cover = r.get('pidinst_is_cover_image')
+                if r_cover in (True, 'true', 'True'):
+                    toolkit.get_action('resource_patch')(
+                        {'ignore_auth': True},
+                        {'id': r['id'], 'pidinst_is_cover_image': 'false'},
+                    )
+        except Exception as e:
+            logging.error('Failed to enforce single cover photo: %s', e)
+
     def before_dataset_view(self, pkg_dict):
         vhid = pkg_dict.get("version_handler_id")
         if not vhid:

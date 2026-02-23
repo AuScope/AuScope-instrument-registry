@@ -565,6 +565,15 @@ resource_fields:
     label: Name
     help: The name of the resource (will be auto-generated from file name if not provided)
 
+  - field_name: pidinst_is_cover_image
+    label: Cover photo
+    form_snippet: cover_photo_checkbox.html
+    display_snippet: null
+    default: "false"
+    validators: ignore_missing boolean_validator
+    output_validators: ignore_missing boolean_validator
+    help_text: Set this to use the uploaded image as the instrument cover photo.
+
   - field_name: description
     label: Description
     preset: markdown
@@ -573,3 +582,5 @@ resource_fields:
   - field_name: format
     label: Format
     preset: resource_format_autocomplete
+
+
