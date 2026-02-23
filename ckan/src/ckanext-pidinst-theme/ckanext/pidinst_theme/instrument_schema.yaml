@@ -288,6 +288,7 @@ dataset_fields:
         label: Funder Identifier Type
         help_text: The type of the funderIdentifier
         # Conditionally Required
+        default: ROR
         required: true
         preset: select
         choices:

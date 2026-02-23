@@ -31,20 +31,20 @@ def after_dataset_show(context, pkg_dict):
         Irino, T; Tada, R (2009): Chemical and mineral compositions of sediments from ODP Site 127-797. V. 2.1. Geological Institute, University of Tokyo. (dataset). https://doi.org/10.1594/PANGAEA.726855
     """
     citation = ''
-    
+
     # Check if owner field exists before processing
-    if 'owner' in pkg_dict and pkg_dict['owner']:
-        owner_list = json.loads(pkg_dict['owner'])
-        for i in range(0, len(owner_list)):
-            citation += owner_list[i]['owner_name']
-            if i != len(owner_list) - 1:
+    if 'manufacturer' in pkg_dict and pkg_dict['manufacturer']:
+        manufacturer_list = json.loads(pkg_dict['manufacturer'])
+        for i in range(0, len(manufacturer_list)):
+            citation += manufacturer_list[i]['manufacturer_name']
+            if i != len(manufacturer_list) - 1:
                 citation += ', '
             elif 'publication_date' in pkg_dict and pkg_dict['publication_date'] != '':
                 #publication_date = datetime.strptime(pkg_dict['publication_date'], '%Y-%m-%d')
                 publication_date = datetime.strptime(pkg_dict['publication_date'].split(' ', 1)[0], '%Y-%m-%d')
                 #citation += ' (' + pkg_dict['publication_date'].year + '): '
                 citation += ' (' + str(publication_date.year) + '): '
-    
+
     citation += pkg_dict['title']
 
     if citation[len(citation) -1] != '.':
