@@ -612,15 +612,17 @@ resource_fields:
   - field_name: url
     label: URL
     preset: resource_url_upload
+    required: true
+    validators: resource_url_validator
 
   - field_name: name
     label: Name
-    help: The name of the instrument
+    help: The name of the resource (will be auto-generated from file name if not provided)
 
   - field_name: description
     label: Description
     preset: markdown
-    form_placeholder: Some useful notes about the instrument
+    form_placeholder: Some useful notes about the resource
 
   - field_name: format
     label: Format

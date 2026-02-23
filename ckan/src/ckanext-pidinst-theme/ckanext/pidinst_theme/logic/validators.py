@@ -568,6 +568,62 @@ def group_name_validator(field, schema):
     return validator
 
 
+@scheming_validator
+@register_validator
+def resource_url_validator(field, schema):
+    """
+    Custom validator for resource URL field.
+    Ensures that either a URL or a file upload is provided when creating or updating a resource.
+    """
+    def validator(key, data, errors, context):
+        url_value = data.get(key, '')
+        
+        if isinstance(key, tuple) and len(key) > 0:
+            if len(key) >= 2:
+                base_key = key[:-1]
+            else:
+                base_key = ()
+        else:
+            base_key = ()
+        
+        id_key = base_key + ('id',) if base_key else ('id',)
+        resource_id = data.get(id_key, missing)
+        
+        action = context.get('__action')
+        is_package_update = (action == 'package_update')
+        
+        if is_package_update and resource_id and resource_id is not missing:
+            return
+        
+        # Check if we're clearing an upload (deleting the file)
+        clear_upload_key = base_key + ('clear_upload',) if base_key else ('clear_upload',)
+        clear_upload = data.get(clear_upload_key, False)
+        
+        # If clearing upload is checked, skip validation (user is removing the file intentionally)
+        if clear_upload:
+            return
+            
+        # Check if there's an upload file
+        upload_key = base_key + ('upload',) if base_key else ('upload',)
+        upload = data.get(upload_key, missing)
+        
+        # Now validate: must have either URL or upload
+        has_url = url_value and url_value is not missing and str(url_value).strip()
+        has_upload = upload and upload is not missing
+        
+        if has_upload:
+            if hasattr(upload, 'filename'):
+                has_upload = bool(upload.filename)
+            elif isinstance(upload, str):
+                has_upload = bool(upload.strip())
+        
+        if not has_url and not has_upload:
+            add_error(errors, key, _('Please provide either a file to upload or a link to an external resource'))
+            raise StopOnError
+    
+    return validator
+
+
 def get_validators():
     return {
         "pidinst_theme_required": pidinst_theme_required,
@@ -575,5 +631,6 @@ def get_validators():
         "composite_repeating_validator": composite_repeating_validator,
         "owner_org_validator": owner_org_validator,
         "parent_validator" : parent_validator,
-        "group_name_validator" : group_name_validator
+        "group_name_validator" : group_name_validator,
+        "resource_url_validator": resource_url_validator
     }
