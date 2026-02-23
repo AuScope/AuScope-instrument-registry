@@ -833,3 +833,23 @@ body {
 .select2-search-choice-close{
     left: 0px !important;
 }
+
+/* pidinst loader */
+.pidinst-loader {
+  border: 16px solid #f3f3f3;
+  border-top: 16px solid #3498db;
+  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  animation: pidinst-spin 2s linear infinite;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 1000;
+  display: none;
+}
+@keyframes pidinst-spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+.pidinst-loader.is-visible { display: block; }

@@ -349,6 +349,19 @@ def prepare_dataset_for_cloning(original_pkg_dict, original_pkg_id):
 
     return cloned_data
 
+def pidinst_upload_help_html():
+    return toolkit.literal(
+        '<div class="info-block pidinst-upload-help" style="font-size: 0.9em; margin-bottom: 20px;">'
+        '<i class="fa fa-info-circle"></i> '
+        'There is a time limit of 10 minutes for each upload. '
+        'If you experience a timeout error due to a large upload, please contact us via the '
+        '<a href="/contact" target="_blank">Contact Form</a>. '
+        'We will assist you with data migration.<br>'
+        '<b>'
+        'Uploading via the browser can take time, please be patient and do not navigate away from this page while uploading.'
+        '</b>'
+        '</div>'
+    )
 
 def get_helpers():
     return {
@@ -366,4 +379,5 @@ def get_helpers():
         "analytics_enabled": analytics_enabled,
         "get_analytics_config": get_analytics_config,
         "prepare_dataset_for_cloning": prepare_dataset_for_cloning,
+        "pidinst_upload_help_html": pidinst_upload_help_html,
     }
