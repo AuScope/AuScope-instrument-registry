@@ -265,6 +265,60 @@ dataset_fields:
     help_text: Technical description of the device and its capabilities
     groupBy: About Instrument
 
+  - field_name: funder
+    label: Funding References
+    preset: composite_repeating
+    form_snippet: composite_repeating_field.html
+    validators: composite_repeating_validator
+    form_blanks: 0
+    groupBy: About Instrument
+    composite_rules:
+      - when_present: funder_identifier
+        require: [funder_name, funder_identifier_type]
+    subfields:
+      - field_name: funder_name
+        label: Funder Name
+        help_text: Name of the funding provider
+
+      - field_name: funder_identifier
+        label: Funder Identifier
+        help_text: Uniquely identifies a funding entity, according to various types
+
+      - field_name: funder_identifier_type
+        label: Funder Identifier Type
+        help_text: The type of the funderIdentifier
+        # Conditionally Required
+        default: ROR
+        required: true
+        preset: select
+        choices:
+          - value: ROR
+            label: ROR
+          - value: CrossrefFunderID
+            label: Crossref Funder ID
+          - value: GRID
+            label: GRID
+          - value: ISNI
+            label: ISNI
+          - value: Other
+            label: Other
+
+      - field_name: schema_uri
+        label: Schema URI
+        help_text: The URI of the funder identifier scheme. Specially,
+
+      - field_name: award_number
+        label: Award Number
+        help_text: The code assigned by the funder to a sponsored award (grant).
+
+      - field_name: award_uri
+        label: Award URI
+        help_text: The URI leading to a page provided by the funder for more information about the award (grant).
+
+      - field_name: award_title
+        label: Award Title
+        help_text: The human readable title or name of the award (grant).
+
   - field_name: credit
     label: Credit
     form_snippet: textarea.html
@@ -553,6 +607,7 @@ dataset_fields:
     display_snippet: null
     help_text: The full bibliographic citation of the instrument
     groupBy: About Instrument
+
 
 resource_fields:
   - field_name: url
