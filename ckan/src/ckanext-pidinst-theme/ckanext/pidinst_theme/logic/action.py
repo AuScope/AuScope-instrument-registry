@@ -45,7 +45,6 @@ def organization_list_for_user(next_action, context, data_dict):
 @tk.chained_action
 def package_create(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
-    # logger.info("package_create before data_dict: %s", pformat(data_dict))
 
     package_type = data_dict.get('type')
     package_plugin = lib_plugins.lookup_package_plugin(package_type)
@@ -73,53 +72,76 @@ def package_create(next_action, context, data_dict):
 
     return next_action(context, data_dict)
 
-def generate_instrument_name(data_dict):
-    instrument_title = data_dict['title']
+def _parse_composite_field(data_dict, field_name):
+    """Try to extract a list of dicts from a composite_repeating field.
 
-    # --- Extract model entries (composite_repeating: list or indexed keys) ---
-    models = []
-    model_data = data_dict.get('model')
-    if isinstance(model_data, list):
-        models = [m for m in model_data if isinstance(m, dict) and m.get('model_name')]
-    elif isinstance(model_data, dict) and model_data.get('model_name'):
-        models = [model_data]
+    Handles every format that may arrive in data_dict:
+      1. Already a Python list of dicts  (API / after validation)
+      2. A single dict                   (API single-entry shorthand)
+      3. A JSON string                   (ckanext-composite hidden input)
+      4. A dict with integer keys         (after tuplize_dict + unflatten with __ separator)
+      5. Flat indexed keys like  field-1-subfield  (form POST, 1-based from composite-repeating)
+         or field-0-subfield (0-based, older format)
+    """
+    result = []
+    raw = data_dict.get(field_name)
 
-    if not models:
-        # Fall back to individual indexed keys: model-0-model_name, model-1-model_name, …
+    # 1 – already a list
+    if isinstance(raw, list):
+        result = [r for r in raw if isinstance(r, dict)]
+    # 2 – single dict with real sub-keys (not integer-keyed)
+    elif isinstance(raw, dict) and not all(isinstance(k, int) for k in raw.keys()):
+        result = [raw]
+    # 3 – JSON string
+    elif isinstance(raw, str) and raw.strip():
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                result = [r for r in parsed if isinstance(r, dict)]
+            elif isinstance(parsed, dict):
+                result = [parsed]
+        except (json.JSONDecodeError, TypeError):
+            pass
+    # 4 – dict with integer keys  {0: {...}, 1: {...}}
+    elif isinstance(raw, dict):
+        for k in sorted(raw.keys()):
+            v = raw[k]
+            if isinstance(v, dict):
+                result.append(v)
+
+    # 5 – fall back to flat indexed keys (field-0-sub, field-1-sub, …)
+    if not result:
+        prefix = field_name + '-'
         indices = sorted(set(
             key.split('-')[1] for key in data_dict.keys()
-            if key.startswith('model-') and '-model_name' in key
+            if key.startswith(prefix) and key.count('-') >= 2
         ), key=lambda x: int(x) if x.isdigit() else x)
         for idx in indices:
-            name_val = data_dict.get(f'model-{idx}-model_name')
-            if name_val:
-                models.append({'model_name': name_val})
+            entry = {}
+            idx_prefix = f'{field_name}-{idx}-'
+            for key in data_dict.keys():
+                if key.startswith(idx_prefix):
+                    sub_name = key[len(idx_prefix):]
+                    entry[sub_name] = data_dict[key]
+            if entry:
+                result.append(entry)
 
-    # Pick the first model record
-    model_name = models[0]['model_name'] if models else ''
+    return result
+
+
+def generate_instrument_name(data_dict):
+    instrument_title = data_dict.get('title', '')
+
+    # --- Extract model entries ---
+    models = _parse_composite_field(data_dict, 'model')
+    model_name = ''
+    for m in models:
+        if m.get('model_name'):
+            model_name = m['model_name']
+            break
 
     # --- Extract alternate_identifier_obj entries ---
-    alt_ids = []
-    alt_id_data = data_dict.get('alternate_identifier_obj')
-    if isinstance(alt_id_data, list):
-        alt_ids = [a for a in alt_id_data if isinstance(a, dict)]
-    elif isinstance(alt_id_data, dict):
-        alt_ids = [alt_id_data]
-
-    if not alt_ids:
-        # Fall back to individual indexed keys
-        indices = sorted(set(
-            key.split('-')[1] for key in data_dict.keys()
-            if key.startswith('alternate_identifier_obj-') and '-alternate_identifier_type' in key
-        ), key=lambda x: int(x) if x.isdigit() else x)
-        for idx in indices:
-            id_type = data_dict.get(f'alternate_identifier_obj-{idx}-alternate_identifier_type')
-            id_value = data_dict.get(f'alternate_identifier_obj-{idx}-alternate_identifier')
-            if id_type or id_value:
-                alt_ids.append({
-                    'alternate_identifier_type': id_type or '',
-                    'alternate_identifier': id_value or '',
-                })
+    alt_ids = _parse_composite_field(data_dict, 'alternate_identifier_obj')
 
     # Priority: pick entry with type 'SerialNumber'; otherwise fall back to first record
     chosen_alt_id = next(
@@ -133,16 +155,21 @@ def generate_instrument_name(data_dict):
     model_name = model_name.replace(' ', '_')
     alt_id_value = alt_id_value.replace(' ', '_')
 
-    name = f"{instrument_title}-{model_name}-{alt_id_value}"
+    # Join only non-empty parts so the slug never becomes "title--"
+    parts = [p for p in [instrument_title, model_name, alt_id_value] if p]
+    name = '-'.join(parts) if parts else 'unnamed-instrument'
     name = re.sub(r'[^a-z0-9-_]', '', name.lower())
+    # Collapse any remaining consecutive dashes (defensive)
+    name = re.sub(r'-{2,}', '-', name).strip('-')
 
     return name
 
 
 @tk.chained_action
 def package_update(next_action, context, data_dict):
-    # logger = logging.getLogger(__name__)
-    # logger.info("package_update data_dict: %s", pformat(data_dict))
+    logger = logging.getLogger(__name__)
+
+    data_dict['name']  = generate_instrument_name(data_dict)   
 
 
     manage_parent_related_resource(data_dict)
