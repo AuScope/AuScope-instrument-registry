@@ -1,0 +1,13 @@
+{#
+  Renders model name + serial/alternate-identifier chips for an instrument.
+  Usage:
+    {% snippet "snippets/instrument_meta.html", pkg=package %}
+    {% snippet "snippets/instrument_meta.html", pkg=pkg %}
+#}
+{% set meta = h.pidinst_instrument_meta(pkg) %}
+{% if meta.model_name or meta.alt_identifier %}
+  <span class="instrument-meta-inline">
+    {%- if meta.model_name -%}{{ meta.model_name }}{%- endif -%}
+    {%- if meta.alt_identifier %} ({{ meta.alt_identifier }}){%- endif -%}
+  </span>
+{% endif %}

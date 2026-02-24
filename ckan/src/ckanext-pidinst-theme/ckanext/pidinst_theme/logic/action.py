@@ -61,6 +61,8 @@ def package_create(next_action, context, data_dict):
             for f in schema['owner_org']
         ]
 
+    data_dict['name']  = generate_instrument_name(data_dict)   
+
     manage_parent_related_resource(data_dict)
 
     if 'private' in data_dict and data_dict['private'] == 'False':
@@ -71,10 +73,77 @@ def package_create(next_action, context, data_dict):
 
     return next_action(context, data_dict)
 
+def generate_instrument_name(data_dict):
+    instrument_title = data_dict['title']
+
+    # --- Extract model entries (composite_repeating: list or indexed keys) ---
+    models = []
+    model_data = data_dict.get('model')
+    if isinstance(model_data, list):
+        models = [m for m in model_data if isinstance(m, dict) and m.get('model_name')]
+    elif isinstance(model_data, dict) and model_data.get('model_name'):
+        models = [model_data]
+
+    if not models:
+        # Fall back to individual indexed keys: model-0-model_name, model-1-model_name, …
+        indices = sorted(set(
+            key.split('-')[1] for key in data_dict.keys()
+            if key.startswith('model-') and '-model_name' in key
+        ), key=lambda x: int(x) if x.isdigit() else x)
+        for idx in indices:
+            name_val = data_dict.get(f'model-{idx}-model_name')
+            if name_val:
+                models.append({'model_name': name_val})
+
+    # Pick the first model record
+    model_name = models[0]['model_name'] if models else ''
+
+    # --- Extract alternate_identifier_obj entries ---
+    alt_ids = []
+    alt_id_data = data_dict.get('alternate_identifier_obj')
+    if isinstance(alt_id_data, list):
+        alt_ids = [a for a in alt_id_data if isinstance(a, dict)]
+    elif isinstance(alt_id_data, dict):
+        alt_ids = [alt_id_data]
+
+    if not alt_ids:
+        # Fall back to individual indexed keys
+        indices = sorted(set(
+            key.split('-')[1] for key in data_dict.keys()
+            if key.startswith('alternate_identifier_obj-') and '-alternate_identifier_type' in key
+        ), key=lambda x: int(x) if x.isdigit() else x)
+        for idx in indices:
+            id_type = data_dict.get(f'alternate_identifier_obj-{idx}-alternate_identifier_type')
+            id_value = data_dict.get(f'alternate_identifier_obj-{idx}-alternate_identifier')
+            if id_type or id_value:
+                alt_ids.append({
+                    'alternate_identifier_type': id_type or '',
+                    'alternate_identifier': id_value or '',
+                })
+
+    # Priority: pick entry with type 'SerialNumber'; otherwise fall back to first record
+    chosen_alt_id = next(
+        (a for a in alt_ids if a.get('alternate_identifier_type') == 'SerialNumber'),
+        alt_ids[0] if alt_ids else {}
+    )
+    # Use the actual identifier VALUE (e.g. "FY2"), not the type label ("SerialNumber")
+    alt_id_value = chosen_alt_id.get('alternate_identifier', '')
+
+    instrument_title = instrument_title.replace(' ', '_')
+    model_name = model_name.replace(' ', '_')
+    alt_id_value = alt_id_value.replace(' ', '_')
+
+    name = f"{instrument_title}-{model_name}-{alt_id_value}"
+    name = re.sub(r'[^a-z0-9-_]', '', name.lower())
+
+    return name
+
+
 @tk.chained_action
 def package_update(next_action, context, data_dict):
     # logger = logging.getLogger(__name__)
     # logger.info("package_update data_dict: %s", pformat(data_dict))
+
 
     manage_parent_related_resource(data_dict)
 

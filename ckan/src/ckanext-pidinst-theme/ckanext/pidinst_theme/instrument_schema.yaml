@@ -36,9 +36,15 @@ dataset_fields:
   - field_name: title
     label: Title
     preset: title
-    required: true
     form_placeholder: Name by which the instrument instance is known
     help_text: "Name by which the instrument instance is known"
+    groupBy: About Instrument
+
+  - field_name: name
+    label: URL
+    preset: dataset_slug
+    form_snippet: hidden_field.html
+    form_placeholder: eg. my-instrument
     groupBy: About Instrument
 
   - field_name: version_number
@@ -56,12 +62,6 @@ dataset_fields:
     display_snippet: null
     validators: ignore_missing
     required: false
-    groupBy: About Instrument
-
-  - field_name: name
-    label: URL
-    preset: dataset_slug
-    form_placeholder: eg. my-instrument
     groupBy: About Instrument
 
   - field_name: owner_org
@@ -183,6 +183,7 @@ dataset_fields:
 
   - field_name: model
     label: Model
+    required: true
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html
@@ -325,6 +326,44 @@ dataset_fields:
     help_text: The Credit field is where you acknowledge people or organisations who contributed
     groupBy: About Instrument
 
+  - field_name: alternate_identifier_obj
+    label: Alternate Identifier
+    preset: composite_repeating
+    form_snippet: composite_repeating_field.html
+    validators: composite_repeating_validator
+    form_blanks: 1
+    groupBy: About Instrument
+    required: true
+    composite_rules:
+      - when_present: alternate_identifier
+        require: [alternate_identifier_type]
+      - when_equals:
+          field: alternate_identifier_type
+          value: Other
+        require: [alternate_identifier_name]
+    subfields:
+      - field_name: alternate_identifier
+        label: Alternate Identifier
+        help_text: Identifiers other than the PIDINST pertaining to the same instrument instance. This should be used if the instrument has a serial number. Other possible uses include an owner's inventory number or an entry in some instrument data base.
+
+      - field_name: alternate_identifier_name
+        label: Alternate Identifier Name
+        help_text: A supplementary name for the identifier type. This is mostly useful for "Other"
+
+      - field_name: alternate_identifier_type
+        label: Alternate Identifier Type
+        # Conditionally Required
+        required: true
+        preset: select
+        choices:
+          - value: SerialNumber
+            label: Serial Number
+          - value: InventoryNumber
+            label: Inventory Number
+          - value: Other
+            label: Other
+        help_text: Type of the identifier
+
   # ======================== RELATED RESOURCES ========================
   - field_name: related_identifier_obj
     label: Related Identifier
@@ -434,44 +473,6 @@ dataset_fields:
           - value: IsNewVersionOf
             label: IsNewVersionOf (The instrument is a new version of the related resource)
         help_text: Description of the relationship
-
-
-  - field_name: alternate_identifier_obj
-    label: Alternate Identifier
-    preset: composite_repeating
-    form_snippet: composite_repeating_field.html
-    validators: composite_repeating_validator
-    form_blanks: 0
-    groupBy: Related Resources
-    composite_rules:
-      - when_present: alternate_identifier
-        require: [alternate_identifier_type]
-      - when_equals:
-          field: alternate_identifier_type
-          value: Other
-        require: [alternate_identifier_name]
-    subfields:
-      - field_name: alternate_identifier
-        label: Alternate Identifier
-        help_text: Identifiers other than the PIDINST pertaining to the same instrument instance. This should be used if the instrument has a serial number. Other possible uses include an owner's inventory number or an entry in some instrument data base.
-
-      - field_name: alternate_identifier_name
-        label: Alternate Identifier Name
-        help_text: A supplementary name for the identifier type. This is mostly useful for "Other"
-
-      - field_name: alternate_identifier_type
-        label: Alternate Identifier Type
-        # Conditionally Required
-        required: true
-        preset: select
-        choices:
-          - value: SerialNumber
-            label: Serial Number
-          - value: InventoryNumber
-            label: Inventory Number
-          - value: Other
-            label: Other
-        help_text: Type of the identifier
 
   # ================= GEOLOCATION FIELDS =================
   - field_name: locality

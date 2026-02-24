@@ -271,3 +271,14 @@
   font-size: 0.85em;
   color: #6c757d;
 }
+
+/* =====================================================
+   Instrument Meta – inline text  (ModelName(SerialValue))
+===================================================== */
+
+.instrument-meta-inline {
+  display: inline-block;
+  color: #888;
+  font-size: 0.9rem;
+  margin: 4px 0;
+}

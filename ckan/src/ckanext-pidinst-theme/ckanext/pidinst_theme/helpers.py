@@ -385,6 +385,68 @@ def get_cover_photo_info(package_id, current_resource_id=None):
     return None
 
 
+def pidinst_instrument_meta(pkg_dict):
+    """Return a dict with display-ready model name and serial/alternate identifier
+    for the given package dict.
+
+    ``model``                  – composite_repeating; first record wins.
+    ``alternate_identifier_obj`` – composite_repeating; SerialNumber-type entry
+                                   has priority, otherwise first record.
+
+    Returns::
+
+        {
+          'model_name': str | None,
+          'alt_identifier': str | None,   # the actual identifier value
+          'alt_identifier_label': str,    # human-readable type label
+        }
+    """
+    def _parse_composite(pkg_dict, field_name):
+        """Return a list of dicts for a composite_repeating field."""
+        value = pkg_dict.get(field_name)
+        if isinstance(value, list):
+            return [v for v in value if isinstance(v, dict)]
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return [v for v in parsed if isinstance(v, dict)]
+            except (ValueError, TypeError):
+                pass
+        if isinstance(value, dict):
+            return [value]
+        return []
+
+    # --- Model name: first record ---
+    models = _parse_composite(pkg_dict, 'model')
+    model_name = models[0].get('model_name') if models else None
+
+    # --- Alternate identifier: SerialNumber priority, then first ---
+    alt_ids = _parse_composite(pkg_dict, 'alternate_identifier_obj')
+    chosen = next(
+        (a for a in alt_ids if a.get('alternate_identifier_type') == 'SerialNumber'),
+        alt_ids[0] if alt_ids else None
+    )
+
+    alt_identifier = None
+    alt_identifier_label = 'Identifier'
+    if chosen:
+        alt_identifier = chosen.get('alternate_identifier') or chosen.get('alternate_identifier_name')
+        raw_type = chosen.get('alternate_identifier_type', '')
+        _type_labels = {
+            'SerialNumber': 'Serial #',
+            'InventoryNumber': 'Inventory #',
+            'Other': chosen.get('alternate_identifier_name') or 'Identifier',
+        }
+        alt_identifier_label = _type_labels.get(raw_type, raw_type)
+
+    return {
+        'model_name': model_name,
+        'alt_identifier': alt_identifier,
+        'alt_identifier_label': alt_identifier_label,
+    }
+
+
 def pidinst_cover_image_url(pkg_dict):
     resources = pkg_dict.get("resources") or []
     cover = None
@@ -419,4 +481,5 @@ def get_helpers():
         "pidinst_upload_help_html": pidinst_upload_help_html,
         "pidinst_cover_image_url": pidinst_cover_image_url,
         "get_cover_photo_info": get_cover_photo_info,
+        "pidinst_instrument_meta": pidinst_instrument_meta,
     }

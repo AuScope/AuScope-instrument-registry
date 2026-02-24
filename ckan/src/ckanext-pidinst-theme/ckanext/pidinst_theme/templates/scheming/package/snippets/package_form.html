@@ -89,7 +89,6 @@
     {%- endif -%}
   {%- endfor -%}
 
-<<<<<<< HEAD
   {# Render fields #}
   {%- for group, group_fields in grouped_fields.items() -%}
     <div class="card {{ 'hidden-panel' if group == 'General' }}">
@@ -115,7 +114,18 @@
                 {# Set the field default value before rendering but only if
                    it doesn't already exist in data which would mean the form
                    has been submitted. #}
-                {%- if field.default_jinja2 -%}
+                {%- if form_style == 'new' and not data.get('id') and field.field_name == 'funder' -%}
+                  {# Pre-populate one default FundingReference row on CREATE ONLY #}
+                  {%- do data.__setitem__(field.field_name, [{
+                    'funder_name': 'AuScope',
+                    'funder_identifier_type': 'ROR',
+                    'funder_identifier': 'https://ror.org/04s1m4564',
+                    'scheme_uri': 'https://ror.org/',
+                    'award_number': '',
+                    'award_uri': '',
+                    'award_title': ''
+                  }]) -%}
+                {%- elif field.default_jinja2 -%}
                   {%- do data.__setitem__(field.field_name, h.scheming_render_from_string(field.default_jinja2)) -%}
                 {%- elif field.default -%}
                   {%- do data.__setitem__(field.field_name, field.default) -%}
@@ -133,67 +143,6 @@
           {%- endfor -%}
         </div>
       </div>
-=======
-{# Render fields #}
-{%- for group, group_fields in grouped_fields.items() %}
-<div class="card {{ 'hidden-panel' if group == 'General' }}">
-  <div class="card-header" id="heading{{ loop.index }}">
-    <h4 class="mb-0">
-      <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}"
-        aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse{{ loop.index }}">
-        {{ group }}
-      </button>
-    </h4>
-  </div>
-  <div id="collapse{{ loop.index }}" class="collapse {{ 'show' if loop.index<=2 else '' }}"
-    aria-labelledby="heading{{ loop.index }}">
-    <div class="card-body">
-      {%- for field in group_fields %}
-      {%- if field.form_snippet is not none -%}
-      {%- if field.field_name not in data %}
-      {# Set the field default value before rendering but only if
-      it doesn't already exist in data which would mean the form
-      has been submitted. #}
-      {# ---- Pre-populate one default FundingReference row on CREATE ONLY ---- #}
-      {% if form_style == 'new'
-        and not data.get('id')
-        and field.field_name == 'funder' %}
-        {% do data.__setitem__(field.field_name, [ {
-          "funder_name": "AuScope",
-          "funder_identifier_type": "ROR",
-          "funder_identifier": "https://ror.org/04s1m4564",
-          "scheme_uri": "https://ror.org/",
-          "award_number": "",
-          "award_uri": "",
-          "award_title": ""
-        } ]) %}
-      {% else %}
-        {# Existing default handling #}
-        {% if field.default_jinja2 %}
-          {% do data.__setitem__(field.field_name, h.scheming_render_from_string(field.default_jinja2)) %}
-        {% elif field.default %}
-          {% do data.__setitem__(field.field_name, field.default) %}
-        {% endif %}
-      {% endif %}
-      {% if field.default_jinja2 %}
-      {% do data.__setitem__(
-      field.field_name,
-      h.scheming_render_from_string(field.default_jinja2)) %}
-      {% elif field.default %}
-      {% do data.__setitem__(field.field_name, field.default) %}
-      {% endif %}
-      {% endif -%}
-      {%- snippet 'scheming/snippets/form_field.html',
-      field=field,
-      data=data,
-      errors=errors,
-      licenses=c.licenses,
-      entity_type='dataset',
-      object_type=dataset_type
-      -%}
-      {%- endif -%}
-      {%- endfor %}
->>>>>>> 5ccfa468fc5cf5c39eb519e7445aaf8fb65fa6e9
     </div>
   {%- endfor -%}
 
@@ -210,7 +159,6 @@
 {% endblock %}
 
 {% block save_button_text %}
-<<<<<<< HEAD
   {%- set pages = h.scheming_get_dataset_form_pages(dataset_type) -%}
   {%- if pages and form_style == 'edit' -%}
     {%- set active_page = data.get('_form_page', 1) | int -%}
@@ -221,15 +169,3 @@
     {{ super() }}
   {%- endif -%}
 {% endblock %}
-=======
-{%- set pages = h.scheming_get_dataset_form_pages(dataset_type) -%}
-{%- if pages and form_style == 'edit' -%}
-{%- set active_page = data.get('_form_page', 1) | int -%}
-{{ _('Update {page}').format(page=h.scheming_language_text(pages[active_page-1].title)) }}
-{%- elif pages -%}
-{{ _('Next') }}
-{%- else -%}
-{{ super() }}
-{%- endif -%}
-{% endblock %}
->>>>>>> 5ccfa468fc5cf5c39eb519e7445aaf8fb65fa6e9

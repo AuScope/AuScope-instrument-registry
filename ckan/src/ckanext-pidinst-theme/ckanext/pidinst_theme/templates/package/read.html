@@ -38,6 +38,9 @@
         [{{ _('Deleted') }}]
       {%- endif -%}
     </h1>
+    <div class="package-instrument-meta">
+      {% snippet "snippets/instrument_meta.html", pkg=pkg %}
+    </div>
   {% endblock %}
 
   {% block version_alert %}
