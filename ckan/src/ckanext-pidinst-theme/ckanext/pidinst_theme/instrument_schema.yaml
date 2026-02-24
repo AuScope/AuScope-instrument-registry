@@ -376,6 +376,10 @@ dataset_fields:
     composite_rules:
       - when_present: related_identifier
         require: [related_identifier_type]
+      - when_equals:
+          field: related_resource_type
+          value: Instrument
+        require: [related_instrument_package_id]
     subfields:
       - field_name: related_identifier
         label: Related Identifier
@@ -473,6 +477,20 @@ dataset_fields:
           - value: IsNewVersionOf
             label: IsNewVersionOf (The instrument is a new version of the related resource)
         help_text: Description of the relationship
+
+      - field_name: related_instrument_package_id
+        label: Related Instrument Package ID
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing
+        help_text: Internal CKAN package ID of the selected instrument (used for prepopulation)
+
+      - field_name: instrument_relation_role
+        label: Instrument Relation Role
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing
+        help_text: Role of the related instrument (child or parent)
 
   # ================= GEOLOCATION FIELDS =================
   - field_name: locality

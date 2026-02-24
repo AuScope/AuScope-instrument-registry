@@ -42,98 +42,127 @@
 {# Display family information if this instrument is part of a family #}
 <div class="module module-narrow module-shallow context-info">
   <h2 class="module-heading"><i class="fa fa-sitemap"></i> Instrument Family</h2>
-  <div data-module="jstree-view-module" data-id="{{ pkg.id }}" data-title="Linked Instruments">
-    <div id="tree">
-      
-    </div>
+  <div data-module="jstree-view-module"
+       data-id="{{ pkg.id }}"
+       data-name="{{ pkg.name | e }}"
+       data-title="{{ (pkg.title or pkg.name) | e }}"
+       data-related-identifiers="{{ pkg.get('related_identifier_obj', '[]') | e }}">
+    <div class="pidinst-family-tree"></div>
+    <p class="pidinst-family-empty text-muted" style="display:none;padding:8px 0;">
+      No family relationships recorded for this instrument.
+    </p>
   </div>
 </div>
 {% endblock %}
 
 <style>
-  .tree-item {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: inline-block;
-    max-width: calc(100% - 24px);
-    vertical-align: middle;
-    box-sizing: border-box;
+  /* ── Instrument Family Tree (scoped to .pidinst-family-tree) ─────── */
+
+  /* ── Fix: only set vertical margin; preserve jsTree's margin-left (indentation) ── */
+  .pidinst-family-tree {
+    padding: 8px 4px;
+  }
+  .pidinst-family-tree .jstree-node {
+    margin-top: 2px;
+    margin-bottom: 0;
+    /* margin-left is set by jsTree theme (24px) — do NOT override */
   }
 
-  .jstree-wholerow-ul {
+  /* ── Fix: sprite paths break when CSS is bundled; use CSS triangles instead ── */
+  .pidinst-family-tree .jstree-ocl {
     position: relative;
-    display: inline-block;
-    width: 100%;
-    padding-top: 10px;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    background-image: none !important; /* override broken sprite */
   }
-
-  .jstree-ocl::before {
-    content: "\f0da";
-    font-family: "FontAwesome";
-    font-weight: 900;
-    font-style: normal;
-  }
-
-  .jstree-open > .jstree-ocl::before {
-    content: "\f0d7";
-    font-family: "FontAwesome";
-    font-weight: 900;
-    font-style: normal;
-  }
-
-  .tooltip {
-    position: relative;
-    display: inline-block;
-  }
-
-  .tooltip .tooltiptext {
-    visibility: hidden;
-    width: 120px;
-    background-color: black;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px;
+  .pidinst-family-tree .jstree-ocl::after {
+    content: '';
     position: absolute;
-    z-index: 1;
-    bottom: 125%;
+    top: 50%;
     left: 50%;
-    margin-left: -60px;
-    opacity: 0;
-    transition: opacity 0.3s;
+    border-style: solid;
+    /* collapsed state: right-pointing triangle */
+    border-width: 5px 0 5px 7px;
+    border-color: transparent transparent transparent #9ca3af;
+    transform: translate(-50%, -50%);
+    transition: transform 0.15s ease;
+  }
+  .pidinst-family-tree .jstree-open > .jstree-ocl::after {
+    /* expanded state: down-pointing triangle */
+    border-width: 7px 5px 0 5px;
+    border-color: #6b7280 transparent transparent transparent;
+  }
+  /* Leaf nodes (no children) — hide the toggle entirely */
+  .pidinst-family-tree .jstree-leaf > .jstree-ocl::after {
+    display: none;
   }
 
-  .tooltip:hover .tooltiptext {
-    visibility: visible;
-    opacity: 1;
+  /* ── Anchors: readable size, aligned text, row height ~26px ── */
+  .pidinst-family-tree .jstree-anchor {
+    font-size: 18px;
+    color: #374151;
+    text-decoration: none;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1.6;
+    height: 26px;
+    vertical-align: middle;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .pidinst-family-tree .jstree-anchor:hover {
+    background: #f0f4fa;
+    text-decoration: none;
   }
 
-  .clickable-node:hover {
-    color: var(--color-aus-royal-blue) !important;
+  /* ── Wholerow hover + selection ── */
+  .pidinst-family-tree .jstree-wholerow-hovered {
+    background: rgba(59, 130, 246, 0.06) !important;
+  }
+  .pidinst-family-tree .jstree-wholerow-clicked {
+    background: rgba(59, 130, 246, 0.10) !important;
+  }
+
+  /* ── Group nodes = section headers (muted, semi-bold, uppercase) ── */
+  .pidinst-family-tree .pidinst-group-node {
+    color: #6b7280 !important;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+
+  /* ── Root / current instrument emphasis ── */
+  .pidinst-family-tree .pidinst-current-node {
+    font-weight: 600;
+    color: #1e293b !important;
+  }
+
+  /* ── Clickable instrument links ── */
+  .pidinst-family-tree .clickable-node {
+    cursor: pointer;
+    color: #2563eb !important;
+  }
+  .pidinst-family-tree .clickable-node:hover {
+    color: #1d4ed8 !important;
     text-decoration: underline;
   }
 
-  .jstree-ocl {
-    background-color: lightgray; /* Distinguishable background color */
-    border-radius: 50%; /* Rounded appearance */
-    padding: 2px;
-    display: inline-block;
+  /* ── Cycle / unresolved placeholders ── */
+  .pidinst-family-tree .pidinst-cycle-node,
+  .pidinst-family-tree .pidinst-unresolved-node {
+    color: #9ca3af !important;
+    font-style: italic;
+    cursor: default;
   }
 
-  /* Hover style for collapse/expand icons */
-  .jstree-ocl:hover {
-    background-color: darkgray; /* Change background on hover */
-  }
-
-  /* remove the old box styling border/top line */
-.pidinst-versions-box {
+  /* ── Other Versions widget ──────────────────────────── */
+  .pidinst-versions-box {
     margin-top: 0;
     padding-top: 0;
     border-top: none;
   }
-
-  /* list should not have outer border */
   .pidinst-versions-list {
     list-style: none;
     padding-left: 0;
@@ -142,13 +171,9 @@
     border-radius: 0;
     background: transparent;
   }
-
-  /* remove per-item separators */
   .pidinst-versions-item + .pidinst-versions-item {
     border-top: none;
   }
-
-  /* keep a clean clickable row */
   .pidinst-versions-link {
     display: flex;
     justify-content: space-between;
@@ -157,19 +182,16 @@
     text-decoration: none;
     border-radius: 4px;
   }
-
   .pidinst-versions-link:hover {
     background: #f6f7f9;
     text-decoration: none;
   }
-
   .pidinst-versions-right {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     flex: 0 0 auto;
   }
-
   .pidinst-badge {
     font-size: 11px;
     padding: 2px 6px;
@@ -180,9 +202,7 @@
     color: #1f3a8a;
     white-space: nowrap;
   }
-
   .pidinst-badge-latest {
     font-weight: 600;
   }
-
 </style>

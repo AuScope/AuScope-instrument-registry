@@ -1,0 +1,9 @@
+{# Renders a hidden <input> for a composite subfield.
+   Receives: field (the subfield dict), subfield_index (row number string),
+             parent (parent field_name e.g. "related_identifier_obj").
+   We rely on the naming convention: parent-INDEX-subfield.field_name #}
+{% set name = parent ~ '-' ~ subfield_index ~ '-' ~ field.field_name %}
+<input type="hidden"
+       id="field-{{ name }}"
+       name="{{ name }}"
+       value="{{ data.get(field.field_name, '') if data is defined else '' }}" />

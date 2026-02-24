@@ -268,10 +268,13 @@ def user_invite(next_action, context, data_dict):
     data_dict['email'] = email
     return next_action(context, data_dict)
 
+@tk.side_effect_free
 @tk.chained_action
 def package_search(next_action, context, data_dict):
     """
-    Overwrite package_search so that it will ignore auth so all results are returned
+    Overwrite package_search so that it will ignore auth so all results are returned.
+    NOTE: @side_effect_free is required to allow GET requests.  Without it CKAN
+    rejects GET calls with 400 ("Access via POST only").
     """
     context['ignore_auth'] = True
     return next_action(context, data_dict)
@@ -443,7 +446,7 @@ def get_actions():
         'delete_package_relationship' : delete_package_relationship,
         'package_update' : package_update,
         'organization_member_create' :organization_member_create,
-        # 'package_search': package_search,
+        'package_search': package_search,
         'organization_create' :organization_create,
         "organization_delete" : organization_delete,
     }

@@ -14,6 +14,7 @@
   field.form_blanks if 'form_blanks' in field else 1
 ) %}
 
+<div data-module="instrument-relation-module">
 <div data-module="composite-repeating" id="composite-repeating-div-{{ field.field_name }}">
 
   {% for field_dict in field_dict_list %}
@@ -29,14 +30,23 @@
       {% for subfield in field.subfields %}
         {% set subfield_form_snippet = subfield.get("form_snippet", "default") %}
         {% set subfield_index = loop.index %}
-        {# Row 1: Identifier + Identifier Type + Identifier Name #}
-        {% if subfield.field_name == 'related_identifier_type' %}
-          <div class="pidinst-inline-row pidinst-inline-row--double">
+
+        {# Layout wrappers – CSS flex order makes type row appear above id fields #}
+
+        {# Wrap the bare related_identifier text input #}
+        {% if subfield.field_name == 'related_identifier' %}
+          <div class="pidinst-row-id-text">
         {% endif %}
 
-        {# Row 2: Type + Relation Type #}
+        {# Close id-text wrapper; open identifier_type + name inline row #}
+        {% if subfield.field_name == 'related_identifier_type' %}
+          </div>{# /pidinst-row-id-text #}
+          <div class="pidinst-row-id-details pidinst-inline-row pidinst-inline-row--double">
+        {% endif %}
+
+        {# Resource Type + Relation Type inline row – visually first via CSS order #}
         {% if subfield.field_name == 'related_resource_type' %}
-          <div class="pidinst-inline-row pidinst-inline-row--double">
+          <div class="pidinst-row-types pidinst-inline-row pidinst-inline-row--double">
         {% endif %}
 
 
@@ -179,16 +189,18 @@
           {# custom subfield snippet #}
           {% if subfield_form_snippet != None %}
             {%- snippet 'scheming/form_snippets/' + subfield_form_snippet,
-              field=subfield, subfield_index=index|string, parent=field.field_name -%}
+              field=subfield, subfield_index=index|string, parent=field.field_name,
+              data=field_dict -%}
           {% endif %}
         {% endif %}
-        {# Close inline wrapper AFTER rendering Relation Type field #}
+        {# Close pidinst-row-id-details after identifier_name #}
         {% if subfield.field_name == 'related_identifier_name' %}
-          </div>
+          </div>{# /pidinst-row-id-details #}
         {% endif %}
 
+        {# Close pidinst-row-types after relation_type #}
         {% if subfield.field_name == 'relation_type' %}
-          </div>
+          </div>{# /pidinst-row-types #}
         {% endif %}
       {% endfor %}
 
@@ -196,6 +208,7 @@
   {% endfor %}
 
 </div>
+</div>{# close instrument-relation-module wrapper #}
 
 <hr>
 
@@ -236,6 +249,59 @@
     #composite-repeating-div-related_identifier_obj .pidinst-inline-row {
       flex-direction: column;
     }
+  }
+
+  /* ── Layout: flex-column so types row appears above the id inputs ── */
+  #composite-repeating-div-related_identifier_obj .composite-control-repeating {
+    display: flex;
+    flex-direction: column;
+  }
+  /* Remove button / collapse header stays at the very top */
+  #composite-repeating-div-related_identifier_obj .composite-control-repeating > .composite-panel-header,
+  #composite-repeating-div-related_identifier_obj .composite-control-repeating > .composite-btn {
+    order: 0;
+  }
+  /* Row 1: Resource Type + Relation Type (shown first) */
+  #composite-repeating-div-related_identifier_obj .pidinst-row-types {
+    order: 1;
+    margin-bottom: 4px;
+  }
+  /* Row 2: Instrument search (injected by JS after types row) */
+  #composite-repeating-div-related_identifier_obj .pidinst-instrument-search {
+    order: 2;
+  }
+  /* Row 3: related_identifier bare text input */
+  #composite-repeating-div-related_identifier_obj .pidinst-row-id-text {
+    order: 3;
+  }
+  /* Row 4: Identifier Type + Identifier Name */
+  #composite-repeating-div-related_identifier_obj .pidinst-row-id-details {
+    order: 4;
+  }
+  /* On narrow screens, stacked flex items are already column; ensure inline rows wrap */
+
+  /* ── Instrument relation search control ── */
+  .pidinst-instrument-search {
+    margin-top: 8px;
+    padding: 12px;
+    border: 1px solid #d0e0f0;
+    border-radius: 4px;
+    background: #f7fafd;
+  }
+  .pidinst-instrument-search-label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #2a6496;
+  }
+  .pidinst-instrument-search-help {
+    font-size: 0.85em;
+    color: #777;
+    margin-top: 4px;
+  }
+  /* Disabled identifier fields visual cue */
+  .pidinst-disabled {
+    background-color: #eee !important;
+    cursor: not-allowed;
   }
 
 </style>
