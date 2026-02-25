@@ -279,81 +279,6 @@ def package_search(next_action, context, data_dict):
     context['ignore_auth'] = True
     return next_action(context, data_dict)
 
-def create_package_relationship(context, pkg_dict):
-    if 'parent' in pkg_dict and pkg_dict['parent']:
-        logger = logging.getLogger(__name__)
-        parent_id = pkg_dict['parent']
-        try:
-            tk.get_action('package_relationship_create')(context, {
-                'subject': pkg_dict['id'],
-                'object': parent_id,
-                'type': 'child_of',
-                'comment': 'Creating a child_of relationship'
-            })
-        except Exception as e:
-            logger.error('Failed to create package relationship: {}'.format(str(e)))
-
-def update_package_relationship(context, pkg_dict):
-    """
-    Updates the parent relationship of a package.
-
-    Parameters:
-    context (dict): The context dictionary containing user and auth details.
-    pkg_dict (dict): Dictionary containing the package details, including 'id' and optional 'parent'.
-
-    Returns:
-    None
-    """
-    logger = logging.getLogger(__name__)
-
-    if 'parent' in pkg_dict and pkg_dict['parent']:
-        parent_id = pkg_dict['parent']
-        package_id = pkg_dict['id']
-        relationship_type = 'child_of'
-
-        try:
-            existing_relationships = tk.get_action('package_relationships_list')(
-                context, {'id': package_id, 'rel': relationship_type}
-            )
-
-            for rel in existing_relationships:
-                try:
-                    tk.get_action('package_relationship_delete')(context, {
-                        'subject': package_id,
-                        'object': rel['object'],
-                        'type': relationship_type
-                    })
-                except Exception as e:
-                    logger.error(f"Error while deleting relationship {package_id} child_of {rel['object']}: {str(e)}")
-
-        except tk.ObjectNotFound:
-            logger.info(f"No existing relationships found for package {package_id}")
-
-        except Exception as e:
-            logger.error(f"Error while retrieving relationships for package {package_id}: {str(e)}")
-            return
-
-        try:
-            tk.get_action('package_relationship_create')(context, {
-                'subject': package_id,
-                'object': parent_id,
-                'type': relationship_type,
-                'comment': 'Updated relationship to new parent'
-            })
-        except Exception as e:
-            logger.error(f"Error while creating relationship for package {package_id}: {str(e)}")
-
-
-def delete_package_relationship(context, pkg_dict):
-    logger = logging.getLogger(__name__)
-    package_id = pkg_dict['id']
-    try:
-        existing_relationships = tk.get_action('package_relationships_list')(context, {'id': package_id})
-        for rel in existing_relationships:
-            tk.get_action('package_relationship_delete')(context, rel)
-    except Exception as e:
-        logger.error(f"Failed to delete package relationship: {str(e)}")
-
 @tk.chained_action
 def organization_member_create(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
@@ -441,9 +366,6 @@ def get_actions():
         'package_create': package_create,
         'user_create': user_create,
         'user_invite': user_invite,
-        'create_package_relationship' : create_package_relationship,
-        'update_package_relationship' : update_package_relationship,
-        'delete_package_relationship' : delete_package_relationship,
         'package_update' : package_update,
         'organization_member_create' :organization_member_create,
         'package_search': package_search,

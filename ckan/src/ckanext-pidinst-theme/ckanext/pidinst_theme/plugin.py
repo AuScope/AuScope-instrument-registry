@@ -121,8 +121,6 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
             except Exception as e:
                 logging.error(f"Failed to track dataset creation: {e}")
 
-        return action.create_package_relationship(context, pkg_dict)
-
     def after_dataset_update(self, context, pkg_dict):
         # Track analytics event
         user = context.get('user')
@@ -137,10 +135,6 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                 logging.error(f"Failed to track dataset update: {e}")
 
         # self.process_doi_metadata(pkg_dict)
-        return action.update_package_relationship(context, pkg_dict)
-
-    def after_dataset_delete(self, context, pkg_dict):
-        return action.delete_package_relationship(context, pkg_dict)
 
     def after_dataset_show(self, *args, **kwargs):
         return schema.after_dataset_show(*args, **kwargs)

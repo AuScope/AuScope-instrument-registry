@@ -11,7 +11,6 @@ pidinst_theme-js:
     - js/for-fields-handler-module.js
     - js/gcmd-fields-handler-module.js
     - js/jstree-view-module.js
-    - js/parent-instrument-selector-module.js
     - js/instrument-relation-module.js
     - js/facet-select-module.js
     - js/analytics-tracking.js

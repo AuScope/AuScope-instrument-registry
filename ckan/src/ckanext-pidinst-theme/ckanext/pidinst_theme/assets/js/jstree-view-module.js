@@ -186,11 +186,6 @@ this.ckan.module('jstree-view-module', function ($, _) {
         var rootRels = this._extractRelations(rootPkg._related);
         var groups   = this._makeGroups(this.packageId, rootRels, [], true);
 
-        if (groups.length === 0) {
-          this._legacyFallback(cb);
-          return;
-        }
-
         cb([{
           id:       nid(),
           text:     this._trunc(this.packageTitle, 50),
@@ -365,109 +360,6 @@ this.ckan.module('jstree-view-module', function ($, _) {
                     title: label },
         children: false
       };
-    },
-
-    /* ── Legacy fallback (package_relationships_list) ── */
-
-    _legacyFallback: function (cb) {
-      var self   = this;
-      var rootId = this.packageId;
-
-      $.ajax({
-        url: '/api/3/action/package_relationships_list',
-        method: 'GET',
-        data: { id: rootId, rel: 'parent_of' }
-      }).done(function (resp) {
-        if (!resp.success || !resp.result || !resp.result.length) {
-          self._emptyRoot(cb);
-          return;
-        }
-
-        var kids      = [];
-        var remaining = resp.result.length;
-
-        resp.result.forEach(function (rel) {
-          self._fetchPkg(rel.object).then(
-            function (pkg) {
-              if (pkg.state && pkg.state !== 'active') {
-                if (--remaining === 0) finalize();
-                return;
-              }
-              var title = pkg.title || pkg.name || rel.object;
-              var rels  = self._extractRelations(pkg._related);
-              kids.push({
-                id:       nid(),
-                text:     self._trunc(title, 50),
-                type:     'instrument',
-                data:     { nodeType: 'instrument',
-                            pkgId: pkg.id,
-                            pkgName: pkg.name || pkg.id,
-                            ancestors: [rootId],
-                            _rels: rels },
-                a_attr:   { title: title,
-                            href: '/dataset/' + (pkg.name || pkg.id),
-                            class: 'clickable-node' },
-                children: (rels.parents.length + rels.children.length) > 0
-              });
-              if (--remaining === 0) finalize();
-            },
-            function () {
-              if (--remaining === 0) finalize();
-            }
-          );
-        });
-
-        function finalize() {
-          var rootChildren = [];
-          if (kids.length) {
-            rootChildren.push({
-              id:       nid(),
-              text:     'Has Part of',
-              type:     'group',
-              state:    { opened: true },
-              data:     { nodeType: 'group', direction: 'children',
-                          ownerPkgId: rootId, items: [],
-                          ancestors: [rootId] },
-              a_attr:   { href: '#', class: 'pidinst-group-node' },
-              children: kids            /* already resolved */
-            });
-          }
-
-          cb([{
-            id:       nid(),
-            text:     self._trunc(self.packageTitle, 50),
-            type:     'instrument',
-            state:    { opened: true },
-            data:     { pkgId: rootId, pkgName: self.packageName,
-                        nodeType: 'root', ancestors: [] },
-            a_attr:   { title: self.packageTitle, href: '#',
-                        class: 'pidinst-current-node' },
-            children: rootChildren.length ? rootChildren : false
-          }]);
-
-          if (!rootChildren.length) {
-            self.el.find('.pidinst-family-empty').show();
-          }
-        }
-      }).fail(function () {
-        self._emptyRoot(cb);
-      });
-    },
-
-    /** Render a lone root with no children + show empty-state message. */
-    _emptyRoot: function (cb) {
-      cb([{
-        id:       nid(),
-        text:     this._trunc(this.packageTitle, 50),
-        type:     'instrument',
-        state:    { opened: true },
-        data:     { pkgId: this.packageId, pkgName: this.packageName,
-                    nodeType: 'root', ancestors: [] },
-        a_attr:   { title: this.packageTitle, href: '#',
-                    class: 'pidinst-current-node' },
-        children: false
-      }]);
-      this.el.find('.pidinst-family-empty').show();
     },
 
     /* ── Utilities ────────────────────────────────── */

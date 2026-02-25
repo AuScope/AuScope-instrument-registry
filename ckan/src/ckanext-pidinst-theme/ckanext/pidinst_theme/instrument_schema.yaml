@@ -69,19 +69,6 @@ dataset_fields:
     form_snippet: org_visibility.html
     groupBy: About Instrument
 
-  # - field_name: parent
-  #   label: Parent Instrument
-  #   form_snippet: instrument_parent_field.html
-  #   display_snippet: instrument_parent_field.html
-  #   validators: parent_validator
-  #   help_text: Institution(s) responsible for the management of the instrument. This may include the legal owner, the operator, or an institute providing access to the instrument.
-  #   groupBy: About Instrument
-
-  # - field_name: parent_instrument
-  #   form_snippet: hidden_field.html
-  #   display_snippet: null
-  #   groupBy: About Instrument
-
   - field_name: owner
     label: Owners
     preset: composite_repeating
