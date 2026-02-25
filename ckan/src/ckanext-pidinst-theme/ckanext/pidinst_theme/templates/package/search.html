@@ -1,6 +1,11 @@
 {% ckan_extends %}
 
 {% block page_primary_action %}
+  <div class="page_primary_action">
+    {% if h.check_access('package_create') %}
+      {% snippet 'snippets/add_dataset.html', dataset_type=dataset_type %}
+    {% endif %}
+  </div>
 {% endblock %}
 
 {% block secondary_content %}

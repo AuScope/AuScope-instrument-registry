@@ -13,6 +13,7 @@ pidinst_theme-js:
     - js/jstree-view-module.js
     - js/instrument-relation-module.js
     - js/facet-select-module.js
+    - js/org-visibility-module.js
     - js/analytics-tracking.js
     - js/cover-photo-module.js
     - js/pidinst_theme.js
