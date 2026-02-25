@@ -869,32 +869,3 @@ body {
   100% { transform: translate(-50%, -50%) rotate(360deg); }
 }
 .pidinst-loader.is-visible { display: block; }
-
-/* =====================================================
-   Body content link accessibility
-   (global `a { color: inherit }` makes links invisible;
-   restore readable colours for prose areas)
-===================================================== */
-.primary p a,
-.primary li a,
-.module-content p a,
-.module-content li a {
-  color: var(--color-aus-royal-blue-bright);
-  text-decoration: underline;
-}
-.primary p a:hover,
-.primary li a:hover,
-.module-content p a:hover,
-.module-content li a:hover {
-  color: var(--color-aus-royal-blue-dark);
-}
-
-/* =====================================================
-   Form focus rings — use brand Royal Blue
-===================================================== */
-.form-control:focus,
-.form-select:focus {
-  border-color: var(--color-aus-royal-blue-bright);
-  box-shadow: 0 0 0 0.25rem rgba(46, 43, 138, 0.25);
-  outline: 0;
-}
