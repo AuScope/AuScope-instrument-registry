@@ -1,0 +1,121 @@
+{# Override of upstream ckanext-composite composite_repeating.html
+   Adds: data-module-required / data-module-start-empty attributes
+   so the replacement composite-repeating JS module can handle
+   non-required empty-start and last-row-delete behaviour. #}
+
+{% import 'macros/form.html' as form %}
+{# We intentionally do NOT load composite/composite-repeating_js here;
+   the pidinst_theme bundle ships a replacement module. #}
+{% asset 'composite/composite_css' %}
+
+{%- snippet 'scheming/form_snippets/composite_header.html',
+    field=field, inline=field.help_inline -%}
+
+{% set is_required = h.scheming_field_required(field) %}
+
+{# For non-required fields use 0 blanks so no empty row renders when
+   the dataset already has no data for this field.
+   For required fields keep the original default (1 blank). #}
+{% set effective_blanks = 0 if not is_required else (field.form_blanks if 'form_blanks' in field else 1) %}
+{% set field_dict_list = h.composite_repeating_get_value_dict_list(
+       field.field_name, field.subfields, data, effective_blanks) %}
+
+{# Detect "empty start" — non-required field with nothing but blank rows #}
+{% set ns = namespace(has_data=false) %}
+{% for field_dict in field_dict_list %}
+  {% for subfield in field.subfields %}
+    {% if field_dict.get(subfield.field_name, '') not in ['', none, None] %}
+      {% set ns.has_data = true %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+{% set start_empty = (not is_required and not ns.has_data) %}
+
+{# If starting truly empty we still need ONE hidden blank row so the JS
+   module can clone it as a template, then immediately remove it. #}
+{% if start_empty and field_dict_list|length == 0 %}
+  {% set field_dict_list = [{}] %}
+{% endif %}
+
+<div data-module="composite-repeating"
+     data-module-required="{{ 'true' if is_required else 'false' }}"
+     {% if start_empty %}data-module-start-empty="true"{% endif %}
+     id="composite-repeating-div-{{ field.field_name }}">
+
+{% for field_dict in field_dict_list %}
+    {% set subfields_repeating_label = field.get("subfields_label", "") %}
+    {% set index = loop.index %}
+    <div class="composite-control-repeating"
+         {% if start_empty %} style="display:none"{% endif %}>
+    {% set subfield_index = 0 %}
+    {% for subfield in field.subfields %}
+      {% set subfield_form_snippet = subfield.get("form_snippet", "default") %}
+      {% set subfield_index = loop.index %}
+      {% if subfield_form_snippet == "default"  %}
+        {% set name=field.field_name + '-' + index|string + '-' + subfield.field_name %}
+        {% set default_value = subfield.get("default_value", "") %}
+        {% set value=field_dict.get(subfield.field_name, default_value) %}
+
+        {% if subfield.help_text %}
+          {% set composite_classes = "form-control composite-subfield-with-help" if subfield_index>1 else "medinput composite-subfield composite-first-subfield" %}
+        {% else %}
+          {% set composite_classes = "form-control composite-subfield" if subfield_index>1 else "medinput composite-subfield composite-first-subfield" %}
+        {% endif %}
+
+        {% if subfield.get('choices', false) %}
+          {% if subfield.get('preset', '') == "multiple_checkbox"%}
+              {%- snippet 'scheming/form_snippets/subfield_snippets/composite_multiple_checkbox.html', index=index, subfield=subfield, subfield_index=subfield_index, subfields_repeating_label=subfields_repeating_label, name=name, value=value, errors=errors -%}
+          {% else %}
+              {%- snippet 'scheming/form_snippets/subfield_snippets/composite_select.html', index=index, subfield=subfield, subfield_index=subfield_index, subfields_repeating_label=subfields_repeating_label, name=name, value=value, errors=errors -%}
+          {% endif %}
+        {% else %}
+          {% set type = "text" %}
+          {% set classes = ['control-full'] %}
+          {% set input_extra_html = "" %}
+          {% set extra_html="" %}
+          {% set modal_text=subfield.modal_text if 'modal_text' in subfield else none %}
+          {% set attrs=subfield.form_attrs if 'form_attrs' in subfield else {} %}
+          {% set placeholder=subfield.form_placeholder if 'form_placeholder' in subfield else '' %}
+          {% if subfield.get("preset", "") == "date" %}
+            {% set value=field_dict.get(subfield.field_name, default_value).split()[0] %}
+            {% set type = "date" %}
+            {% set classes = []%}
+          {% endif %}
+
+          {%- call form.input_block(
+            for='field-' + name,
+            label=h.scheming_language_text(subfield.label) + subfields_repeating_label + ' ' + index|string,
+            error=errors[name],
+            classes=classes,
+            control_classes=[],
+            extra_html="",
+            is_required=h.scheming_field_required(subfield)) -%}
+              <input id="{{ id or name }}" type="{{ type }}" name="{{ name }}"
+                 value="{{ value | empty_and_escape }}" placeholder="{{ placeholder }}"
+                 {{ form.attributes(attrs) }} class="{{ composite_classes }}" />
+              {% if subfield_index>1 %}
+                {%- snippet 'scheming/form_snippets/subfield_snippets/composite_help_text.html', field=subfield -%}
+              {% endif %}
+          {% endcall %}
+        {% endif %}
+
+        {% if subfield_index==1 %}
+          {% if subfield.help_text %}
+            {%- set markup_text = h.composite_get_markup(subfield.help_text) -%}
+              <div class="info-block composite-subfield-info-first">
+                  <i class="fa fa-info-circle"></i>
+                  {{ markup_text|safe }}
+              </div>
+          {% endif %}
+        {% endif %}
+      {% else %}
+        {% if subfield_form_snippet != None %}
+          {%- snippet 'scheming/form_snippets/' + subfield_form_snippet, field=subfield, subfield_index=index|string, parent=field.field_name -%}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+    <!-- <br> -->
+    </div>
+{% endfor %}
+</div>
+<hr>

@@ -1,21 +1,44 @@
 {# templates/scheming/form_snippets/composite_repeating_pidinst.html #}
 
 {% import 'macros/form.html' as form %}
-{% asset 'composite/composite-repeating_js' %}
+{# We intentionally do NOT load composite/composite-repeating_js here;
+   the pidinst_theme bundle ships a replacement module. #}
 {% asset 'composite/composite_css' %}
 
 {%- snippet 'scheming/form_snippets/composite_header.html', field=field, inline=field.help_inline -%}
 
-{# Use composite helper exactly like upstream #}
+{% set is_required = h.scheming_field_required(field) %}
+
+{# For non-required fields use 0 blanks; for required keep default (1). #}
+{% set effective_blanks = 0 if not is_required else (field.form_blanks if 'form_blanks' in field else 1) %}
 {% set field_dict_list = h.composite_repeating_get_value_dict_list(
   field.field_name,
   field.subfields,
   data,
-  field.form_blanks if 'form_blanks' in field else 1
+  effective_blanks
 ) %}
 
+{# Detect "empty start" — non-required field with only blank rows #}
+{% set ns = namespace(has_data=false) %}
+{% for field_dict in field_dict_list %}
+  {% for subfield in field.subfields %}
+    {% if field_dict.get(subfield.field_name, '') not in ['', none, None] %}
+      {% set ns.has_data = true %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+{% set start_empty = (not is_required and not ns.has_data) %}
+
+{# Need one hidden blank row so JS can clone it as a template #}
+{% if start_empty and field_dict_list|length == 0 %}
+  {% set field_dict_list = [{}] %}
+{% endif %}
+
 <div data-module="instrument-relation-module">
-<div data-module="composite-repeating" id="composite-repeating-div-{{ field.field_name }}">
+<div data-module="composite-repeating"
+     data-module-required="{{ 'true' if is_required else 'false' }}"
+     {% if start_empty %}data-module-start-empty="true"{% endif %}
+     id="composite-repeating-div-{{ field.field_name }}">
 
   {% for field_dict in field_dict_list %}
     {% set subfields_repeating_label = field.get("subfields_label", "") %}
@@ -25,7 +48,8 @@
     {% set row_readonly = (field_dict.get('relation_type') == 'IsNewVersionOf') %}
 
     <div class="composite-control-repeating{% if row_readonly %} is-readonly{% endif %}"
-         {% if row_readonly %}data-row-readonly="true"{% endif %}>
+         {% if row_readonly %}data-row-readonly="true"{% endif %}
+         {% if start_empty %} style="display:none"{% endif %}>
 
       {% for subfield in field.subfields %}
         {% set subfield_form_snippet = subfield.get("form_snippet", "default") %}

@@ -6,6 +6,7 @@ ckan.module('composite-repeating-module', function ($, _) {
       this.updateCollapsiblePanels();
       this.updateIndexes();
 
+      // After a row is ADDED
       $(document).on('click', '.composite-btn.btn-success', function () {
         self.assignUniqueIdsAndDestroySelect2().then(() => {
           setTimeout(function () {
@@ -17,6 +18,16 @@ ckan.module('composite-repeating-module', function ($, _) {
           }, 100);
         });
       });
+
+      // After a row is REMOVED – re-index and update panels
+      $(document).on('click', '.composite-btn.btn-danger', function () {
+        setTimeout(function () {
+          self.updateIndexes();
+          self.updateCollapsiblePanels();
+          self.hideDependentFields();
+        }, 100);
+      });
+
       this.assignUniqueIdsAndDestroySelect2().then(() => {
         self.initializeAllSelect2().then(() => {
           self.reapplySelect2Values();
