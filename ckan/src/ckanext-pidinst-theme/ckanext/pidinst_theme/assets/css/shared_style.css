@@ -10,6 +10,13 @@
   --bs-red: #ea1e31;
   --bs-tangerine: #ec5661;
   --color-aus-black: #231f20;
+
+  /* Bootstrap 5 gray scale (not always present in CKAN's build) */
+  --bs-gray-100: #f8f9fa;
+  --bs-gray-200: #e9ecef;
+  --bs-gray-300: #dee2e6;
+  --bs-gray-400: #ced4da;
+  --bs-gray-500: #adb5bd;
   --bs-font-sans-serif: "Calibre-light", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
   --bs-font-serif: 'Karmina', Georgia, serif;
   
@@ -346,14 +353,19 @@ hr {
 
 .masthead .main-navbar ul li:hover a,
 .masthead .main-navbar ul li:focus a,
-.masthead .main-navbar ul li.active a ,
 .masthead .main-navbar ul li a:active {
   background-color: var(--color-aus-royal-blue);
-  color: var( --bs-white); 
+  color: var(--bs-white);
+}
+.masthead .main-navbar ul li.active a {
+  background-color: transparent;
+  color: var(--color-aus-royal-blue);
+  border-bottom: 3px solid var(--bs-teal);
 }
 .masthead .main-navbar ul li a.active {
-  color: var( --bs-white); 
-  background-color: var(--color-aus-royal-blue); 
+  background-color: transparent;
+  color: var(--color-aus-royal-blue);
+  border-bottom: 3px solid var(--bs-teal);
 }
 
 .masthead .navigation .nav-pills li a:hover {
@@ -409,6 +421,10 @@ hr {
    boxes. */
 .hero .box {
   border: none;
+}
+/* Teal top-accent bar on the hero promotion card */
+.hero .module-promotion {
+  border-top: 4px solid var(--bs-teal);
 }
 /* Change the colors of the "Search Your Data" box. */
 .homepage .module-search .module-content {
@@ -543,8 +559,8 @@ body {
 }
 .btn-primary:hover {
     color: var(--bs-white);
-    background-color:var(--color-aus-royal-blue);
-    border-color: var(--color-aus-royal-blue);
+    background-color: var(--color-aus-royal-blue-dark);
+    border-color: var(--color-aus-royal-blue-dark);
     box-shadow: none;
 }
 
@@ -837,7 +853,7 @@ body {
 /* pidinst loader */
 .pidinst-loader {
   border: 16px solid #f3f3f3;
-  border-top: 16px solid #3498db;
+  border-top: 16px solid var(--bs-teal);
   border-radius: 50%;
   width: 120px;
   height: 120px;
@@ -853,3 +869,32 @@ body {
   100% { transform: translate(-50%, -50%) rotate(360deg); }
 }
 .pidinst-loader.is-visible { display: block; }
+
+/* =====================================================
+   Body content link accessibility
+   (global `a { color: inherit }` makes links invisible;
+   restore readable colours for prose areas)
+===================================================== */
+.primary p a,
+.primary li a,
+.module-content p a,
+.module-content li a {
+  color: var(--color-aus-royal-blue-bright);
+  text-decoration: underline;
+}
+.primary p a:hover,
+.primary li a:hover,
+.module-content p a:hover,
+.module-content li a:hover {
+  color: var(--color-aus-royal-blue-dark);
+}
+
+/* =====================================================
+   Form focus rings — use brand Royal Blue
+===================================================== */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--color-aus-royal-blue-bright);
+  box-shadow: 0 0 0 0.25rem rgba(46, 43, 138, 0.25);
+  outline: 0;
+}
