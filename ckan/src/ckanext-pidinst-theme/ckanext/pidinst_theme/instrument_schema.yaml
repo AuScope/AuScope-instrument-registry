@@ -241,9 +241,8 @@ dataset_fields:
 
   - field_name: user_keywords
     label: User Specified Keywords
-    # required: true
     preset: tag_string_autocomplete
-    validators: not_empty tag_string_convert
+    validators: tag_string_convert
     help_text: Keywords help with the discovery of the instrument
     groupBy: About Instrument
 
