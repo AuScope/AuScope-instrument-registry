@@ -12,7 +12,11 @@ local/*
 .vscode/
 .env.dev
 *kill*
+kill/
 
 .env.local
 
 __pycache__/
+
+
+.ipynb_checkpoints/

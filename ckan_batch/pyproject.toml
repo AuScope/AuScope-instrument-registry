@@ -1,0 +1,30 @@
+[project]
+name = "ckan-batch"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "bmotevalli", email = "b.motevalli@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "ckanapi>=4.9",
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.1",
+    "pydantic>=2.12.5",
+    "rich>=14.3.3",
+]
+
+[project.scripts]
+ckan-batch = "ckan_batch:main"
+
+[build-system]
+requires = ["uv_build>=0.10.6,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "dotenv>=0.9.9",
+    "ipykernel>=7.2.0",
+    "jupyter>=1.1.1",
+]
