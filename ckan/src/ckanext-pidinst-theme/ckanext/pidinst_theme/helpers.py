@@ -57,9 +57,11 @@ def get_org_list():
     return toolkit.get_action('organization_list_for_user')()
 
 
-def users_role_in_org(user_name):
-    # TODO: Get org name from config and pass in
-    return authz.users_role_for_group_or_org(group_id='auscope', user_name=user_name)
+def users_role_in_org(user_name, org_id=None):
+    # If no org_id supplied, fall back to 'auscope' for backward compatibility
+    if not org_id:
+        org_id = 'auscope'
+    return authz.users_role_for_group_or_org(group_id=org_id, user_name=user_name)
 
 def current_date():
     return date.today().isoformat()
