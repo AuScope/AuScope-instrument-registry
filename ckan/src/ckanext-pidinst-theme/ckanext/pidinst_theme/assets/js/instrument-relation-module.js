@@ -1,7 +1,6 @@
 /**
  * instrument-relation-module.js
  *
- * CKAN JS module for related_identifier_obj composite rows.
  *
  * When resource_type == "Instrument":
  *   - Disables identifier/type/name fields, shows Select2 instrument search.
@@ -33,6 +32,74 @@ ckan.module('instrument-relation-module', function ($, _) {
   function rowPrefix(name) {
     var match = (name || '').match(/^(.+-\d+)-/);
     return match ? match[1] : name;
+  }
+
+  /* ── Utility functions for parsing package data ───────────── */
+
+  function parseComposite(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) {
+      return value.filter(function(v) { return typeof v === 'object' && v !== null; });
+    }
+    // JSON string
+    if (typeof value === 'string') {
+      try {
+        var parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(function(v) { return typeof v === 'object' && v !== null; });
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          return [parsed];
+        }
+      } catch(e) { /* ignore parse errors */ }
+    }
+    if (typeof value === 'object' && value !== null) {
+      return [value];
+    }
+    return [];
+  }
+
+  function extractInstrumentMeta(pkg) {
+    var modelName = '';
+    var serialNumber = '';
+
+    // Extract model name from 'model' composite field (first record)
+    var models = parseComposite(pkg.model);
+    if (models.length > 0 && models[0].model_name) {
+      modelName = models[0].model_name;
+    }
+
+    var altIds = parseComposite(pkg.alternate_identifier_obj);
+    var chosen = null;
+    for (var i = 0; i < altIds.length; i++) {
+      if (altIds[i].alternate_identifier_type === 'SerialNumber') {
+        chosen = altIds[i];
+        break;
+      }
+    }
+    if (!chosen && altIds.length > 0) {
+      chosen = altIds[0];
+    }
+    if (chosen) {
+      serialNumber = chosen.alternate_identifier || chosen.alternate_identifier_name || '';
+    }
+
+    return { modelName: modelName, serialNumber: serialNumber };
+  }
+
+  function buildInstrumentLabel(pkg, meta) {
+    var label = pkg.title || pkg.name;
+    var doi = (pkg.doi || '').trim();
+
+    if (meta.modelName || meta.serialNumber) {
+      var combined = [];
+      if (meta.modelName) combined.push(meta.modelName);
+      if (meta.serialNumber) combined.push(meta.serialNumber);
+      label += '  [' + combined.join('-') + ']';
+    }
+
+    if (doi) label += '  (DOI: ' + doi + ')';
+
+    return label;
   }
 
   /* ── Module ──────────────────────────────────────── */
@@ -227,7 +294,7 @@ ckan.module('instrument-relation-module', function ($, _) {
           '<input class="pidinst-instrument-search-input form-control" ' +
                  'type="text" data-row-prefix="' + prefix + '" style="width:100%" />' +
           '<p class="pidinst-instrument-search-help help-block">' +
-            'Search for an instrument record by title. ' +
+            'Search by title, model, manufacturer, or serial number. ' +
             'Identifier fields will be auto-filled.' +
           '</p>' +
         '</div>';
@@ -260,7 +327,7 @@ ckan.module('instrument-relation-module', function ($, _) {
 
       $input.select2({
         placeholder: 'Search instrument in registry\u2026',
-        minimumInputLength: 1,
+        minimumInputLength: 0,
         allowClear: true,
         ajax: {
           url: '/api/3/action/package_search',
@@ -269,7 +336,20 @@ ckan.module('instrument-relation-module', function ($, _) {
           // Escape Solr special chars so identifiers like "10.83627" don't cause parse errors
           data: function (term) {
             var safe = (term || '').replace(/([+\-&|!(){}[\]^"~*?:\\/])/g, '\\$1');
-            return { q: safe, rows: 20 };
+            // Add wildcard suffix to EACH word for partial matching
+            // e.g., "ph sen" -> "ph* sen*" to match "Phoenix...sensor"
+            var query = safe;
+            if (safe && safe.length > 0) {
+              // Split by whitespace, add wildcard to each word, rejoin
+              query = safe.split(/\s+/)
+                .filter(function(word) { return word.length > 0; })
+                .map(function(word) { return word + '*'; })
+                .join(' ');
+            }
+            return { 
+              q: query, 
+              rows: 20
+            };
           },
           results: function (data) {
             if (!data.success) return { results: [] };
@@ -281,11 +361,18 @@ ckan.module('instrument-relation-module', function ($, _) {
               results: (data.result.results || [])
                 .filter(function (p) { return p.name !== currentName && p.id !== currentName; })
                 .map(function (p) {
-                  var doi = (p.doi || '').trim();
-                  var label = p.title || p.name;
-                  if (doi) label += '  (DOI: ' + doi + ')';
-                  return { id: p.id, text: label, doi: doi,
-                           title: p.title || p.name, name: p.name };
+                  var meta = extractInstrumentMeta(p);
+                  var label = buildInstrumentLabel(p, meta);
+                  
+                  return { 
+                    id: p.id, 
+                    text: label, 
+                    doi: (p.doi || '').trim(),
+                    title: p.title || p.name, 
+                    name: p.name,
+                    modelName: meta.modelName,
+                    serialNumber: meta.serialNumber
+                  };
                 })
             };
           },
@@ -358,12 +445,17 @@ ckan.module('instrument-relation-module', function ($, _) {
         success: function (resp) {
           if (!resp.success || !resp.result) return;
           var p = resp.result;
-          var doi = (p.doi || '').trim();
-          var label = p.title || p.name;
-          if (doi) label += '  (DOI: ' + doi + ')';
+          var meta = extractInstrumentMeta(p);
+          var label = buildInstrumentLabel(p, meta);
+          
           $si.select2('data', {
-            id: p.id, text: label, doi: doi,
-            title: p.title || p.name, name: p.name
+            id: p.id, 
+            text: label, 
+            doi: (p.doi || '').trim(),
+            title: p.title || p.name, 
+            name: p.name,
+            modelName: meta.modelName,
+            serialNumber: meta.serialNumber
           }, false);
         }
       });
@@ -383,7 +475,7 @@ ckan.module('instrument-relation-module', function ($, _) {
       $c.find('.pidinst-instrument-search-help').text(
         rt === 'HasPart'  ? 'The selected instrument will be recorded as a component of this instrument.' :
         rt === 'IsPartOf' ? 'This instrument is a component of the selected (parent) instrument.' :
-                            'Search for an instrument record by title.'
+                            'Search by title, model, manufacturer, or serial number.'
       );
     },
 
