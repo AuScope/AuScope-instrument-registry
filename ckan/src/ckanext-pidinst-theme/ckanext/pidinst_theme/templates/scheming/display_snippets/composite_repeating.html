@@ -10,7 +10,7 @@
      {% set first_key_written = false %}
      {% for key in name_list %}
        {% set subfield = field.subfields | selectattr('field_name', 'equalto', key) | list | first %}
-       {% if subfield.display_snippet is not none and subfield.display_snippet != "None"and composite_dict[key]|length > 0 %}
+       {% if subfield.display_snippet is not none and subfield.display_snippet != "None" and composite_dict.get(key) and composite_dict[key]|length > 0 %}
          {% set value = "" %}
          {% if choices_dict[key]|length > 0 %}
            {% if h.composite_is_list(composite_dict[key]) %}
