@@ -188,7 +188,7 @@ this.ckan.module('jstree-view-module', function ($, _) {
 
         cb([{
           id:       nid(),
-          text:     this._trunc(this.packageTitle, 50),
+          text:     this._trunc(this.packageTitle, 200),
           type:     'instrument',
           state:    { opened: true },
           data:     { pkgId: this.packageId, pkgName: this.packageName,
@@ -290,7 +290,7 @@ this.ckan.module('jstree-view-module', function ($, _) {
 
             results.push({
               id:       nid(),
-              text:     self._trunc(title, 50),
+              text:     self._trunc(title, 200),
               type:     'instrument',
               data:     { nodeType: 'instrument',
                           pkgId: pkg.id,
@@ -352,7 +352,7 @@ this.ckan.module('jstree-view-module', function ($, _) {
       var hasUnavail = label.indexOf('unavailable') !== -1;
       return {
         id:       nid(),
-        text:     this._trunc(label, 50) + (hasUnavail ? '' : ' (unresolved)'),
+        text:     this._trunc(label, 200) + (hasUnavail ? '' : ' (unresolved)'),
         type:     'unresolved',
         data:     { nodeType: 'unresolved', pkgId: pkgId || null },
         a_attr:   { href: pkgId ? '/dataset/' + pkgId : '#',

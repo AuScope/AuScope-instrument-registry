@@ -56,16 +56,37 @@
 {% endblock %}
 
 <style>
+  /* ── Ensure parent containers handle overflow properly ── */
+  .context-info {
+    overflow: hidden;
+  }
+  .context-info [data-module="jstree-view-module"] {
+    overflow: hidden;
+    width: 100%;
+  }
+
   /* ── Instrument Family Tree (scoped to .pidinst-family-tree) ─────── */
 
   /* ── Fix: only set vertical margin; preserve jsTree's margin-left (indentation) ── */
   .pidinst-family-tree {
     padding: 8px 4px;
+    overflow: hidden;
+    width: 100%;
+  }
+  .pidinst-family-tree .jstree {
+    overflow: hidden;
+  }
+  .pidinst-family-tree .jstree-container-ul {
+    overflow: hidden;
   }
   .pidinst-family-tree .jstree-node {
     margin-top: 2px;
     margin-bottom: 0;
+    overflow: hidden;
     /* margin-left is set by jsTree theme (24px) — do NOT override */
+  }
+  .pidinst-family-tree .jstree-children {
+    overflow: hidden;
   }
 
   /* ── Fix: sprite paths break when CSS is bundled; use CSS triangles instead ── */
@@ -109,10 +130,21 @@
     height: 26px;
     vertical-align: middle;
     transition: background 0.15s ease, color 0.15s ease;
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: calc(100% - 30px);
+    width: auto;
   }
   .pidinst-family-tree .jstree-anchor:hover {
     background: #f0f4fa;
     text-decoration: none;
+  }
+
+  /* ── Wholerow element ── */
+  .pidinst-family-tree .jstree-wholerow {
+    overflow: hidden;
   }
 
   /* ── Wholerow hover + selection ── */
