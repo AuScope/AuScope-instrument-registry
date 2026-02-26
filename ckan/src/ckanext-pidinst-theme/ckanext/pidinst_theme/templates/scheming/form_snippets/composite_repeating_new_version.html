@@ -35,8 +35,9 @@
 {% endif %}
 
 <div data-module="instrument-relation-module">
-<div data-module="composite-repeating"
+<div data-module="pidinst-composite-repeating"
      data-module-required="{{ 'true' if is_required else 'false' }}"
+     data-module-field-label="{{ h.scheming_language_text(field.label) }}"
      {% if start_empty %}data-module-start-empty="true"{% endif %}
      id="composite-repeating-div-{{ field.field_name }}">
 

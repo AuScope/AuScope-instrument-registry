@@ -1,4 +1,4 @@
-ckan.module('composite-repeating-module', function ($, _) {
+ckan.module('pidinst-composite-enhancements', function ($, _) {
   return {
     initialize: function () {
       var self = this;
@@ -6,7 +6,7 @@ ckan.module('composite-repeating-module', function ($, _) {
       this.updateCollapsiblePanels();
       this.updateIndexes();
 
-      // After a row is ADDED
+      // Re-process after row add/remove
       $(document).on('click', '.composite-btn.btn-success', function () {
         self.assignUniqueIdsAndDestroySelect2().then(() => {
           setTimeout(function () {
@@ -19,7 +19,6 @@ ckan.module('composite-repeating-module', function ($, _) {
         });
       });
 
-      // After a row is REMOVED – re-index and update panels
       $(document).on('click', '.composite-btn.btn-danger', function () {
         setTimeout(function () {
           self.updateIndexes();
@@ -39,26 +38,18 @@ ckan.module('composite-repeating-module', function ($, _) {
       var self = this;
       $('input[name*="author-"][name*="-author_affiliation"]:not([name$="_identifier"])').each(function () {
         var $input = $(this);
-        if (!$input.data("select2")) {
-          // console.error("Select2 has not been initialized on the element:", $input.attr('id'));
-          return;
-        }
+        if (!$input.data("select2")) return;
+        
         var identifierFieldId = $input.attr('id').replace('affiliation', 'affiliation_identifier');
         var $identifierField = $('#' + identifierFieldId);
-        if ($identifierField.length === 0) {
-          // console.error("Identifier field not found:", identifierFieldId);
-          return;
-        }
+        if ($identifierField.length === 0) return;
+        
         var selectedId = $identifierField.val();
-        var selectedText = $input.val(); // Assuming this gets the text correctly
-        if (!selectedId || !selectedText) {
-          // console.error("Selected ID or text is missing for input:", $input.attr('id'));
-          return; // Skip this iteration
-        }
+        var selectedText = $input.val();
+        if (!selectedId || !selectedText) return;
+        
         try {
-          ///TODO: This should  probably be fixed in the  future but for now just return the selected
           $input.select2('data', { id: selectedText, text: selectedText }, true);
-          // $input.select2('data', { id: selectedId, text: selectedText }, true);
           $input.val(selectedId);
           self.fillDependentFields($input, selectedId, selectedText);
         } catch (error) {
@@ -78,7 +69,6 @@ ckan.module('composite-repeating-module', function ($, _) {
         resolve();
       });
     },
-
 
     initializeAllSelect2: function () {
       var self = this;
@@ -132,22 +122,19 @@ ckan.module('composite-repeating-module', function ($, _) {
     fillDependentFields: function ($inputField, affiliationId, affiliationName) {
       var identifierFieldId = $inputField.attr('id').replace('affiliation', 'affiliation_identifier');
       var identifierTypeFieldId = $inputField.attr('id').replace('affiliation', 'affiliation_identifier_type');
+      
       if ($inputField.length) {
         $inputField.val(affiliationName);
-      } else {
-        console.error('Input field not found:', $inputField.attr('id'));
       }
+      
       var $identifierField = $('#' + identifierFieldId);
       if ($identifierField.length) {
         $identifierField.val(affiliationId);
-      } else {
-        console.error('Identifier field not found:', identifierFieldId);
       }
+      
       var $identifierTypeField = $('#' + identifierTypeFieldId);
       if ($identifierTypeField.length) {
-        $identifierTypeField.val('ROR'); // Assuming ROR is the identifier type
-      } else {
-        console.error('Identifier type field not found:', identifierTypeFieldId);
+        $identifierTypeField.val('ROR');
       }
     },
 
@@ -158,20 +145,15 @@ ckan.module('composite-repeating-module', function ($, _) {
         var $identifierFieldGroup = $('#' + identifierFieldId).closest('.form-group');
         if ($identifierFieldGroup.length) {
           $identifierFieldGroup.hide();
-        } else {
-          console.error('Identifier field group not found for:', identifierFieldId);
         }
 
         var identifierTypeFieldId = $inputField.attr('id').replace('affiliation', 'affiliation_identifier_type');
         var $identifierTypeFieldGroup = $('#' + identifierTypeFieldId).closest('.form-group');
         if ($identifierTypeFieldGroup.length) {
           $identifierTypeFieldGroup.hide();
-        } else {
-          console.error('Identifier type field group not found for:', identifierTypeFieldId);
         }
       });
     },
-
 
     makeCollapsible: function (title, groups) {
       var self = this;
@@ -195,14 +177,13 @@ ckan.module('composite-repeating-module', function ($, _) {
       }
 
       if (panelHeader) {
-        let headerText = panelHeader.querySelector('span:last-child'); // Assuming the last span is the headerText
+        let headerText = panelHeader.querySelector('span:last-child');
         if (!headerText) {
           headerText = document.createElement('span');
           panelHeader.appendChild(headerText);
         }
         headerText.textContent = 'Details of ' + title + ' ' + (index + 1);
       } else {
-        // If somehow there's no panelHeader, create it anew (might be unlikely if cloning behavior is consistent)
         panelHeader = document.createElement('div');
         panelHeader.className = 'composite-panel-header';
         const toggleIndicator = document.createElement('span');
@@ -214,6 +195,7 @@ ckan.module('composite-repeating-module', function ($, _) {
         panelHeader.appendChild(headerText);
         group.insertBefore(panelHeader, group.firstChild);
       }
+      
       const panelHeaderClone = panelHeader.cloneNode(true);
       panelHeader.parentNode.replaceChild(panelHeaderClone, panelHeader);
 
@@ -226,15 +208,15 @@ ckan.module('composite-repeating-module', function ($, _) {
 
     updateCollapsiblePanels: function () {
       var self = this;
-      $(document).find('[data-module="composite-repeating"]').each(function () {
-        var title = $(this).closest('[data-module="composite-repeating-module"]').find('.hidden-title-input').val() || 'Default Title';
+      $('[data-module="pidinst-composite-repeating"]').each(function () {
+        var title = $(this).closest('[data-module="pidinst-composite-enhancements"]').find('.hidden-title-input').val() || 'Default Title';
         const groups = this.querySelectorAll('.composite-control-repeating');
         self.makeCollapsible(title, groups);
       });
     },
 
     updateIndexes: function () {
-      $(document).find('[data-module="composite-repeating"]').each(function () {
+      $('[data-module="pidinst-composite-repeating"]').each(function () {
         $(this).find('.composite-control-repeating').each(function (index, item) {
           $(item).find('label, input, select').each(function () {
             if (this.tagName === 'LABEL' && this.htmlFor) {

@@ -7,8 +7,8 @@ pidinst_theme-js:
     - vendor/jstree/jstree.min.js
     - js/map-module.js
     - js/display-map-module.js
-    - js/composite-repeating.js
-    - js/composite-repeating-module.js
+    - js/pidinst-composite-repeating.js
+    - js/pidinst-composite-enhancements.js
     - js/for-fields-handler-module.js
     - js/gcmd-fields-handler-module.js
     - js/jstree-view-module.js
