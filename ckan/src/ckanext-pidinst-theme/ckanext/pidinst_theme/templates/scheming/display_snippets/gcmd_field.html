@@ -1,5 +1,8 @@
-{%- set gcmd_keywords = data.get('gcmd_keywords', '[]').strip("[]").split('","') if data.get('gcmd_keywords') else [] %}
-{%- set gcmd_keywords_code = data.get('gcmd_keywords_code', '[]').strip("[]").split(",") if data.get('gcmd_keywords_code') else [] %}
+{%- set label_field = field.get('label_field_name', 'gcmd_keywords') -%}
+{%- set code_field = field.field_name -%}
+
+{%- set gcmd_keywords = data.get(label_field, '[]').strip("[]").split('","') if data.get(label_field) else [] %}
+{%- set gcmd_keywords_code = data.get(code_field, '[]').strip("[]").split(",") if data.get(code_field) else [] %}
 
 <style>
     .no-bullets {

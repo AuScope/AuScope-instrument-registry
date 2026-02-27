@@ -218,7 +218,7 @@ def fetch_gcmd():
 
     VOCAB_ENDPOINTS = {
         'science': 'ardc-curated/gcmd-sciencekeywords/17-5-2023-12-21',
-        'measured_variables': 'ardc-curated/gcmd-measurementname/21-5-2025-06-06',  # Using science keywords
+        'measured_variables': 'ardc-curated/gcmd-measurementname/21-5-2025-06-06', 
         'platforms': 'ardc-curated/gcmd-platforms/21-5-2025-06-17',
         'instruments': 'ardc-curated/gcmd-instruments/22-8-2026-02-13',
     }

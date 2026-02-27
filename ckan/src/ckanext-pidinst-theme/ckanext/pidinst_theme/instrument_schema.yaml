@@ -115,13 +115,50 @@ dataset_fields:
             label: Sponsor
         help_text: The type of the date
 
+  - field_name: instrument_type_gcmd_code
+    label: Instrument Type (GCMD)
+    form_snippet: gcmd_field.html
+    display_snippet: gcmd_field.html
+    label_field_name: instrument_type_gcmd
+    gcmd_scheme: instruments
+    help_text: Select from the NASA GCMD Instrument/Sensors Keywords (served via ARDC Research Vocabularies Australia). Start typing to search and select one or more.
+    groupBy: About Instrument
+
+  - field_name: instrument_type_gcmd
+    form_snippet: hidden_field.html
+    display_snippet: null
+    help_text: Select from the NASA GCMD Instrument/Sensors Keywords (served via ARDC Research Vocabularies Australia). Start typing to search and select one or more.
+    groupBy: About Instrument
+
+  - field_name: instrument_type_identifier_gcmd
+    label: Instrument Type Identifier GCMD
+    form_snippet: hidden_field.html
+    display_snippet: null
+    preset: select
+    choices:
+      - value: https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-instruments/22-8-2026-02-13
+        label: gcmd-instruments
+    default: gcmd-instruments
+    help_text: Identifier for the instrument type (GCMD)
+
+  - field_name: instrument_type_identifier_type_gcmd
+    label: Instrument Type Identifier Type GCMD
+    form_snippet: hidden_field.html
+    display_snippet: null
+    choices:
+      - value: URL
+        label: URL
+    default: URL    
+    help_text: "Type of the identifier"
+
   - field_name: instrument_type
-    label: Instrument Type
+    label: Instrument Type (Custome)
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html
     form_blanks: 1
     groupBy: About Instrument
+    help_text: "Optional: use this only if you can’t find a suitable Instrument Type in the GCMD list above. You may add one or more custom entries."    
     subfields:
       - field_name: instrument_type_name
         label: Instrument Type Name
@@ -218,23 +255,23 @@ dataset_fields:
             label: DeCommissioned
         help_text: The type of the date
 
-  - field_name: measured_variable_code
-    label: Measured Variables
+  - field_name: measured_variable_gcmd_code
+    label: Measured Variables (GCMD)
     form_snippet: gcmd_field.html
-    label_field_name: measured_variable
+    display_snippet: gcmd_field.html
+    label_field_name: measured_variable_gcmd
     gcmd_scheme: measured_variables
     help_text: Select one or more measured variables from the GCMD Measurement Name Keywords vocabulary (autocomplete)
-
     groupBy: About Instrument
 
-  - field_name: measured_variable
+  - field_name: measured_variable_gcmd
     form_snippet: hidden_field.html
     display_snippet: null
     help_text: Select one or more measured variables from the GCMD Measurement Name Keywords vocabulary (autocomplete)
     groupBy: About Instrument
 
 
-  - field_name: user_measured_variable
+  - field_name: measured_variable
     label: User Specified Measured Variables
     preset: tag_string_autocomplete
     validators: tag_string_convert

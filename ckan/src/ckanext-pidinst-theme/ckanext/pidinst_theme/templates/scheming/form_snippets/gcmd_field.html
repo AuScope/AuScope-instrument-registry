@@ -1,17 +1,27 @@
 {% import 'macros/form.html' as form %}
 
-<div data-module="gcmd-fields-handler-module" class="form-group" id="gcmd_keywords_code">
-    <label class="form-label" for="field-gcmd_keywords_code">
+{%- set label_field = field.get('label_field_name', 'gcmd_keywords') -%}
+{%- set scheme = field.get('gcmd_scheme', 'science') -%}
+
+<div data-module="gcmd-fields-handler-module" 
+     data-label-field="{{ label_field }}" 
+     data-scheme="{{ scheme }}"
+     class="form-group" 
+     id="{{ field.field_name }}">
+    <label class="form-label" for="field-{{ field.field_name }}">
         {% if h.scheming_field_required(field) %}
             <span title="This field is required" class="control-required">*</span>
         {% endif %}
         {{ h.scheming_language_text(field.label) }}
     </label>
-    <input class="form-control gcmd-keywords" id="field-gcmd_keywords_code" name="gcmd_keywords_code"
-        value="{{ data['gcmd_keywords_code'] }}" multiple>
+    <input class="form-control gcmd-keywords" 
+           id="field-{{ field.field_name }}" 
+           name="{{ field.field_name }}"
+           value="{{ data[field.field_name] }}" 
+           multiple>
     
-    {% if errors['gcmd_keywords_code'] %}
-        {% for error in errors['gcmd_keywords_code'] %}
+    {% if errors[field.field_name] %}
+        {% for error in errors[field.field_name] %}
             <span class="error-block">{{ error }}</span>
         {% endfor %}
     {% endif %}
