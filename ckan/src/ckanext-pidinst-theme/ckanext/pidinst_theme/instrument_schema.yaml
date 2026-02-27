@@ -218,26 +218,43 @@ dataset_fields:
             label: DeCommissioned
         help_text: The type of the date
 
-  - field_name: measured_variable
-    label: Measured Variable
-    preset: tag_string_autocomplete
-    help_text: The variable(s) that this instrument measures or observes
-    groupBy: About Instrument
-
-  - field_name: gcmd_keywords_code
-    label: GCMD Science Keywords
-    # required: true
+  - field_name: measured_variable_code
+    label: Measured Variables
     form_snippet: gcmd_field.html
-    display_snippet: gcmd_field.html
-    help_text: Global Change Master Directory (GCMD) science keywords
+    label_field_name: measured_variable
+    gcmd_scheme: measured_variables
+    help_text: Select one or more measured variables from the GCMD Measurement Name Keywords vocabulary (autocomplete)
+
     groupBy: About Instrument
 
-  - field_name: gcmd_keywords
-    label: GCMD Science Keywords
+  - field_name: measured_variable
     form_snippet: hidden_field.html
-    help_text: Global Change Master Directory (GCMD) science keywords
     display_snippet: null
+    help_text: Select one or more measured variables from the GCMD Measurement Name Keywords vocabulary (autocomplete)
     groupBy: About Instrument
+
+
+  - field_name: user_measured_variable
+    label: User Specified Measured Variables
+    preset: tag_string_autocomplete
+    validators: tag_string_convert
+    help_text: Optional free-text additions. Use the ‘Measured Variables (GCMD)’ field first.
+    groupBy: About Instrument
+
+  # - field_name: gcmd_keywords_code
+  #   label: GCMD Science Keywords
+  #   # required: true
+  #   form_snippet: gcmd_field.html
+  #   display_snippet: gcmd_field.html
+  #   help_text: Global Change Master Directory (GCMD) science keywords
+  #   groupBy: About Instrument
+
+  # - field_name: gcmd_keywords
+  #   label: GCMD Science Keywords
+  #   form_snippet: hidden_field.html
+  #   help_text: Global Change Master Directory (GCMD) science keywords
+  #   display_snippet: null
+  #   groupBy: About Instrument
 
   - field_name: user_keywords
     label: User Specified Keywords

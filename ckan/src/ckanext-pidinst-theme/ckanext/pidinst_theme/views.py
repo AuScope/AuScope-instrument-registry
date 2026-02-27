@@ -215,14 +215,42 @@ def fetch_terms( ):
 
 @pidinst_theme.route('/api/proxy/fetch_gcmd', methods=['GET'])
 def fetch_gcmd():
-    page = request.args.get('page', 0)
+
+    VOCAB_ENDPOINTS = {
+        'science': 'ardc-curated/gcmd-sciencekeywords/17-5-2023-12-21',
+        'measured_variables': 'ardc-curated/gcmd-measurementname/21-5-2025-06-06',  # Using science keywords
+        'platforms': 'ardc-curated/gcmd-platforms/21-5-2025-06-17',
+        'instruments': 'ardc-curated/gcmd-instruments/22-8-2026-02-13',
+    }
+    
+    try:
+        page = int(request.args.get('page', 0))
+    except (ValueError, TypeError):
+        page = 0
+    
     keywords = request.args.get('keywords', '')
-    external_url = f'https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-sciencekeywords/17-5-2023-12-21/concept.json?_page={page}&labelcontains={keywords}'
-    response = requests.get(external_url)
-    if response.ok:
-        return Response(response.content, content_type=response.headers['Content-Type'], status=response.status_code)
-    else:
-        return {"error": "Failed to fetch gcmd"}, 502
+    scheme = request.args.get('scheme', 'science')
+    
+    if scheme not in VOCAB_ENDPOINTS:
+        log.warning(f"Unknown vocab scheme requested: {scheme}")
+        return {"error": f"Unknown scheme: {scheme}"}, 400
+    
+    vocab_path = VOCAB_ENDPOINTS[scheme]
+    base_url = 'https://vocabs.ardc.edu.au/repository/api/lda'
+    external_url = f'{base_url}/{vocab_path}/concept.json?_page={page}&labelcontains={requests.utils.quote(keywords)}'
+    
+    log.debug(f"Fetching GCMD vocab: scheme={scheme}, url={external_url}")
+    
+    try:
+        response = requests.get(external_url, timeout=10)
+        if response.ok:
+            return Response(response.content, content_type=response.headers['Content-Type'], status=response.status_code)
+        else:
+            log.error(f"ARDC vocab fetch failed: {response.status_code} - {external_url}")
+            return {"error": f"Failed to fetch {scheme} vocabulary", "status": response.status_code}, 502
+    except requests.exceptions.RequestException as e:
+        log.error(f"ARDC vocab request error: {str(e)} - {external_url}")
+        return {"error": "Vocabulary service unavailable"}, 503
 
 
 @pidinst_theme.route('/dataset/<id>/new_version', methods=['GET', 'POST'])
