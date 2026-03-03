@@ -230,6 +230,16 @@ this.ckan.module('pidinst-composite-repeating', function (jQuery, _) {
 
       this.addBtnContainer.before(row);
       
+      // Initialize any CKAN modules in the new row
+      row.find('[data-module]').each(function () {
+        var el = jQuery(this);
+        // Avoid double initialization
+        if (!el.data('ckan-module-initialized')) {
+          ckan.module.initializeElement(this);
+          el.data('ckan-module-initialized', true);
+        }
+      });
+      
       return row;
     },
 

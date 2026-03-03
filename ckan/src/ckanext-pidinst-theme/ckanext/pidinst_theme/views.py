@@ -253,6 +253,79 @@ def fetch_gcmd():
         return {"error": "Vocabulary service unavailable"}, 503
 
 
+ALLOWED_FIELD_TERMS = {'user_keywords', 'measured_variable'}
+# Mapping for nested fields: subfield_name -> parent_field_name
+NESTED_FIELD_TERMS = {'instrument_type_name': 'instrument_type'}
+
+@pidinst_theme.route('/api/field_terms/<field_name>', methods=['GET'])
+def field_terms_autocomplete(field_name):
+    # Check both simple and nested allowed fields
+    is_nested = field_name in NESTED_FIELD_TERMS
+    if field_name not in ALLOWED_FIELD_TERMS and not is_nested:
+        return jsonify({"error": "Field not allowed", "terms": []}), 400
+
+    query_term = request.args.get('q', '').strip().lower()
+
+    try:
+        context = {'ignore_auth': True}
+        search_result = get_action('package_search')(context, {
+            'q': '*:*',
+            'rows': 1000,
+            'fl': 'id,validated_data_dict',
+        })
+
+        all_terms = set()
+        for pkg in search_result.get('results', []):
+            vdd_str = pkg.get('validated_data_dict', '')
+            if not vdd_str:
+                continue
+            try:
+                vdd = json.loads(vdd_str) if isinstance(vdd_str, str) else vdd_str
+            except json.JSONDecodeError:
+                continue
+
+            # Handle nested fields (composite_repeating)
+            if is_nested:
+                parent_field = NESTED_FIELD_TERMS[field_name]
+                parent_value = vdd.get(parent_field, [])
+                # parent_value is a list of dicts
+                if isinstance(parent_value, list):
+                    for item in parent_value:
+                        if isinstance(item, dict):
+                            term = item.get(field_name, '')
+                            if isinstance(term, str) and term.strip():
+                                all_terms.add(term.strip())
+            else:
+                # Handle simple fields
+                field_value = vdd.get(field_name, '')
+                if not field_value:
+                    continue
+                terms = []
+                if isinstance(field_value, str):
+                    if field_value.startswith('['):
+                        try:
+                            terms = json.loads(field_value)
+                        except json.JSONDecodeError:
+                            terms = [t.strip() for t in field_value.split(',') if t.strip()]
+                    else:
+                        terms = [t.strip() for t in field_value.split(',') if t.strip()]
+                elif isinstance(field_value, list):
+                    terms = field_value
+                for term in terms:
+                    if isinstance(term, str) and term.strip():
+                        all_terms.add(term.strip())
+
+        if query_term:
+            matching = sorted([t for t in all_terms if query_term in t.lower()])[:20]
+        else:
+            matching = sorted(all_terms)[:20]
+        return jsonify({"terms": matching})
+
+    except Exception as e:
+        log.error(f"Error fetching field terms for {field_name}: {e}")
+        return jsonify({"error": str(e), "terms": []}), 500
+
+
 @pidinst_theme.route('/dataset/<id>/new_version', methods=['GET', 'POST'])
 def new_version(id):
     """

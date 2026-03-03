@@ -11,6 +11,7 @@ pidinst_theme-js:
     - js/pidinst-composite-enhancements.js
     - js/for-fields-handler-module.js
     - js/gcmd-fields-handler-module.js
+    - js/field-terms-autocomplete-module.js
     - js/jstree-view-module.js
     - js/instrument-relation-module.js
     - js/facet-select-module.js

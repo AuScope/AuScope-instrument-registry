@@ -1,0 +1,54 @@
+{% import 'macros/form.html' as form %}
+
+{%- set field_name = field.field_name -%}
+{%- set allow_new = field.get('allow_new', true) -%}
+
+{#- Parse raw value to get list of terms for prepopulation -#}
+{%- set _data_source = field_dict if field_dict is defined else data -%}
+{%- set raw_value = _data_source.get(field_name) -%}
+{%- set terms_list = [] -%}
+{%- if raw_value is sequence and raw_value is not string -%}
+    {%- set terms_list = raw_value -%}
+{%- elif raw_value is string and raw_value.strip() -%}
+    {%- if raw_value.strip().startswith('[') -%}
+        {%- set terms_list = h.pidinst_parse_json_list(raw_value) -%}
+    {%- elif ',' in raw_value -%}
+        {%- set terms_list = raw_value.split(',') | map('trim') | select | list -%}
+    {%- elif raw_value.strip() -%}
+        {%- set terms_list = [raw_value.strip()] -%}
+    {%- endif -%}
+{%- endif -%}
+{#- JSON value for hidden field -#}
+{%- set field_value = terms_list | tojson -%}
+
+<div data-module="field-terms-autocomplete-module"
+     data-field-name="{{ field_name }}"
+     data-allow-new="{{ allow_new | lower }}"
+     data-multiple="true"
+     class="form-group"
+     id="{{ field_name }}-container">
+    <label class="form-label" for="field-{{ field_name }}">
+        {% if h.scheming_field_required(field) %}
+            <span title="This field is required" class="control-required">*</span>
+        {% endif %}
+        {{ h.scheming_language_text(field.label) }}
+    </label>
+    {# Hidden input stores the JSON value and is submitted to server #}
+    <input type="hidden"
+           id="hidden-{{ field_name }}"
+           name="{{ field_name }}"
+           value="{{ field_value | forceescape }}">
+    {# Visible input for Select2 tags UI - NO value attribute, NO name attribute #}
+    {# Prepopulation happens via JS using select2('data', ...) #}
+    <input type="text"
+           class="form-control field-terms-input"
+           id="field-{{ field_name }}">
+
+    {% if errors.get(field_name) %}
+        {% for error in errors[field_name] %}
+            <span class="error-block">{{ error }}</span>
+        {% endfor %}
+    {% endif %}
+
+    {%- snippet 'scheming/form_snippets/help_text.html', field=field -%}
+</div>

@@ -624,6 +624,45 @@ def resource_url_validator(field, schema):
     return validator
 
 
+def json_list_or_string(value, context):
+    if value is missing or value is None:
+        return '[]'
+    if isinstance(value, list):
+        return json.dumps([str(v).strip() for v in value if v])
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return '[]'
+        if value.startswith('['):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return json.dumps([str(v).strip() for v in parsed if v])
+            except json.JSONDecodeError:
+                pass
+        terms = [t.strip() for t in value.split(',') if t.strip()]
+        return json.dumps(terms)
+    return '[]'
+
+
+def json_list_output(value, context):
+    if value is missing or value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return []
+        if value.startswith('['):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                pass
+        return [t.strip() for t in value.split(',') if t.strip()]
+    return []
+
+
 def get_validators():
     return {
         "pidinst_theme_required": pidinst_theme_required,
@@ -632,5 +671,7 @@ def get_validators():
         "owner_org_validator": owner_org_validator,
         "parent_validator" : parent_validator,
         "group_name_validator" : group_name_validator,
-        "resource_url_validator": resource_url_validator
+        "resource_url_validator": resource_url_validator,
+        "json_list_or_string": json_list_or_string,
+        "json_list_output": json_list_output
     }

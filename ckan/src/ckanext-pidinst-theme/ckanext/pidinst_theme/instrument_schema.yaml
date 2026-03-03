@@ -136,9 +136,9 @@ dataset_fields:
     display_snippet: null
     preset: select
     choices:
-      - value: https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-instruments/22-8-2026-02-13
+      - value: https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-instruments/22-8-2026-02-13/concept
         label: gcmd-instruments
-    default: gcmd-instruments
+    default: https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-instruments/22-8-2026-02-13/concept
     help_text: Identifier for the instrument type (GCMD)
 
   - field_name: instrument_type_identifier_type_gcmd
@@ -273,8 +273,10 @@ dataset_fields:
 
   - field_name: measured_variable
     label: User Specified Measured Variables
-    preset: tag_string_autocomplete
-    validators: tag_string_convert
+    form_snippet: field_terms_autocomplete.html
+    display_snippet: field_terms_display.html
+    validators: ignore_missing json_list_or_string
+    output_validators: json_list_output
     help_text: Optional free-text additions. Use the ‘Measured Variables (GCMD)’ field first.
     groupBy: About Instrument
 
@@ -295,8 +297,10 @@ dataset_fields:
 
   - field_name: user_keywords
     label: User Specified Keywords
-    preset: tag_string_autocomplete
-    validators: tag_string_convert
+    form_snippet: field_terms_autocomplete.html
+    display_snippet: field_terms_display.html
+    validators: ignore_missing json_list_or_string
+    output_validators: json_list_output
     help_text: Keywords help with the discovery of the instrument
     groupBy: About Instrument
 

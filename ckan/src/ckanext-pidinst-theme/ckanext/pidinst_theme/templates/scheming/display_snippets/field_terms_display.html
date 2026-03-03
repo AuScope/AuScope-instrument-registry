@@ -1,0 +1,24 @@
+{%- set value = data.get(field.field_name, '') -%}
+{%- set terms = [] -%}
+
+{% if value %}
+    {% if value is string %}
+        {% if value.startswith('[') %}
+            {%- set terms = h.json_loads(value) -%}
+        {% else %}
+            {%- set terms = value.split(',') | map('trim') | list -%}
+        {% endif %}
+    {% elif value is iterable %}
+        {%- set terms = value -%}
+    {% endif %}
+{% endif %}
+
+{% if terms %}
+<ul class="no-bullets">
+    {% for term in terms %}
+        {% if term and term is string and term.strip() %}
+            <li >{{ term }}</li>
+        {% endif %}
+    {% endfor %}
+</ul>
+{% endif %}

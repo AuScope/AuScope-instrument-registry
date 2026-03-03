@@ -100,7 +100,7 @@
         {% endif %}
       {% else %}
         {% if subfield_form_snippet != None %}
-          {%- snippet 'scheming/form_snippets/' + subfield_form_snippet, field=subfield, subfield_index=index|string, parent=field.field_name -%}
+          {%- snippet 'scheming/form_snippets/' + subfield_form_snippet, field=subfield, subfield_index=index|string, parent=field.field_name, field_dict=field_dict, subfields_repeating_label=subfields_repeating_label, errors=errors -%}
         {% endif %}
       {% endif %}
     {% endfor %}
