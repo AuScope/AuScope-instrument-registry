@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 import json
 
@@ -13,6 +14,7 @@ from ckanapi.errors import CKANAPIError, NotFound
 class CreateResult:
     created: List[Dict[str, Any]]          # successful creates (and updates if enabled)
     failed: List[Dict[str, Any]]           # errors with payload + message
+    resource_results: List[Dict[str, Any]] = field(default_factory=list)  # per-dataset resource upload results
 
 
 def _extract_name_from_ckan_error(err: Any) -> Optional[str]:
@@ -37,6 +39,65 @@ class CKANClient(RemoteCKAN):
     Inherits from RemoteCKAN and provides convenient methods for batch operations.
     """
 
+    def create_resources_for_dataset(
+        self,
+        package_id: str,
+        resources: List[Dict[str, Any]],
+        *,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Upload file resources to an existing CKAN dataset.
+        Each resource dict: {path, name, is_cover, format, description}
+        """
+        created: List[Dict[str, Any]] = []
+        failed: List[Dict[str, Any]] = []
+
+        for res in resources:
+            path_str = res.get("path")
+            p = Path(path_str) if path_str else None
+
+            if not p or not p.is_file():
+                failed.append({"path": path_str, "error": "File not found or not a valid file path"})
+                continue
+
+            name = res.get("name") or p.name
+            is_cover = res.get("is_cover")
+            fmt = res.get("format") or ""
+            desc = res.get("description") or ""
+
+            payload = {
+                "package_id": package_id,
+                "url": "upload",
+                "name": name,
+                "description": desc,
+                "format": fmt,
+                "pidinst_is_cover_image": "true" if is_cover else "false",
+            }
+
+            if dry_run:
+                created.append({"status": "dry_run", "path": str(p), "payload": payload})
+                continue
+
+            try:
+                with open(p, "rb") as fh:
+                    resp = self.action.resource_create(upload=fh, **payload)
+                created.append({
+                    "id": resp.get("id"),
+                    "name": resp.get("name"),
+                    "url": resp.get("url"),
+                })
+            except CKANAPIError as e:
+                failed.append({
+                    "path": str(p),
+                    "error": "CKANAPIError",
+                    "ckan_error": getattr(e, "error_dict", None) or str(e),
+                })
+            except Exception as e:
+                failed.append({"path": str(p), "error": f"Unexpected error: {e}"})
+
+        return {"created": created, "failed": failed}
+
     def create_datasets(
         self,
         datasets: List[Dict[str, Any]],
@@ -55,20 +116,28 @@ class CKANClient(RemoteCKAN):
         """
         created: List[Dict[str, Any]] = []
         failed: List[Dict[str, Any]] = []
+        resource_results: List[Dict[str, Any]] = []
 
         for i, payload in enumerate(datasets, start=1):
+            # Extract __resources__ before building CKAN payload
+            resources = list(payload.get("__resources__") or [])
+
             # Ensure dataset_type is set (scheming uses this)
             payload_to_send = dict(payload)
+            payload_to_send.pop("__resources__", None)
             payload_to_send["private"] = not make_public
             payload_to_send.setdefault("type", dataset_type)
 
             if dry_run:
+                rr = self.create_resources_for_dataset(f"dry_run_{i}", resources, dry_run=True)
+                resource_results.append({"index": i, "package_id": None, **rr})
                 created.append(
                     {
                         "status": "dry_run",
                         "index": i,
                         "title": payload_to_send.get("title"),
                         "payload": payload_to_send,
+                        "resources_dry_run": rr,
                     }
                 )
                 continue
@@ -77,11 +146,14 @@ class CKANClient(RemoteCKAN):
                 # Create
                 payload_to_send = _to_ckan_payload(payload_to_send)  # optional pre-processing if needed
                 resp = self.action.package_create(**payload_to_send)
+                pkg_id = resp.get("id")
+                rr = self.create_resources_for_dataset(pkg_id, resources, dry_run=dry_run)
+                resource_results.append({"index": i, "package_id": pkg_id, **rr})
                 created.append(
                     {
                         "status": "created",
                         "index": i,
-                        "id": resp.get("id"),
+                        "id": pkg_id,
                         "name": resp.get("name"),
                         "title": resp.get("title"),
                         "doi": resp.get("doi"),  # may be None depending on your site/plugin behavior
@@ -104,11 +176,14 @@ class CKANClient(RemoteCKAN):
                             existing = self.action.package_show(id=target_name)
                             payload_to_send["id"] = existing["id"]
                             resp2 = self.action.package_update(**payload_to_send)
+                            pkg_id2 = resp2.get("id")
+                            rr2 = self.create_resources_for_dataset(pkg_id2, resources, dry_run=dry_run)
+                            resource_results.append({"index": i, "package_id": pkg_id2, **rr2})
                             created.append(
                                 {
                                     "status": "updated",
                                     "index": i,
-                                    "id": resp2.get("id"),
+                                    "id": pkg_id2,
                                     "name": resp2.get("name"),
                                     "title": resp2.get("title"),
                                     "doi": resp2.get("doi"),
@@ -148,7 +223,7 @@ class CKANClient(RemoteCKAN):
                     }
                 )
 
-        return CreateResult(created=created, failed=failed)
+        return CreateResult(created=created, failed=failed, resource_results=resource_results)
 
     def delete_all_in_org(
         self,

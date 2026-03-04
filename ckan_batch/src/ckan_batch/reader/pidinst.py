@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import math
 
@@ -201,6 +202,8 @@ def _build_column_keys(ws, header_row: int = 5, section_row: int = 3, group_row:
             sec_label = "RELATED_RESOURCES_EXTERNAL"
         elif sec_label.startswith("RELATED RESOURCES (REGISTERED"):
             sec_label = "RELATED_RESOURCES_REGISTERED"
+        elif sec_label.startswith("RESOURCES"):
+            sec_label = "RESOURCES"
 
         grp_label = grp_ff[i] or ""
         # Prefer group label (row 4) when present, else section label (row 3)
@@ -484,6 +487,23 @@ def read_pidinst_template(
                     identity_keys=("alternate_identifier_type", "alternate_identifier"),
                 )
 
+            # Resources / attachments
+            res_path = _clean(row.get("ATTACHMENTS.Path"))
+            if res_path:
+                # Expand ~ to the user's home directory
+                res_path = str(Path(res_path).expanduser())
+                res_name = _clean(row.get("ATTACHMENTS.Name"))
+                res_is_cover = _coerce_bool(_clean(row.get("ATTACHMENTS.IsCover")))
+                res_fmt = _clean(row.get("ATTACHMENTS.Format"))
+                res_desc = _clean(row.get("ATTACHMENTS.Description"))
+                ds.setdefault("__resources__", []).append({
+                    "path": res_path,
+                    "name": res_name,
+                    "is_cover": res_is_cover,
+                    "format": res_fmt,
+                    "description": res_desc,
+                })
+
             # Funder composite (repeating)
             f = {
                 "funder_name": _clean(row.get("FUNDER.Name")),
@@ -576,6 +596,10 @@ def read_pidinst_template(
         for k in COMPOSITE_FIELDS:
             if not ds.get(k):
                 ds.pop(k, None)
+
+        # Clean empty __resources__
+        if not ds.get("__resources__"):
+            ds.pop("__resources__", None)
 
         # Minimal required checks (based on your template)
         if _is_blank(ds.get("title")):
