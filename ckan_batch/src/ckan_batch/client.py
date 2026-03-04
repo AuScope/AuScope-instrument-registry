@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 import json
 
+from ckan_batch.reader.pidinst import _to_ckan_payload
 from ckanapi import RemoteCKAN
 from ckanapi.errors import CKANAPIError, NotFound
 
@@ -12,17 +13,6 @@ from ckanapi.errors import CKANAPIError, NotFound
 class CreateResult:
     created: List[Dict[str, Any]]          # successful creates (and updates if enabled)
     failed: List[Dict[str, Any]]           # errors with payload + message
-
-
-COMPOSITE_FIELDS = {
-    "manufacturer",
-    "owner",
-    "model",
-    "date",
-    "alternate_identifier_obj",
-    "funder",
-    "related_identifier_obj",
-}
 
 
 def _extract_name_from_ckan_error(err: Any) -> Optional[str]:
@@ -41,23 +31,6 @@ def _extract_name_from_ckan_error(err: Any) -> Optional[str]:
         return None
 
 
-def to_ckan_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
-    p = dict(payload)
-
-    # Convert composite lists/dicts to JSON strings (scheming repeating composite pattern)
-    for k in COMPOSITE_FIELDS:
-        if k in p and isinstance(p[k], (list, dict)):
-            p[k] = json.dumps(p[k], ensure_ascii=False)
-
-    # Spatial is often stored as a string too
-    if "spatial" in p and isinstance(p["spatial"], dict):
-        p["spatial"] = json.dumps(p["spatial"], ensure_ascii=False)
-
-    # Optional: remove keys with None values inside JSON composites
-    # (usually not required, but keeps payload cleaner)
-    return p
-
-
 class CKANClient(RemoteCKAN):
     """
     CKAN API client for managing datasets (instruments, etc.).
@@ -69,7 +42,7 @@ class CKANClient(RemoteCKAN):
         datasets: List[Dict[str, Any]],
         make_public: bool = False,
         *,
-        dataset_type: str = "instrument",
+        dataset_type: str = "dataset",
         dry_run: bool = False,
         allow_update_if_exists: bool = False,
     ) -> CreateResult:
@@ -102,7 +75,7 @@ class CKANClient(RemoteCKAN):
 
             try:
                 # Create
-                payload_to_send = to_ckan_payload(payload_to_send)
+                payload_to_send = _to_ckan_payload(payload_to_send)  # optional pre-processing if needed
                 resp = self.action.package_create(**payload_to_send)
                 created.append(
                     {
@@ -182,7 +155,7 @@ class CKANClient(RemoteCKAN):
         owner_org: str = 'auscope',
         *,
         dry_run: bool = True,
-        dataset_type: Optional[str] = "instrument",
+        dataset_type: Optional[str] = "dataset",
     ) -> List[Dict[str, Any]]:
         """
         Delete all datasets in an organization.

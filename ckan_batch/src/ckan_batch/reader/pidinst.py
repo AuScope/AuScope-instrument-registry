@@ -1,12 +1,44 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import math
-from pprint import pprint
 
 import openpyxl
 
+
+
+COMPOSITE_FIELDS = {
+    "manufacturer",
+    "owner",
+    "model",
+    "date",
+    "alternate_identifier_obj",
+    "funder",
+    "related_identifier_obj",
+}
+
+TAG_FIELDS = {
+    "measured_variable",
+    "user_keywords",
+    "gcmd_keywords_code",
+}
+
+PIDINST_SITE_DEFAULTS = {
+    # Publisher (DataCite mapping)
+    "publisher": "AuScope",
+    "publisher_identifier": "https://ror.org/04s1m4564",
+    "publisher_identifier_type": "ROR",
+
+    # Primary contact (site-managed)
+    "primary_contact_name": "AuScope Instrument Registry",
+    "primary_contact_email": "help@data.auscope.org.au",
+
+    # Optional extras you might also want to force:
+    # "domain": "instrument-test.data.auscope.org.au",
+    # "doi_publisher": "AuScope",
+}
 
 # -----------------------------
 # Types
@@ -69,21 +101,35 @@ def _append_unique(lst: List[Dict[str, Any]], item: Dict[str, Any], identity_key
     lst.append(item)
 
 
-def _add_tag_value(tag_acc: Dict[str, List[str]], field: str, value: Optional[str]) -> None:
-    """Accumulate tag-like scalar fields across repeated rows and later join with comma."""
-    if not value:
-        return
-    tag_acc.setdefault(field, [])
-    if value not in tag_acc[field]:
-        tag_acc[field].append(value)
-
-
 def _split_comma_separated(value: Optional[str]) -> Optional[str]:
     """Split comma-separated values, trim each part, and rejoin with ', '."""
     if not value:
         return None
     parts = [part.strip() for part in value.split(",") if part.strip()]
     return ", ".join(parts) if parts else None
+
+
+def _split_csv_cell(v: Optional[str]) -> List[str]:
+    """
+    Split a comma-separated cell value into a list of tokens.
+    E.g. "a, b ,c" -> ["a","b","c"]
+    """
+    if not v:
+        return []
+    parts = [p.strip() for p in str(v).split(",")]
+    return [p for p in parts if p]
+
+def _accumulate_csv_field(acc: Dict[str, List[str]], field: str, cell_value: Optional[str]) -> None:
+    """
+    Accumulate comma-separated values into acc[field] with de-duplication.
+    """
+    tokens = _split_csv_cell(cell_value)
+    if not tokens:
+        return
+    acc.setdefault(field, [])
+    for t in tokens:
+        if t not in acc[field]:
+            acc[field].append(t)
 
 
 # -----------------------------
@@ -166,7 +212,58 @@ def _build_column_keys(ws, header_row: int = 5, section_row: int = 3, group_row:
 
     return keys, required_map
 
+#-----------------------------
+# Final adjustments
+#-----------------------------
 
+def apply_site_defaults(payload: Dict[str, Any], *, override: bool = False) -> Dict[str, Any]:
+    """
+    Adds site-managed hidden fields required by scheming validation.
+    If override=False, only fills missing/blank values.
+    """
+    p = dict(payload)
+    for k, v in PIDINST_SITE_DEFAULTS.items():
+        if override or (k not in p) or (p[k] is None) or (isinstance(p[k], str) and p[k].strip() == ""):
+            p[k] = v
+    return p
+
+def _to_ckan_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    p = dict(payload)
+
+    # Ensure resources exists (fine)
+    if "resources" not in p:
+        p["resources"] = []
+
+    # ---- IMPORTANT: tag-string fields must never be Missing/None ----
+    # If your scheming uses tag_string_convert on these, CKAN crashes when value is Missing.
+    for k in TAG_FIELDS:
+        if k not in p or p[k] is None:
+            p[k] = ""  # safest value for tag_string_convert
+        else:
+            # ensure it's a plain string (not list/dict)
+            p[k] = str(p[k]).strip()
+
+    # Convert composite lists/dicts to JSON strings (scheming repeating composite pattern)
+    for k in COMPOSITE_FIELDS:
+        if k in p and isinstance(p[k], (list, dict)):
+            p[k] = json.dumps(p[k], ensure_ascii=False)
+
+    # Spatial is often stored as a string too
+    if "spatial" in p and isinstance(p["spatial"], dict):
+        p["spatial"] = json.dumps(p["spatial"], ensure_ascii=False)
+
+
+    if "location_data" in p and isinstance(p["location_data"], dict):
+        p["location_data"] = json.dumps(p["location_data"], ensure_ascii=False)
+
+    # Optional: drop None scalars to avoid weird Missing conversions elsewhere
+    for k in list(p.keys()):
+        if p[k] is None:
+            del p[k]
+
+    p = apply_site_defaults(p)
+
+    return p
 # -----------------------------
 # Main mapper
 # -----------------------------
@@ -225,13 +322,11 @@ def read_pidinst_template(
         ds: Dict[str, Any] = {}
 
         # Repeating composites (lists)
-        ds["manufacturer"] = []
-        ds["owner"] = []
-        ds["model"] = []
-        ds["date"] = []
-        ds["alternate_identifier_obj"] = []
-        ds["funder"] = []
-        ds["related_identifier_obj"] = []
+        for k in COMPOSITE_FIELDS:
+            ds[k] = []
+
+        # Tag-like accumulators
+        tag_acc: Dict[str, List[str]] = {}
 
 
         # Validate required columns on the first row (your “first row has required info” rule)
@@ -272,15 +367,44 @@ def read_pidinst_template(
             if epsg and _is_blank(ds.get("epsg_code")):
                 ds["epsg_code"] = epsg
 
-            # Geo: template provides lon/lat columns; schema uses spatial
-            lon = _clean(row.get("GEOLOCATION.Longitude"))
-            lat = _clean(row.get("GEOLOCATION.Latitude"))
-            if lon and lat and _is_blank(ds.get("spatial")):
-                # store GeoJSON Point (CKAN commonly accepts GeoJSON string)
-                ds["spatial"] = {
-                    "type": "Point",
-                    "coordinates": [float(lon), float(lat)],
+            # Geo: template provides lon/lat columns; schema uses location_choice + location_data (+ spatial)
+            lon_raw = _clean(row.get("GEOLOCATION.Longitude"))
+            lat_raw = _clean(row.get("GEOLOCATION.Latitude"))
+
+            lon = lat = None
+            try:
+                if lon_raw is not None and lat_raw is not None:
+                    lon = float(lon_raw)
+                    lat = float(lat_raw)
+            except Exception:
+                lon = lat = None
+
+            # If this row has NO coords, do NOT clobber an existing point set by a previous row
+            if lon is None or lat is None:
+                if _is_blank(ds.get("location_choice")):
+                    ds["location_choice"] = "noLocation"
+                    ds["location_data"] = None
+                    ds.pop("spatial", None)
+            else:
+                fc = {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "properties": {},
+                            "geometry": {"type": "Point", "coordinates": [lon, lat]},
+                        }
+                    ],
                 }
+
+                # Always prefer point if we have coords on any row
+                ds["location_choice"] = "point"
+
+                # Set location_data/spatial once (first coords wins)
+                if _is_blank(ds.get("location_data")):
+                    ds["location_data"] = fc
+                if _is_blank(ds.get("spatial")):
+                    ds["spatial"] = {"type": "Point", "coordinates": [lon, lat]}
 
             # Comma-separated fields (read from first row with value)
             if _is_blank(ds.get("measured_variable")):
@@ -297,6 +421,12 @@ def read_pidinst_template(
                 gcmd_kw = _split_comma_separated(_clean(row.get("OTHER.GCMDKeywordsCode")))
                 if gcmd_kw:
                     ds["gcmd_keywords_code"] = gcmd_kw
+
+            # Tags
+            # Tags / multi-token fields (now comma-separated in ONE cell)
+            _accumulate_csv_field(tag_acc, "measured_variable", _clean(row.get("OTHER.MeasuredVariable")))
+            _accumulate_csv_field(tag_acc, "user_keywords", _clean(row.get("OTHER.UserKeywords")))
+            _accumulate_csv_field(tag_acc, "gcmd_keywords_code", _clean(row.get("OTHER.GCMDKeywordsCode")))
 
             credit = _clean(row.get("OTHER.Credit"))
             if credit and _is_blank(ds.get("credit")):
@@ -437,8 +567,13 @@ def read_pidinst_template(
                         f"Manufacturer={reg_manf}, Model={reg_model}, Serial={reg_sn}"
                     )
 
+        # Apply accumulated tag fields (join)
+        for k, vals in tag_acc.items():
+            if vals:
+                ds[k] = ", ".join(vals)
+
         # Clean empty repeating composites
-        for k in ["manufacturer", "owner", "model", "date", "alternate_identifier_obj", "funder", "related_identifier_obj"]:
+        for k in COMPOSITE_FIELDS:
             if not ds.get(k):
                 ds.pop(k, None)
 
@@ -459,3 +594,4 @@ def read_pidinst_template(
         datasets.append(ds)
 
     return MappingResult(datasets=datasets, errors=errors)
+
