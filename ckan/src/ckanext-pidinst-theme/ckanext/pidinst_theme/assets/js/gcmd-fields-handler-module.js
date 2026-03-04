@@ -1,8 +1,11 @@
 this.ckan.module('gcmd-fields-handler-module', function ($, _) {
     return {
         initialize: function () {
-            this.textInputElement = $('#field-gcmd_keywords');
-            this.inputElement = $('#field-gcmd_keywords_code');
+            var labelFieldName = this.el.data('label-field');
+            this.scheme = this.el.data('scheme') || 'science';
+            
+            this.textInputElement = $('#field-' + labelFieldName);
+            this.inputElement = this.el.find('input.gcmd-keywords');
 
             this.initializeSelect2();
             this.prepopulateSelect2();
@@ -16,7 +19,7 @@ this.ckan.module('gcmd-fields-handler-module', function ($, _) {
             var lastSearchTerm = null;
 
             this.inputElement.select2({
-                placeholder: "Select GCMD Keywords",
+                placeholder: "Select Keywords",
                 delay: 250,
                 minimumInputLength: 3,
                 tags: [],
@@ -32,7 +35,8 @@ this.ckan.module('gcmd-fields-handler-module', function ($, _) {
                     var apiUrl = '/api/proxy/fetch_gcmd';
                     var data = {
                         page: nextPage, 
-                        keywords: query.term 
+                        keywords: query.term,
+                        scheme: self.scheme
                     };
 
                     $.ajax({
@@ -74,7 +78,6 @@ this.ckan.module('gcmd-fields-handler-module', function ($, _) {
                 });
                 self.inputElement.select2('data', dataForSelect2, true);
             }
-            // self.inputElement.val(existingIds);
         },
     };
 });

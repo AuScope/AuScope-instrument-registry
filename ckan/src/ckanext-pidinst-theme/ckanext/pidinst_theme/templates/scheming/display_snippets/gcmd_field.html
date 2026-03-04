@@ -1,5 +1,8 @@
-{%- set gcmd_keywords = data['gcmd_keywords'].strip("[]").split('","') %}
-{%- set gcmd_keywords_code = data['gcmd_keywords_code'].strip("[]").split(",") %}
+{%- set label_field = field.get('label_field_name', 'gcmd_keywords') -%}
+{%- set code_field = field.field_name -%}
+
+{%- set gcmd_keywords = data.get(label_field, '[]').strip("[]").split('","') if data.get(label_field) else [] %}
+{%- set gcmd_keywords_code = data.get(code_field, '[]').strip("[]").split(",") if data.get(code_field) else [] %}
 
 <style>
     .no-bullets {
@@ -8,6 +11,7 @@
     }
 </style>
 
+{% if gcmd_keywords and gcmd_keywords[0] %}
 <ul class="no-bullets">
   {% for i in range(gcmd_keywords|length) %}
     {% set keyword = gcmd_keywords[i].strip('" ') %}
@@ -17,3 +21,4 @@
     </li>
   {% endfor %}
 </ul>
+{% endif %}

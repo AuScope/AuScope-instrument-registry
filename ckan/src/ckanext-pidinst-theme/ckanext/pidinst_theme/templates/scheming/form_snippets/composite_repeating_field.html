@@ -2,8 +2,10 @@
   {% import 'macros/form.html' as form %}
 
   <div
-    data-module="composite-repeating-module"
-    data-module-title="{{ field.field_name }}"
+    data-module="pidinst-composite-enhancements"
+    data-module-field-name="{{ field.field_name }}"
+    data-module-required="{{ '1' if h.scheming_field_required(field) else '0' }}"
+    data-module-start-empty="{{ '1' if field.get('form_blanks', 1) == 0 else '0' }}"
     id="composite-repeating-div-{{ field.field_name }}"
   >
     <input type="hidden" class="hidden-title-input" value="{{ field.field_name }}" />
@@ -12,7 +14,7 @@
       {%- snippet 'scheming/form_snippets/composite_repeating_new_version.html',
           field=field, data=data, errors=errors -%}
     {% else %}
-      {%- snippet 'scheming/form_snippets/composite_repeating.html',
+      {%- snippet 'scheming/form_snippets/pidinst_composite_repeating.html',
           field=field, data=data, errors=errors -%}
     {% endif %}
 

@@ -12,6 +12,57 @@ from markupsafe import Markup
 def pidinst_theme_hello():
     return "Hello, pidinst_theme!"
 
+
+def pidinst_parse_json_list(value):
+    """
+    Parse a value that might be a JSON array string, Python list, or fallback to empty list.
+    Used by templates to safely parse field values for prepopulating Select2.
+    
+    Args:
+        value: Can be a JSON string like '["a","b"]', a Python list, or other formats
+        
+    Returns:
+        list: A list of string values
+    """
+    if not value:
+        return []
+    
+    # If already a list, return it
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if v and str(v).strip()]
+    
+    # If string, try to parse as JSON
+    if isinstance(value, str):
+        value = value.strip()
+        if not value or value in ('[]', '""', 'null', 'None'):
+            return []
+        
+        if value.startswith('['):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return [str(v).strip() for v in parsed if v and str(v).strip()]
+            except (json.JSONDecodeError, ValueError):
+                # Try Python-style single quotes
+                try:
+                    fixed = value.replace("'", '"')
+                    parsed = json.loads(fixed)
+                    if isinstance(parsed, list):
+                        return [str(v).strip() for v in parsed if v and str(v).strip()]
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        
+        # Comma-separated fallback
+        if ',' in value:
+            return [v.strip() for v in value.split(',') if v.strip()]
+        
+        # Single value
+        if value.strip():
+            return [value.strip()]
+    
+    return []
+
+
 def is_creating_or_editing_dataset():
     """Determine if the user is creating or editing a dataset."""
     current_path = toolkit.request.path
@@ -464,9 +515,22 @@ def pidinst_cover_image_url(pkg_dict):
         return None
     return toolkit.url_for("resource.download", id=pkg_dict["name"], resource_id=cover["id"])
 
+
+def json_loads(value):
+    if not value:
+        return []
+    if isinstance(value, list):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
+        "pidinst_parse_json_list": pidinst_parse_json_list,
         "is_creating_or_editing_dataset" :is_creating_or_editing_dataset,
         "is_creating_or_editing_org" : is_creating_or_editing_org,
         'get_org_list': get_org_list,
@@ -484,4 +548,5 @@ def get_helpers():
         "pidinst_cover_image_url": pidinst_cover_image_url,
         "get_cover_photo_info": get_cover_photo_info,
         "pidinst_instrument_meta": pidinst_instrument_meta,
+        "json_loads": json_loads,
     }

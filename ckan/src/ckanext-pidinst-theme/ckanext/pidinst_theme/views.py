@@ -215,14 +215,115 @@ def fetch_terms( ):
 
 @pidinst_theme.route('/api/proxy/fetch_gcmd', methods=['GET'])
 def fetch_gcmd():
-    page = request.args.get('page', 0)
+
+    VOCAB_ENDPOINTS = {
+        'science': 'ardc-curated/gcmd-sciencekeywords/17-5-2023-12-21',
+        'measured_variables': 'ardc-curated/gcmd-measurementname/21-5-2025-06-06', 
+        'platforms': 'ardc-curated/gcmd-platforms/21-5-2025-06-17',
+        'instruments': 'ardc-curated/gcmd-instruments/22-8-2026-02-13',
+    }
+    
+    try:
+        page = int(request.args.get('page', 0))
+    except (ValueError, TypeError):
+        page = 0
+    
     keywords = request.args.get('keywords', '')
-    external_url = f'https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-sciencekeywords/17-5-2023-12-21/concept.json?_page={page}&labelcontains={keywords}'
-    response = requests.get(external_url)
-    if response.ok:
-        return Response(response.content, content_type=response.headers['Content-Type'], status=response.status_code)
-    else:
-        return {"error": "Failed to fetch gcmd"}, 502
+    scheme = request.args.get('scheme', 'science')
+    
+    if scheme not in VOCAB_ENDPOINTS:
+        log.warning(f"Unknown vocab scheme requested: {scheme}")
+        return {"error": f"Unknown scheme: {scheme}"}, 400
+    
+    vocab_path = VOCAB_ENDPOINTS[scheme]
+    base_url = 'https://vocabs.ardc.edu.au/repository/api/lda'
+    external_url = f'{base_url}/{vocab_path}/concept.json?_page={page}&labelcontains={requests.utils.quote(keywords)}'
+    
+    log.debug(f"Fetching GCMD vocab: scheme={scheme}, url={external_url}")
+    
+    try:
+        response = requests.get(external_url, timeout=10)
+        if response.ok:
+            return Response(response.content, content_type=response.headers['Content-Type'], status=response.status_code)
+        else:
+            log.error(f"ARDC vocab fetch failed: {response.status_code} - {external_url}")
+            return {"error": f"Failed to fetch {scheme} vocabulary", "status": response.status_code}, 502
+    except requests.exceptions.RequestException as e:
+        log.error(f"ARDC vocab request error: {str(e)} - {external_url}")
+        return {"error": "Vocabulary service unavailable"}, 503
+
+
+ALLOWED_FIELD_TERMS = {'user_keywords', 'measured_variable'}
+# Mapping for nested fields: subfield_name -> parent_field_name
+NESTED_FIELD_TERMS = {'instrument_type_name': 'instrument_type'}
+
+@pidinst_theme.route('/api/field_terms/<field_name>', methods=['GET'])
+def field_terms_autocomplete(field_name):
+    # Check both simple and nested allowed fields
+    is_nested = field_name in NESTED_FIELD_TERMS
+    if field_name not in ALLOWED_FIELD_TERMS and not is_nested:
+        return jsonify({"error": "Field not allowed", "terms": []}), 400
+
+    query_term = request.args.get('q', '').strip().lower()
+
+    try:
+        context = {'ignore_auth': True}
+        search_result = get_action('package_search')(context, {
+            'q': '*:*',
+            'rows': 1000,
+            'fl': 'id,validated_data_dict',
+        })
+
+        all_terms = set()
+        for pkg in search_result.get('results', []):
+            vdd_str = pkg.get('validated_data_dict', '')
+            if not vdd_str:
+                continue
+            try:
+                vdd = json.loads(vdd_str) if isinstance(vdd_str, str) else vdd_str
+            except json.JSONDecodeError:
+                continue
+
+            # Handle nested fields (composite_repeating)
+            if is_nested:
+                parent_field = NESTED_FIELD_TERMS[field_name]
+                parent_value = vdd.get(parent_field, [])
+                # parent_value is a list of dicts
+                if isinstance(parent_value, list):
+                    for item in parent_value:
+                        if isinstance(item, dict):
+                            term = item.get(field_name, '')
+                            if isinstance(term, str) and term.strip():
+                                all_terms.add(term.strip())
+            else:
+                # Handle simple fields
+                field_value = vdd.get(field_name, '')
+                if not field_value:
+                    continue
+                terms = []
+                if isinstance(field_value, str):
+                    if field_value.startswith('['):
+                        try:
+                            terms = json.loads(field_value)
+                        except json.JSONDecodeError:
+                            terms = [t.strip() for t in field_value.split(',') if t.strip()]
+                    else:
+                        terms = [t.strip() for t in field_value.split(',') if t.strip()]
+                elif isinstance(field_value, list):
+                    terms = field_value
+                for term in terms:
+                    if isinstance(term, str) and term.strip():
+                        all_terms.add(term.strip())
+
+        if query_term:
+            matching = sorted([t for t in all_terms if query_term in t.lower()])[:20]
+        else:
+            matching = sorted(all_terms)[:20]
+        return jsonify({"terms": matching})
+
+    except Exception as e:
+        log.error(f"Error fetching field terms for {field_name}: {e}")
+        return jsonify({"error": str(e), "terms": []}), 500
 
 
 @pidinst_theme.route('/dataset/<id>/new_version', methods=['GET', 'POST'])
