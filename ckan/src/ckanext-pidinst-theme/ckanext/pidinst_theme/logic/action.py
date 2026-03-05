@@ -60,7 +60,7 @@ def package_create(next_action, context, data_dict):
             for f in schema['owner_org']
         ]
 
-    data_dict['name']  = generate_instrument_name(data_dict)   
+    data_dict['name']  = generate_instrument_name(data_dict)
 
     manage_parent_related_resource(data_dict)
 
@@ -169,7 +169,7 @@ def generate_instrument_name(data_dict):
 def package_update(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
 
-    data_dict['name']  = generate_instrument_name(data_dict)   
+    data_dict['name']  = generate_instrument_name(data_dict)
 
 
     manage_parent_related_resource(data_dict)
@@ -276,7 +276,7 @@ def package_search(next_action, context, data_dict):
     NOTE: @side_effect_free is required to allow GET requests.  Without it CKAN
     rejects GET calls with 400 ("Access via POST only").
     """
-    context['ignore_auth'] = True
+    # context['ignore_auth'] = True
     return next_action(context, data_dict)
 
 @tk.chained_action

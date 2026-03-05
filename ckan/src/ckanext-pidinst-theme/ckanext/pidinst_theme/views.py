@@ -399,8 +399,12 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     limit = int(toolkit.config.get('ckan.datasets_per_page', 20))
 
     # Forced server-side filter — cannot be overridden by query params
-    # +capacity:public ensures private packages are never shown regardless of user role
-    forced_fq = f'type:instrument AND extras_is_platform:{is_platform_value} +capacity:public'
+    # Anonymous users only see public packages; logged-in users see public + their own private ones
+    # capacity_filter = '' if toolkit.c.user else ' +capacity:public'
+    # forced_fq = f'type:instrument AND extras_is_platform:{is_platform_value}{capacity_filter}'
+    forced_fq = f'type:instrument AND extras_is_platform:{is_platform_value}'
+
+    is_logged_in = bool(toolkit.c.user)
 
     # Collect facet field filters from request args
     reserved = {'q', 'page', 'sort'}
@@ -430,7 +434,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'facet.field': facet_fields,
         'facet.limit': 50,
         'facet.mincount': 1,
-        'include_private': False,
+        'include_private': is_logged_in,
     }
 
     query_error = False

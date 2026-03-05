@@ -227,60 +227,119 @@ class CKANClient(RemoteCKAN):
 
     def delete_all_in_org(
         self,
-        owner_org: str = 'auscope',
+        owner_org: str = "auscope",
         *,
         dry_run: bool = True,
-        dataset_type: Optional[str] = "dataset",
+        dataset_type: Optional[str] = "instrument",
+        include_draft: bool = True,
+        include_private: bool = True,
+        include_public: bool = False,
     ) -> List[Dict[str, Any]]:
         """
-        Delete all datasets in an organization.
+        Delete datasets in an organization with configurable inclusion of draft/private/public.
 
-        Args:
-            owner_org: The organization ID or name
-            dry_run: If True, only list datasets without deleting
-            dataset_type: Filter by dataset type. If None, delete all datasets in the org.
-
-        Returns:
-            List of datasets that were (or would be) deleted
+        IMPORTANT:
+        - Draft visibility in `package_search` is controlled by `include_drafts=True` (not reliably by q/fq alone).
+        - Private visibility in `package_search` is controlled by `include_private=True`.
         """
-        # Build query based on whether dataset_type is specified
-        if dataset_type is not None:
-            q = f"type:{dataset_type}"
-            type_label = f"{dataset_type} "
-        else:
-            q = "*:*"
-            type_label = ""
+        if not (include_private or include_public or include_draft):
+            print("Nothing to do: include_draft/include_private/include_public are all False.")
+            return []
 
         owner_org_id = self.get_org_id_by_name(owner_org)
         if owner_org_id is None:
             raise NotFound(f"Organization {owner_org!r} not found.")
 
-        fq = f"owner_org:{owner_org_id}"
+        # q: only put "type" filtering here (simple + stable)
+        q_parts: List[str] = []
+        if dataset_type is not None:
+            q_parts.append(f"type:{dataset_type}")
+            type_label = f"{dataset_type} "
+        else:
+            type_label = ""
+
+        q = " AND ".join(q_parts) if q_parts else "*:*"
+
+        # fq: owner_org + optional state/private filters
+        fq_parts = [f"owner_org:{owner_org_id}"]
+
+        # Visibility filters (field is `private`)
+        # - public datasets are always included by default
+        # - private datasets require include_private=True
+        if include_private and not include_public:
+            fq_parts.append("private:true")   # only private
+        elif include_public and not include_private:
+            fq_parts.append("private:false")  # only public
+        elif not include_public and not include_private:
+            # nothing can match
+            print("Nothing to do: both include_private and include_public are False.")
+            return []
+
+        # State filters (field is `state`)
+        # - drafts require include_drafts=True
+        if include_draft and False:
+            pass  # (keep both active + draft)
+        elif include_draft and not include_public and not include_private:
+            # already returned above, but keep logic explicit
+            return []
+        elif include_draft:
+            # include both active+draft: no fq state filter
+            pass
+        else:
+            # only active
+            fq_parts.append("state:active")
+
+        fq = " AND ".join(fq_parts)
+
+        # These flags are the key for draft/private visibility in package_search
+        include_drafts_flag = bool(include_draft)
+        include_private_flag = bool(include_private)
+
         start = 0
         rows = 100
-        to_delete = []
+        to_delete: List[Dict[str, Any]] = []
 
         while True:
-            res = self.action.package_search(q=q, fq=fq, start=start, rows=rows)
+            res = self.action.package_search(
+                q=q,
+                fq=fq,
+                start=start,
+                rows=rows,
+                include_drafts=include_drafts_flag,
+                include_private=include_private_flag,
+            )
             results = res.get("results", [])
             if not results:
                 break
+
             for pkg in results:
-                to_delete.append({"id": pkg["id"], "name": pkg["name"], "title": pkg.get("title")})
+                to_delete.append(
+                    {
+                        "id": pkg["id"],
+                        "name": pkg["name"],
+                        "title": pkg.get("title"),
+                        "state": pkg.get("state"),
+                        "private": pkg.get("private"),
+                    }
+                )
             start += rows
 
-        print(f"Found {len(to_delete)} {type_label}dataset(s) in owner_org={owner_org!r}")
+        print(
+            f"Found {len(to_delete)} {type_label}dataset(s) in owner_org={owner_org!r} "
+            f"(draft={include_draft}, private={include_private}, public={include_public})"
+        )
         for p in to_delete[:20]:
-            print(f" - {p['name']} ({p['id']}) | {p.get('title')}")
+            vis = "private" if p.get("private") else "public"
+            print(f" - {p['name']} ({p['id']}) [{p.get('state')}, {vis}] | {p.get('title')}")
         if len(to_delete) > 20:
-            print(f" ... and {len(to_delete)-20} more")
+            print(f" ... and {len(to_delete) - 20} more")
 
         if dry_run:
             print("\nDRY RUN: no deletions performed.")
             return to_delete
 
         deleted = 0
-        failed = []
+        failed: List[Dict[str, Any]] = []
         for p in to_delete:
             try:
                 self.action.package_delete(id=p["id"])
@@ -293,6 +352,7 @@ class CKANClient(RemoteCKAN):
             print(f"Failed: {len(failed)}")
             for f in failed[:10]:
                 print(" -", f)
+
         return to_delete
 
 
