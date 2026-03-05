@@ -1,7 +1,8 @@
 {% ckan_extends %}
 
 {% block content %}
-  <div class="dataset-item-wrapper">
+  {% set _ip = package.is_platform | string | lower %}
+  <div class="dataset-item-wrapper" data-is-platform="{{ 'true' if _ip in ('true', '1') else 'false' }}">
     <div class="dataset-item-image">
       {% set cover_url = h.pidinst_cover_image_url(package) %}
       {% if cover_url %}

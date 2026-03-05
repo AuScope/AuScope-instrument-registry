@@ -1,5 +1,5 @@
 scheming_version: 2
-dataset_type: dataset
+dataset_type: instrument
 about: AuScope Instrument Registry schema based on PIDINST
 about_url: https://www.github.com/AuScope/AuScope-instrument-registry
 
@@ -32,6 +32,16 @@ dataset_fields:
   #   form_placeholder: A landing page that the identifier resolves to
   #   help_text: A landing page that the identifier resolves to
   #   groupBy: About Instrument
+
+  - field_name: is_platform
+    label: Is Platform
+    required: true
+    form_snippet: is_platform_hidden_field.html
+    default: "false"
+    validators: ignore_missing boolean_validator
+    output_validators: ignore_missing boolean_validator
+    help_text: Defines whether the instrument is a platform (e.g. a buoy, a ship, a satellite) that can host other instruments or not
+    groupBy: About Instrument
 
   - field_name: title
     label: Title
@@ -148,7 +158,7 @@ dataset_fields:
     choices:
       - value: URL
         label: URL
-    default: URL    
+    default: URL
     help_text: "Type of the identifier"
 
   - field_name: instrument_type
@@ -158,7 +168,7 @@ dataset_fields:
     form_snippet: composite_repeating_field.html
     form_blanks: 1
     groupBy: About Instrument
-    help_text: "Optional: use this only if you can’t find a suitable Instrument Type in the GCMD list above. You may add one or more custom entries."    
+    help_text: "Optional: use this only if you can’t find a suitable Instrument Type in the GCMD list above. You may add one or more custom entries."
     subfields:
       - field_name: instrument_type_name
         label: Instrument Type Name

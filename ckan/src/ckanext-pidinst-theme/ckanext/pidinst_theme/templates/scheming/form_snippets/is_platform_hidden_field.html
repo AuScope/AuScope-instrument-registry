@@ -1,0 +1,9 @@
+{#
+  Custom hidden snippet for is_platform.
+  Reads value from request.args when present (set by Add Instrument / Add Platform buttons),
+  otherwise falls back to field data or default. Always writes normalised "true" or "false".
+#}
+{% set _truthy = ('true', '1', 'yes', 'True', 'TRUE') %}
+{% set _raw = request.args.get('is_platform', data[field.field_name] if data else field.default) %}
+{% set _val = 'true' if (_raw | string) in _truthy else 'false' %}
+<input type="hidden" id="field-{{ field.field_name }}" name="{{ field.field_name }}" value="{{ _val }}" />

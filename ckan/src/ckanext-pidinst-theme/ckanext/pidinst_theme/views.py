@@ -1,5 +1,6 @@
 from flask import Blueprint, request, Response, render_template, redirect, url_for, session , jsonify
 from flask.views import MethodView
+from functools import partial
 import requests
 import os
 from werkzeug.utils import secure_filename
@@ -8,6 +9,7 @@ import ckan.plugins.toolkit as toolkit
 from ckan.common import g
 from ckan.common import _, current_user
 import ckan.lib.base as base
+import ckan.lib.helpers as ckan_helpers
 import ckan.logic as logic
 import logging
 from io import BytesIO
@@ -218,29 +220,29 @@ def fetch_gcmd():
 
     VOCAB_ENDPOINTS = {
         'science': 'ardc-curated/gcmd-sciencekeywords/17-5-2023-12-21',
-        'measured_variables': 'ardc-curated/gcmd-measurementname/21-5-2025-06-06', 
+        'measured_variables': 'ardc-curated/gcmd-measurementname/21-5-2025-06-06',
         'platforms': 'ardc-curated/gcmd-platforms/21-5-2025-06-17',
         'instruments': 'ardc-curated/gcmd-instruments/22-8-2026-02-13',
     }
-    
+
     try:
         page = int(request.args.get('page', 0))
     except (ValueError, TypeError):
         page = 0
-    
+
     keywords = request.args.get('keywords', '')
     scheme = request.args.get('scheme', 'science')
-    
+
     if scheme not in VOCAB_ENDPOINTS:
         log.warning(f"Unknown vocab scheme requested: {scheme}")
         return {"error": f"Unknown scheme: {scheme}"}, 400
-    
+
     vocab_path = VOCAB_ENDPOINTS[scheme]
     base_url = 'https://vocabs.ardc.edu.au/repository/api/lda'
     external_url = f'{base_url}/{vocab_path}/concept.json?_page={page}&labelcontains={requests.utils.quote(keywords)}'
-    
+
     log.debug(f"Fetching GCMD vocab: scheme={scheme}, url={external_url}")
-    
+
     try:
         response = requests.get(external_url, timeout=10)
         if response.ok:
@@ -383,6 +385,116 @@ def new_version(id):
         log.error(f'Error creating new version: {str(e)}')
         toolkit.h.flash_error(toolkit._('An error occurred while preparing the new version'))
         return toolkit.redirect_to('dataset.read', id=id)
+
+
+def _instrument_platform_search(is_platform_value, template, named_route, display_type='instrument'):
+    """Shared search handler for /instruments and /platforms routes."""
+    q = toolkit.request.args.get('q', '')
+    try:
+        page = int(toolkit.request.args.get('page', 1))
+    except ValueError:
+        page = 1
+
+    sort_by = toolkit.request.args.get('sort', 'score desc, metadata_modified desc')
+    limit = int(toolkit.config.get('ckan.datasets_per_page', 20))
+
+    # Forced server-side filter — cannot be overridden by query params
+    # +capacity:public ensures private packages are never shown regardless of user role
+    forced_fq = f'type:instrument AND extras_is_platform:{is_platform_value} +capacity:public'
+
+    # Collect facet field filters from request args
+    reserved = {'q', 'page', 'sort'}
+    fields = []
+    fields_grouped = {}
+    extra_fq_parts = []
+    for param, value in toolkit.request.args.items(multi=True):
+        if param in reserved:
+            continue
+        fields.append((param, value))
+        fields_grouped.setdefault(param, []).append(value)
+        extra_fq_parts.append(f'+{param}:"{value}"')
+
+    fq = forced_fq
+    if extra_fq_parts:
+        fq += ' ' + ' '.join(extra_fq_parts)
+
+    facet_fields = ['organization', 'tags', 'instrument_type', 'locality']
+
+    data_dict = {
+        'q': q or '*:*',
+        'fq': fq,
+        'rows': limit,
+        'start': (page - 1) * limit,
+        'sort': sort_by,
+        'facet': 'true',
+        'facet.field': facet_fields,
+        'facet.limit': 50,
+        'facet.mincount': 1,
+        'include_private': False,
+    }
+
+    query_error = False
+    try:
+        context = {
+            'user': toolkit.c.user,
+            'auth_user_obj': toolkit.c.userobj,
+        }
+        query = toolkit.get_action('package_search')(context, data_dict)
+    except Exception as e:
+        log.error('Search error on %s: %s', template, e)
+        query = {'results': [], 'count': 0, 'search_facets': {}}
+        query_error = True
+
+    def pager_url(q=None, page=None):
+        params = dict(toolkit.request.args)
+        if page is not None:
+            params['page'] = page
+        return toolkit.url_for(named_route, **params)
+
+    pager = ckan_helpers.Page(
+        collection=query.get('results', []),
+        page=page,
+        url=pager_url,
+        item_count=query.get('count', 0),
+        items_per_page=limit,
+    )
+    pager.items = query.get('results', [])
+
+    search_facets = query.get('search_facets', {})
+    facet_titles = {
+        'organization': toolkit._('Organizations'),
+        'tags': toolkit._('Tags'),
+        'instrument_type': toolkit._('Instrument Type'),
+        'locality': toolkit._('Locality'),
+    }
+
+    remove_field = partial(h.remove_url_param, named_route=named_route)
+
+    extra_vars = {
+        'dataset_type': display_type,
+        'q': q,
+        'fields': fields,
+        'fields_grouped': fields_grouped,
+        'search_facets': search_facets,
+        'facet_titles': facet_titles,
+        'translated_fields': {},
+        'remove_field': remove_field,
+        'sort_by_selected': sort_by,
+        'page': pager,
+        'query_error': query_error,
+    }
+
+    return base.render(template, extra_vars=extra_vars)
+
+
+@pidinst_theme.route('/instruments')
+def instruments_search():
+    return _instrument_platform_search('false', 'instruments/search.html', 'pidinst_theme.instruments_search', display_type='instrument')
+
+
+@pidinst_theme.route('/platforms')
+def platforms_search():
+    return _instrument_platform_search('true', 'platforms/search.html', 'pidinst_theme.platforms_search', display_type='platform')
 
 
 def get_blueprints():

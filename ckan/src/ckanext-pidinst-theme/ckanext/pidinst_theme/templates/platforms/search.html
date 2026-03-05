@@ -1,0 +1,17 @@
+{% extends "package/search.html" %}
+
+{% block breadcrumb_content %}
+  <li class="active"><a href="{{ h.url_for('pidinst_theme.platforms_search') }}">{{ _("Platforms") }}</a></li>
+{% endblock %}
+
+{% block page_heading %}{{ _('Platforms') }}{% endblock %}
+
+{% block page_primary_action %}
+<div class="page_primary_action">
+  {% if h.check_access('package_create') %}
+  <a class="btn btn-primary" href="{{ h.url_for('instrument.new', is_platform='true') }}">
+    {{ _('Add Platform') }}
+  </a>
+  {% endif %}
+</div>
+{% endblock %}

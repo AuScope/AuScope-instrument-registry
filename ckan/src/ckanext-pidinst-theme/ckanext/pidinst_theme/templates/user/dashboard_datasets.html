@@ -2,6 +2,47 @@
 
 {% block page_primary_action %}
   {% if h.check_access('package_create') %}
-    {% snippet 'snippets/add_dataset.html' %}
+    {% set new_instrument_url = h.url_for('instrument.new', is_platform='false') %}
+    {% set new_platform_url = h.url_for('instrument.new', is_platform='true') %}
+    <div class="inst-filter-bar" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+      <div class="btn-group" role="group" aria-label="Filter by type" id="dash-type-filter">
+        <button class="btn btn-default active" data-filter="all">{{ _("All") }}</button>
+        <button class="btn btn-default" data-filter="false">{{ _("Instruments") }}</button>
+        <button class="btn btn-default" data-filter="true">{{ _("Platforms") }}</button>
+      </div>
+      <a id="dash-add-btn" class="btn btn-primary" href="{{ new_instrument_url }}">+ {{ _("Add Instrument") }}</a>
+    </div>
+    <script>
+    (function() {
+      var addUrls = { 'false': '{{ new_instrument_url }}', 'true': '{{ new_platform_url }}' };
+      var addLabels = { 'false': '+ {{ _("Add Instrument") }}', 'true': '+ {{ _("Add Platform") }}' };
+      document.addEventListener('DOMContentLoaded', function() {
+        var filterBar = document.getElementById('dash-type-filter');
+        var addBtn = document.getElementById('dash-add-btn');
+        if (!filterBar) return;
+        filterBar.querySelectorAll('button').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            filterBar.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            var filter = btn.getAttribute('data-filter');
+            if (addBtn) {
+              if (filter === 'all') {
+                addBtn.href = addUrls['false'];
+                addBtn.textContent = addLabels['false'];
+              } else {
+                addBtn.href = addUrls[filter];
+                addBtn.textContent = addLabels[filter];
+              }
+            }
+            document.querySelectorAll('.dataset-item').forEach(function(li) {
+              var wrapper = li.querySelector('.dataset-item-wrapper');
+              var val = wrapper ? wrapper.getAttribute('data-is-platform') : null;
+              li.style.display = (filter === 'all' || val === filter) ? '' : 'none';
+            });
+          });
+        });
+      });
+    }());
+    </script>
   {% endif %}
 {% endblock %}

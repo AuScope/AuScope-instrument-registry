@@ -38,11 +38,20 @@
 </div>
 
 {% endblock %} {% block header_site_navigation_tabs %} {% set org_type =
-h.default_group_type('organization')%} {% set group_type = h.default_group_type('group') %} {{
-h.build_nav_main( (org_type ~ '.index', h.humanize_entity_type('organization', org_type, 'main nav') or
-_('Organisations'), ['organization']), (dataset_type ~ '.search', h.humanize_entity_type('package',
-dataset_type, 'main nav') or _('Instruments'), ["dataset","resource"]), ('home.about', _('About')) ) }} {%
-endblock %} {% block header_logo %}
+h.default_group_type('organization')%} {% set group_type = h.default_group_type('group') %}
+<ul class="nav nav-pills">
+  <li class="{{ 'active' if request.path.startswith('/instruments') else '' }}">
+    <a href="{{ h.url_for('pidinst_theme.instruments_search') }}">{{ _('Instruments') }}</a>
+  </li>
+  <li class="{{ 'active' if request.path.startswith('/platforms') else '' }}">
+    <a href="{{ h.url_for('pidinst_theme.platforms_search') }}">{{ _('Platforms') }}</a>
+  </li>
+  {{ h.build_nav_main(
+    (org_type ~ '.index', h.humanize_entity_type('organization', org_type, 'main nav') or _('Organisations'), ['organization']),
+    ('home.about', _('About'))
+  ) }}
+</ul>
+{% endblock %} {% block header_logo %}
 <a class="logo" href="{{ h.url_for('home.index') }}">
   <img
     src="{{ h.url_for_static_or_external('/base/images/AuScope Logo Icon.png') }}"
