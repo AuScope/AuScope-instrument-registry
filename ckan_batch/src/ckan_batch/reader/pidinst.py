@@ -285,7 +285,13 @@ def read_pidinst_template(
     Repeating composites supported:
       - manufacturer, owner, model, date, alternate_identifier_obj, funder,
         related_identifier_obj (external + registered/internal)
+
+    is_platform is derived from sheet_name:
+      - "Instruments" -> False
+      - "Platforms"   -> True
     """
+    _IS_PLATFORM_SHEETS = {"Platforms": "true"}
+    sheet_is_platform = _IS_PLATFORM_SHEETS.get(sheet_name, "false")
     wb = openpyxl.load_workbook(excel_path, data_only=True)
     ws = wb[sheet_name]
 
@@ -615,6 +621,7 @@ def read_pidinst_template(
             errors.append(f"[Record {record}] Missing at least one model (MODEL.Name).")
             continue
 
+        ds["is_platform"] = sheet_is_platform
         datasets.append(ds)
 
     return MappingResult(datasets=datasets, errors=errors)

@@ -103,7 +103,7 @@ class CKANClient(RemoteCKAN):
         datasets: List[Dict[str, Any]],
         make_public: bool = False,
         *,
-        dataset_type: str = "dataset",
+        dataset_type: str = "instrument",
         dry_run: bool = False,
         allow_update_if_exists: bool = False,
     ) -> CreateResult:
