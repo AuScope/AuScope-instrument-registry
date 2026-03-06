@@ -17,26 +17,26 @@ def pidinst_parse_json_list(value):
     """
     Parse a value that might be a JSON array string, Python list, or fallback to empty list.
     Used by templates to safely parse field values for prepopulating Select2.
-    
+
     Args:
         value: Can be a JSON string like '["a","b"]', a Python list, or other formats
-        
+
     Returns:
         list: A list of string values
     """
     if not value:
         return []
-    
+
     # If already a list, return it
     if isinstance(value, list):
         return [str(v).strip() for v in value if v and str(v).strip()]
-    
+
     # If string, try to parse as JSON
     if isinstance(value, str):
         value = value.strip()
         if not value or value in ('[]', '""', 'null', 'None'):
             return []
-        
+
         if value.startswith('['):
             try:
                 parsed = json.loads(value)
@@ -51,15 +51,15 @@ def pidinst_parse_json_list(value):
                         return [str(v).strip() for v in parsed if v and str(v).strip()]
                 except (json.JSONDecodeError, ValueError):
                     pass
-        
+
         # Comma-separated fallback
         if ',' in value:
             return [v.strip() for v in value.split(',') if v.strip()]
-        
+
         # Single value
         if value.strip():
             return [value.strip()]
-    
+
     return []
 
 
@@ -527,6 +527,28 @@ def json_loads(value):
         return []
 
 
+_FACILITY_LABELS = {
+    'default label': 'Facility',
+    'default label plural': 'Facilities',
+    'create label': 'Add Facility',
+    'update label': 'Update Facility',
+    'breadcrumb': 'Facilities',
+    'main nav': 'Facilities',
+    'no label found': 'Facility',
+}
+
+
+def humanize_entity_type(entity_type, object_type, purpose):
+    """Override CKAN's core humanize_entity_type to return proper labels for
+    the 'facility' group type (avoiding the naive 'facilitys' pluralization).
+    Falls through to CKAN's own implementation for all other types."""
+    if object_type == 'facility':
+        return _FACILITY_LABELS.get(purpose, 'Facility')
+    # Let CKAN's built-in helper handle everything else
+    from ckan.lib.helpers import humanize_entity_type as _core
+    return _core(entity_type, object_type, purpose)
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -549,4 +571,5 @@ def get_helpers():
         "get_cover_photo_info": get_cover_photo_info,
         "pidinst_instrument_meta": pidinst_instrument_meta,
         "json_loads": json_loads,
+        "humanize_entity_type": humanize_entity_type,
     }

@@ -218,7 +218,7 @@ msgstr "organisation"
 
 #: ckan/lib/mailer.py:238 ckan/templates/home/snippets/stats.html:23
 msgid "group"
-msgstr "group"
+msgstr "facility"
 
 #: ckan/lib/navl/dictization_functions.py:18
 #: ckan/lib/navl/dictization_functions.py:21
@@ -307,7 +307,7 @@ msgstr "Instrument"
 #: ckan/views/group.py:1040
 #: ckanext/stats/templates/ckanext/stats/index.html:91
 msgid "Group"
-msgstr "Group"
+msgstr "Facility"
 
 #: ckan/logic/converters.py:206
 msgid "Could not parse as valid JSON"
@@ -359,7 +359,7 @@ msgstr "Resource"
 
 #: ckan/logic/validators.py:309
 msgid "That group name or ID does not exist."
-msgstr "That group name or ID does not exist."
+msgstr "That facility name or ID does not exist."
 
 #: ckan/logic/validators.py:332
 msgid "Names must be strings"
@@ -413,7 +413,7 @@ msgstr "Duplicate key \"%s\""
 
 #: ckan/logic/validators.py:429
 msgid "Group name already exists in database"
-msgstr "Group name already exists in database"
+msgstr "Facility name already exists in database"
 
 #: ckan/logic/validators.py:436
 #, python-format
@@ -610,7 +610,7 @@ msgstr "Instrument collaborators not enabled"
 
 #: ckan/logic/action/create.py:880
 msgid "Trying to create an organization as a group"
-msgstr "Trying to create an organisation as a group"
+msgstr "Trying to create an organisation as a facility"
 
 #: ckan/logic/action/create.py:1116
 msgid "Error sending the invite email, the user was not created: {0}"
@@ -644,7 +644,7 @@ msgstr "Organisation not found"
 #: ckan/views/group.py:960 ckan/views/group.py:984 ckan/views/group.py:1046
 #: ckan/views/group.py:1124 ckanext/activity/views.py:520
 msgid "Group not found"
-msgstr "Group not found"
+msgstr "Facility not found"
 
 #: ckan/logic/action/create.py:1364
 msgid "User {username} does not exist."
@@ -652,7 +652,7 @@ msgstr "User {username} does not exist."
 
 #: ckan/logic/action/create.py:1443 ckan/logic/action/create.py:1450
 msgid "You must be logged in to follow a group."
-msgstr "You must be logged in to follow a group."
+msgstr "You must be logged in to follow a facility."
 
 #: ckan/logic/action/delete.py:352 ckan/logic/action/get.py:235
 msgid "Package not found"
@@ -731,7 +731,7 @@ msgstr "User %s not authorised to create packages"
 #: ckan/logic/auth/create.py:36 ckan/logic/auth/update.py:57
 #, python-format
 msgid "User %s not authorized to edit these groups"
-msgstr "User %s not authorised to edit these groups"
+msgstr "User %s not authorised to edit these facilities"
 
 #: ckan/logic/auth/create.py:44
 #, python-format
@@ -760,7 +760,7 @@ msgstr "User %s not authorised to edit these packages"
 #: ckan/logic/auth/create.py:139
 #, python-format
 msgid "User %s not authorized to create groups"
-msgstr "User %s not authorised to create groups"
+msgstr "User %s not authorised to create facilities"
 
 #: ckan/logic/auth/create.py:150
 #, python-format
@@ -777,7 +777,7 @@ msgstr "Not authorised to create users"
 
 #: ckan/logic/auth/create.py:207
 msgid "Group was not found."
-msgstr "Group was not found."
+msgstr "Facility was not found."
 
 #: ckan/logic/auth/create.py:240
 #, python-format
@@ -787,7 +787,7 @@ msgstr "User %s not authorised to add members"
 #: ckan/logic/auth/create.py:268 ckan/logic/auth/update.py:136
 #, python-format
 msgid "User %s not authorized to edit group %s"
-msgstr "User %s not authorised to edit group %s"
+msgstr "User %s not authorised to edit facility %s"
 
 #: ckan/logic/auth/create.py:298
 #, python-format
@@ -811,12 +811,12 @@ msgstr "User %s not authorised to delete relationship %s"
 #: ckan/logic/auth/delete.py:87
 #, python-format
 msgid "User %s not authorized to delete groups"
-msgstr "User %s not authorised to delete groups"
+msgstr "User %s not authorised to delete facilities"
 
 #: ckan/logic/auth/delete.py:91
 #, python-format
 msgid "User %s not authorized to delete group %s"
-msgstr "User %s not authorised to delete group %s"
+msgstr "User %s not authorised to delete facility %s"
 
 #: ckan/logic/auth/delete.py:109
 #, python-format
@@ -855,7 +855,7 @@ msgstr "User %s not authorised to read resource %s"
 #: ckan/logic/auth/get.py:183
 #, python-format
 msgid "User %s not authorized to read group %s"
-msgstr "User %s not authorised to read group %s"
+msgstr "User %s not authorised to read facility %s"
 
 #: ckan/logic/auth/get.py:365
 #, python-format
@@ -885,12 +885,12 @@ msgstr "User %s not authorised to edit organisation %s"
 #: ckan/logic/auth/update.py:166
 #, python-format
 msgid "User %s not authorized to change state of group %s"
-msgstr "User %s not authorised to change state of group %s"
+msgstr "User %s not authorised to change state of facility %s"
 
 #: ckan/logic/auth/update.py:183
 #, python-format
 msgid "User %s not authorized to edit permissions of group %s"
-msgstr "User %s not authorised to edit permissions of group %s"
+msgstr "User %s not authorised to edit permissions of facility %s"
 
 #: ckan/logic/auth/update.py:211
 msgid "Have to be logged in to edit user"
@@ -1339,7 +1339,7 @@ msgstr "Organisations"
 #: ckan/templates/package/read_base.html:22 ckan/views/dataset.py:294
 #: ckan/views/group.py:303 ckan/views/home.py:69
 msgid "Groups"
-msgstr "Groups"
+msgstr "Facilities"
 
 #: ckan/templates/admin/config.html:26 ckan/templates/group/about.html:3
 #: ckan/templates/group/read_base.html:19 ckan/templates/header.html:107
@@ -1517,7 +1517,7 @@ msgstr ""
 #: ckan/templates/admin/trash.html:32
 msgid ""
 "Purge deleted datasets, organizations or groups forever and irreversibly."
-msgstr "Purge deleted instruments, organisations or groups forever and irreversibly"
+msgstr "Purge deleted instruments, organisations or facilities forever and irreversibly"
 
 #: ckan/templates/admin/snippets/confirm_delete.html:3
 #: ckan/templates/admin/snippets/confirm_delete.html:18
@@ -1546,7 +1546,7 @@ msgstr ""
 
 #: ckan/templates/admin/snippets/data_type.html:15
 msgid "Deleted groups"
-msgstr ""
+msgstr "Deleted facilities"
 
 #: ckan/templates/admin/snippets/data_type.html:51
 msgid "Purge"
@@ -1652,11 +1652,11 @@ msgstr "Administrators"
 
 #: ckan/templates/group/base_form_page.html:7
 msgid "Group Form"
-msgstr "Group Form"
+msgstr "Facility Form"
 
 #: ckan/templates/group/confirm_delete.html:11
 msgid "Are you sure you want to delete group - {name}?"
-msgstr "Are you sure you want to delete group - {name}?"
+msgstr "Are you sure you want to delete facility - {name}?"
 
 #: ckan/templates/group/confirm_delete_member.html:11
 #: ckan/templates/organization/confirm_delete_member.html:11
@@ -1676,7 +1676,7 @@ msgstr "Manage"
 
 #: ckan/templates/group/edit.html:12
 msgid "Edit Group"
-msgstr "Edit Group"
+msgstr "Edit Facility"
 
 #: ckan/templates/group/edit_base.html:14 ckan/templates/group/members.html:3
 #: ckan/templates/organization/edit_base.html:17
@@ -1701,11 +1701,11 @@ msgstr "Followers"
 #: ckan/templates/group/index.html:14
 #: ckan/templates/user/dashboard_groups.html:7
 msgid "Add Group"
-msgstr "Add Group"
+msgstr "Add Facility"
 
 #: ckan/templates/group/index.html:21
 msgid "Search groups..."
-msgstr "Search groups..."
+msgstr "Search facilities..."
 
 #: ckan/templates/group/index.html:21 ckan/templates/group/read.html:15
 #: ckan/templates/organization/bulk_process.html:29
@@ -1731,7 +1731,7 @@ msgstr "Name Descending"
 
 #: ckan/templates/group/index.html:30
 msgid "There are currently no groups for this site"
-msgstr "There are currently no groups for this site"
+msgstr "There are currently no facilities for this site"
 
 #: ckan/templates/group/index.html:32
 #: ckan/templates/organization/index.html:31
@@ -1835,21 +1835,21 @@ msgid ""
 "organization members.</p> <p><strong>Member:</strong> Can add/remove "
 "datasets from groups</p>"
 msgstr ""
-" <p><strong>Admin:</strong> Can edit group information, as well as manage "
+" <p><strong>Admin:</strong> Can edit facility information, as well as manage "
 "organisation members.</p> <p><strong>Member:</strong> Can add/remove "
-"instruments from groups</p> "
+"instruments from facilities</p> "
 
 #: ckan/templates/group/new.html:3
 msgid "Create a Group"
-msgstr "Create a Group"
+msgstr "Create a Facility"
 
 #: ckan/templates/group/new_group_form.html:17
 msgid "Update Group"
-msgstr "Update Group"
+msgstr "Update Facility"
 
 #: ckan/templates/group/new_group_form.html:19
 msgid "Create Group"
-msgstr "Create Group"
+msgstr "Create Facility"
 
 #: ckan/templates/group/read.html:14 ckan/templates/organization/read.html:20
 #: ckan/templates/package/search.html:29
@@ -1885,7 +1885,7 @@ msgstr "Name"
 
 #: ckan/templates/group/snippets/group_form.html:12
 msgid "My Group"
-msgstr "My Group"
+msgstr "My Facility"
 
 #: ckan/templates/group/snippets/group_form.html:22
 #: ckan/templates/organization/snippets/organization_form.html:22
@@ -1899,15 +1899,15 @@ msgstr "Description"
 
 #: ckan/templates/group/snippets/group_form.html:22
 msgid "A little information about my group..."
-msgstr "A little information about my group..."
+msgstr "A little information about my facility..."
 
 #: ckan/templates/group/snippets/group_form.html:40
 msgid "Are you sure you want to delete this Group?"
-msgstr "Are you sure you want to delete this Group?"
+msgstr "Are you sure you want to delete this Facility?"
 
 #: ckan/templates/group/snippets/group_form.html:43
 msgid "Save Group"
-msgstr "Save Group"
+msgstr "Save Facility"
 
 #: ckan/templates/group/snippets/group_item.html:32
 #: ckan/templates/organization/snippets/organization_item.html:31
@@ -1932,11 +1932,11 @@ msgstr "View {name}"
 
 #: ckan/templates/group/snippets/group_item.html:43
 msgid "Remove dataset from this group"
-msgstr "Remove instrument from this group"
+msgstr "Remove instrument from this facility"
 
 #: ckan/templates/group/snippets/helper.html:15
 msgid "What are Groups?"
-msgstr "What are Groups?"
+msgstr "What are Facilities?"
 
 #: ckan/templates/group/snippets/helper.html:19
 msgid ""
@@ -1945,7 +1945,7 @@ msgid ""
 "particular theme, or as a very simple way to help people find and search "
 "your own published datasets."
 msgstr ""
-" You can use CKAN Groups to create and manage organisations of instruments. This "
+" You can use CKAN Facilities to create and manage organisations of instruments. This "
 "could be to catalogue instruments for a particular project or team, or on a "
 "particular theme, or as a very simple way to help people find and search "
 "your own published instruments. "
@@ -2043,7 +2043,7 @@ msgstr "organisations"
 
 #: ckan/templates/home/snippets/stats.html:23
 msgid "groups"
-msgstr "groups"
+msgstr "facilities"
 
 #: ckan/templates/macros/form/checkbox.html:28
 #: ckan/templates/macros/form/input_block.html:25
@@ -2317,15 +2317,15 @@ msgstr "Update"
 
 #: ckan/templates/package/group_list.html:17
 msgid "Associate this group with this dataset"
-msgstr "Associate this group with this instrument"
+msgstr "Associate this facility with this instrument"
 
 #: ckan/templates/package/group_list.html:17
 msgid "Add to group"
-msgstr "Add to group"
+msgstr "Add to facility"
 
 #: ckan/templates/package/group_list.html:26
 msgid "There are no groups associated with this dataset"
-msgstr "There are no groups associated with this instrument"
+msgstr "There are no facilities associated with this instrument"
 
 #: ckan/templates/package/new_package_form.html:13
 msgid "Update Dataset"
@@ -3051,22 +3051,22 @@ msgstr "No instruments found"
 #: ckan/templates/snippets/search_result_text.html:21
 msgid "{number} group found for \"{query}\""
 msgid_plural "{number} groups found for \"{query}\""
-msgstr[0] "{number} group found for \"{query}\""
-msgstr[1] "{number} groups found for \"{query}\""
+msgstr[0] "{number} facility found for \"{query}\""
+msgstr[1] "{number} facilities found for \"{query}\""
 
 #: ckan/templates/snippets/search_result_text.html:22
 msgid "No groups found for \"{query}\""
-msgstr "No groups found for \"{query}\""
+msgstr "No facilities found for \"{query}\""
 
 #: ckan/templates/snippets/search_result_text.html:23
 msgid "{number} group found"
 msgid_plural "{number} groups found"
-msgstr[0] "{number} group found"
-msgstr[1] "{number} groups found"
+msgstr[0] "{number} facility found"
+msgstr[1] "{number} facilities found"
 
 #: ckan/templates/snippets/search_result_text.html:24
 msgid "No groups found"
-msgstr "No groups found"
+msgstr "No facilities found"
 
 #: ckan/templates/snippets/search_result_text.html:27
 msgid "{number} organization found for \"{query}\""
@@ -3131,7 +3131,7 @@ msgstr "My Organisations"
 #: ckan/templates/user/dashboard.html:27
 #: ckan/templates/user/dashboard_groups.html:12
 msgid "My Groups"
-msgstr "My Groups"
+msgstr "My Facilities"
 
 #: ckan/templates/user/dashboard_datasets.html:16
 #: ckan/templates/user/read.html:20
@@ -3147,7 +3147,7 @@ msgstr "Create one now?"
 
 #: ckan/templates/user/dashboard_groups.html:20
 msgid "You are not a member of any groups."
-msgstr "You are not a member of any groups."
+msgstr "You are not a member of any facilities."
 
 #: ckan/templates/user/dashboard_organizations.html:21
 msgid "You are not a member of any organizations."
@@ -3340,7 +3340,7 @@ msgstr "Why Sign Up?"
 
 #: ckan/templates/user/new.html:28
 msgid "Create datasets, groups and other exciting things"
-msgstr "Create instruments, groups and other exciting things"
+msgstr "Create instruments, facilities and other exciting things"
 
 #: ckan/templates/user/new_user_form.html:10
 msgid "username"
@@ -3480,7 +3480,7 @@ msgstr ""
 
 #: ckan/views/admin.py:159
 msgid "Are you sure you want to purge groups?"
-msgstr ""
+msgstr "Are you sure you want to purge facilities"
 
 #: ckan/views/admin.py:162
 msgid "{number} datasets have been purged"
@@ -3492,7 +3492,7 @@ msgstr "{number} organisations have been purged"
 
 #: ckan/views/admin.py:164
 msgid "{number} groups have been purged"
-msgstr ""
+msgstr "{number} facilities have been purged"
 
 #: ckan/views/admin.py:167
 msgid "There are no datasets to purge"
@@ -3504,7 +3504,7 @@ msgstr "There are no organisations to purge"
 
 #: ckan/views/admin.py:169
 msgid "There are no groups to purge"
-msgstr ""
+msgstr "There are no facilities to purge"
 
 #: ckan/views/admin.py:223
 msgid "Action not implemented."
@@ -3655,11 +3655,11 @@ msgstr ""
 #: ckan/views/group.py:552 ckan/views/group.py:566
 #, python-format
 msgid "Unauthorized to delete group %s members"
-msgstr "Unauthorised to delete group %s members"
+msgstr "Unauthorised to delete facility %s members"
 
 #: ckan/views/group.py:561
 msgid "Group member has been deleted."
-msgstr "Group member has been deleted."
+msgstr "Facility member has been deleted."
 
 #: ckan/views/group.py:649 ckan/views/user.py:869
 #, python-format
@@ -3684,12 +3684,12 @@ msgstr "Not authorised to perform bulk update"
 
 #: ckan/views/group.py:838 ckan/views/group.py:933
 msgid "Unauthorized to create a group"
-msgstr "Unauthorised to create a group"
+msgstr "Unauthorised to create a facility"
 
 #: ckan/views/group.py:1026 ckan/views/group.py:1044
 #, python-format
 msgid "Unauthorized to delete group %s"
-msgstr "Unauthorised to delete group %s"
+msgstr "Unauthorised to delete facility %s"
 
 #: ckan/views/group.py:1042
 #, python-format
@@ -3703,12 +3703,12 @@ msgstr ""
 #: ckan/views/group.py:1085
 #, python-format
 msgid "Unauthorized to create group %s members"
-msgstr ""
+msgstr "Unauthorized to create facility %s members"
 
 #: ckan/views/group.py:1122
 #, python-format
 msgid "Unauthorized to add member to group %s"
-msgstr "Unauthorised to add member to group %s"
+msgstr "Unauthorised to add member to facility %s"
 
 #: ckan/views/home.py:84
 #, python-format
@@ -4058,7 +4058,7 @@ msgstr "{actor} added the Keywords {tag} to the instrument {dataset}"
 
 #: ckanext/activity/templates/snippets/activities/changed_group.html:6
 msgid "{actor} updated the group {group}"
-msgstr "{actor} updated the group {group}"
+msgstr "{actor} updated the facility {group}"
 
 #: ckanext/activity/templates/snippets/activities/changed_organization.html:6
 msgid "{actor} updated the organization {organization}"
@@ -4083,7 +4083,7 @@ msgstr "{actor} updated their profile"
 
 #: ckanext/activity/templates/snippets/activities/deleted_group.html:6
 msgid "{actor} deleted the group {group}"
-msgstr "{actor} deleted the group {group}"
+msgstr "{actor} deleted the facility {group}"
 
 #: ckanext/activity/templates/snippets/activities/deleted_organization.html:6
 msgid "{actor} deleted the organization {organization}"
@@ -4115,7 +4115,7 @@ msgstr "{actor} started following {user}"
 
 #: ckanext/activity/templates/snippets/activities/new_group.html:6
 msgid "{actor} created the group {group}"
-msgstr "{actor} created the group {group}"
+msgstr "{actor} created the facility {group}"
 
 #: ckanext/activity/templates/snippets/activities/new_organization.html:6
 msgid "{actor} created the organization {organization}"
@@ -4920,7 +4920,7 @@ msgstr ""
 #: ckanext/example_theme_docs/v10_custom_snippet/templates/snippets/example_theme_most_popular_groups.html:20
 #: ckanext/example_theme_docs/v11_HTML_and_CSS/templates/snippets/example_theme_most_popular_groups.html:19
 msgid "This group has no description"
-msgstr "This group has no description"
+msgstr "This facility has no description"
 
 #: ckanext/example_theme_docs/v12_extra_public_dir/templates/home/snippets/promoted.html:4
 msgid "CKAN's data previewing tool has many powerful features"
@@ -5030,7 +5030,7 @@ msgstr "Graph type"
 
 #: ckanext/reclineview/theme/templates/recline_graph_form.html:7
 msgid "Group (Axis 1)"
-msgstr "Group (Axis 1)"
+msgstr "Facility (Axis 1)"
 
 #: ckanext/reclineview/theme/templates/recline_graph_form.html:8
 msgid "Series (Axis 2)"
@@ -5106,7 +5106,7 @@ msgstr "No edited instruments"
 #: ckanext/stats/templates/ckanext/stats/index.html:86
 #: ckanext/stats/templates/ckanext/stats/index.html:167
 msgid "Largest Groups"
-msgstr "Largest Groups"
+msgstr "Largest Facilities"
 
 #: ckanext/stats/templates/ckanext/stats/index.html:92
 msgid "Number of datasets"
@@ -5114,7 +5114,7 @@ msgstr "Number of instruments"
 
 #: ckanext/stats/templates/ckanext/stats/index.html:109
 msgid "No groups"
-msgstr "No groups"
+msgstr "No facilities"
 
 #: ckanext/stats/templates/ckanext/stats/index.html:114
 #: ckanext/stats/templates/ckanext/stats/index.html:168

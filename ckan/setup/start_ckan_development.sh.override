@@ -92,7 +92,7 @@ ckan config-tool $SRC_DIR/ckan/test-core.ini \
 
 ### AUTH Settings ###
 if echo "$CKAN__PLUGINS" | grep -q "pidinst_theme"; then
-    ckan config-tool $CKAN_INI "ckan.auth.user_create_groups = false"
+    ckan config-tool $CKAN_INI "ckan.auth.user_create_groups = true"
     ckan config-tool $CKAN_INI "ckan.auth.user_create_organizations = false"
     ckan config-tool $CKAN_INI "ckan.dataset.create.require.resource=false"
     ckan config-tool $CKAN_INI "ckan.dataset.create_on_ui_requires_resources=false"
@@ -132,7 +132,8 @@ fi
 ckan config-tool "$CKAN_INI" -s DEFAULT \
   "scheming.presets=ckanext.scheming:presets.json ckanext.repeating:presets.json ckanext.composite:presets.json" \
   "scheming.dataset_schemas=${CKAN___SCHEMING__DATASET_SCHEMAS:-ckanext.pidinst_theme:instrument_schema.yaml}" \
-  "scheming.organization_schemas=${CKAN___SCHEMING__ORGANIZATION_SCHEMAS:-ckanext.pidinst_theme:instrument_organization_schema.yaml}"
+  "scheming.organization_schemas=${CKAN___SCHEMING__ORGANIZATION_SCHEMAS:-ckanext.pidinst_theme:instrument_organization_schema.yaml}" \
+  "scheming.group_schemas=${CKAN___SCHEMING__GROUP_SCHEMAS:-ckanext.pidinst_theme:facility_schema.yaml}"
 
 
 # DOI config

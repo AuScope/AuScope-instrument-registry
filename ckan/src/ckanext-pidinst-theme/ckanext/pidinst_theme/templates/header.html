@@ -1,5 +1,6 @@
-{% ckan_extends %} {% block header_account_notlogged %}
+{% ckan_extends %}
 
+{% block header_account_notlogged %}
 <li>{% link_for _('Log in'), named_route='user.login' %}</li>
 
 <li>
@@ -10,7 +11,7 @@
   </a>
 </li>
 
-{% if h.check_access('user_create') %} {% endif %}
+{% if h.check_access('user_create') %}{% endif %}
 
 <div
   class="modal fade"
@@ -30,15 +31,14 @@
         <a
           href="mailto:admin@data.auscope.org.au?subject=AuScope%20Instrument%20Repository%20-%20Request%20Account"
           class="btn btn-primary"
-          >Contact Us</a
-        >
+        >Contact Us</a>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
 
-{% endblock %} {% block header_site_navigation_tabs %} {% set org_type =
-h.default_group_type('organization')%} {% set group_type = h.default_group_type('group') %}
+{% block header_site_navigation_tabs %}
 <ul class="nav nav-pills">
   <li class="{{ 'active' if request.path.startswith('/instruments') else '' }}">
     <a href="{{ h.url_for('pidinst_theme.instruments_search') }}">{{ _('Instruments') }}</a>
@@ -46,12 +46,17 @@ h.default_group_type('organization')%} {% set group_type = h.default_group_type(
   <li class="{{ 'active' if request.path.startswith('/platforms') else '' }}">
     <a href="{{ h.url_for('pidinst_theme.platforms_search') }}">{{ _('Platforms') }}</a>
   </li>
-  {{ h.build_nav_main(
-    (org_type ~ '.index', h.humanize_entity_type('organization', org_type, 'main nav') or _('Organisations'), ['organization']),
-    ('home.about', _('About'))
-  ) }}
+
+  <li class="{{ 'active' if request.path.startswith('/facility') else '' }}">
+    <a href="/facility">{{ _('Facilities') }}</a>
+  </li>
+  <li class="{{ 'active' if request.path == '/about' else '' }}">
+    <a href="{{ h.url_for('home.about') }}">{{ _('About') }}</a>
+  </li>
 </ul>
-{% endblock %} {% block header_logo %}
+{% endblock %}
+
+{% block header_logo %}
 <a class="logo" href="{{ h.url_for('home.index') }}">
   <img
     src="{{ h.url_for_static_or_external('/base/images/AuScope Logo Icon.png') }}"
@@ -62,3 +67,6 @@ h.default_group_type('organization')%} {% set group_type = h.default_group_type(
   <span class="logo-text">AuScope Instrument Registry </span>
 </a>
 {% endblock %}
+
+
+{# (org_type ~ '.index', h.humanize_entity_type('organization', org_type, 'main nav') or _('Organisations'), ['organization']), #}

@@ -1,0 +1,50 @@
+group_type: facility
+about: Facility groups used to represent instrument facilities
+fields:
+  - field_name: title
+    label: Facility Name
+    form_placeholder: e.g. AuScope Passive Seismic Laboratory
+    required: true
+
+  - field_name: name
+    label: URL
+    form_placeholder: e.g. auscope-passive-seismic-laboratory
+    required: true
+    validators: not_empty group_name_validator unicode_safe
+
+  - field_name: facility_identifier
+    label: Facility Identifier
+    help_text: Stable external identifier, e.g. a ROR identifier
+
+  - field_name: facility_identifier_type
+    label: Facility Identifier Type
+    preset: select
+    choices:
+      - value: ROR
+        label: ROR
+      - value: GRID
+        label: GRID
+      - value: DOI
+        label: DOI
+      - value: local
+        label: Local
+      - value: URL
+        label: URL
+
+  - field_name: facility_contact
+    label: Contact
+
+  - field_name: website
+    label: Website
+    validators: ignore_missing url_validator
+
+  - field_name: state
+    label: State
+
+  - field_name: short_description
+    label: Short Description
+    form_snippet: markdown.html
+
+  - field_name: aliases
+    label: Aliases
+    help_text: Optional alternate names for this facility
