@@ -663,12 +663,16 @@ def json_list_output(value, context):
     return []
 
 
+visibility_validator = owner_org_validator
+
+
 def get_validators():
     return {
         "pidinst_theme_required": pidinst_theme_required,
         "location_validator": location_validator,
         "composite_repeating_validator": composite_repeating_validator,
         "owner_org_validator": owner_org_validator,
+        "visibility_validator": visibility_validator,
         "parent_validator" : parent_validator,
         "group_name_validator" : group_name_validator,
         "resource_url_validator": resource_url_validator,
