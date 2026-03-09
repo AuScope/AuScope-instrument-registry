@@ -79,12 +79,87 @@ dataset_fields:
     form_snippet: org_visibility.html
     groupBy: About Instrument
 
+  # ======================== OWNER (ROR) ========================
+  # ROR-backed owner selection — preferred when the organisation exists in ROR.
+  # The manual PIDINST Owner block above remains the fallback.
+
+  - field_name: owner_ror_lookup
+    label: Owner (ROR)
+    form_snippet: ror_owner_field.html
+    display_snippet: ror_owner_display.html
+    help_text: "Search the Research Organization Registry (ROR) for the most specific organisational unit that owns this instrument. Australian education, government, and facility organisations only."
+    groupBy: About Instrument
+
+  - field_name: owner_ror_id
+    label: Owner ROR ID
+    form_snippet: hidden_field.html
+    display_snippet: null
+    validators: ignore_missing unicode_safe
+    groupBy: About Instrument
+
+  - field_name: owner_ror_name
+    label: Owner ROR Name
+    form_snippet: hidden_field.html
+    display_snippet: null
+    validators: ignore_missing unicode_safe
+    groupBy: About Instrument
+
+  - field_name: owner_ror_types
+    label: Owner ROR Types
+    form_snippet: hidden_field.html
+    display_snippet: null
+    validators: ignore_missing unicode_safe
+    groupBy: About Instrument
+
+  - field_name: owner_ror_country
+    label: Owner ROR Country
+    form_snippet: hidden_field.html
+    display_snippet: null
+    validators: ignore_missing unicode_safe
+    groupBy: About Instrument
+
+  - field_name: owner_ror_state
+    label: Owner ROR State
+    form_snippet: hidden_field.html
+    display_snippet: null
+    validators: ignore_missing unicode_safe
+    groupBy: About Instrument
+
+  - field_name: owner_ror_website
+    label: Owner ROR Website
+    form_snippet: hidden_field.html
+    display_snippet: null
+    validators: ignore_missing unicode_safe
+    groupBy: About Instrument
+
+  - field_name: owner_ror_parents_json
+    label: Owner ROR Parents JSON
+    form_snippet: hidden_field.html
+    display_snippet: null
+    validators: ignore_missing unicode_safe
+    help_text: "JSON array of parent organisations resolved from ROR hierarchy."
+    groupBy: About Instrument
+
+  - field_name: owner_ror_hierarchy_display
+    label: Owner ROR Hierarchy
+    form_snippet: hidden_field.html
+    display_snippet: null
+    validators: ignore_missing unicode_safe
+    help_text: "Human-readable hierarchy string, e.g. Curtin University > Faculty of Engineering > WA School of Mines"
+    groupBy: About Instrument
+
+  - field_name: owner_ror_contact
+    label: Owner Contact (ROR)
+    form_snippet: null
+    help_text: "Required when an Owner (ROR) is selected. ROR does not provide contact information, so this must be entered manually."
+    validators: ignore_missing unicode_safe strip_value email_validator
+    groupBy: About Instrument
+
   - field_name: owner
     label: Owners
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html
-    required: true
     groupBy: About Instrument
     composite_rules:
       - when_present: owner_identifier
@@ -124,6 +199,8 @@ dataset_fields:
           - value: Sponsor
             label: Sponsor
         help_text: The type of the date
+
+
 
   - field_name: instrument_type_gcmd_code
     label: Instrument Type (GCMD)

@@ -256,6 +256,177 @@ def fetch_gcmd():
 
 
 ALLOWED_FIELD_TERMS = {'user_keywords', 'measured_variable'}
+
+
+# ---------------------------------------------------------------------------
+# ROR (Research Organization Registry) proxy – Owner (ROR) feature
+# ---------------------------------------------------------------------------
+
+# Only return Australian organisations with these types.
+ROR_ALLOWED_TYPES = {'education', 'government', 'facility'}
+ROR_API_BASE = 'https://api.ror.org/v2/organizations'
+
+
+@pidinst_theme.route('/api/proxy/ror_search', methods=['GET'])
+def ror_search():
+    """Search the ROR API and return simplified results for Select2.
+
+    Query params:
+        q       – search term (required, min 2 chars)
+
+    The endpoint filters to Australian orgs of type education / government /
+    facility.  It also resolves the parent hierarchy for each result so the
+    frontend can cache it.
+    """
+    query_term = request.args.get('q', '').strip()
+    if len(query_term) < 2:
+        return jsonify({'results': []})
+
+    try:
+        # ROR v2 API: filter by country code AU and allowed types
+        # The types filter uses pipe-delimited values for OR logic
+        type_filter = ','.join(f'types:{t}' for t in sorted(ROR_ALLOWED_TYPES))
+        params = {
+            'query': query_term,
+            'filter': f'country.country_code:AU,{type_filter}',
+            'page': 1,
+        }
+        resp = requests.get(ROR_API_BASE, params=params, timeout=10)
+        if not resp.ok:
+            log.error('ROR search failed: %s %s', resp.status_code, resp.text[:200])
+            return jsonify({'results': [], 'error': 'ROR API error'}), 502
+
+        data = resp.json()
+        items = data.get('items', [])
+
+        results = []
+        for item in items:
+            ror_id = item.get('id', '')
+            names = item.get('names', [])
+            # Prefer ror_display name, then the first name entry
+            display_name = ''
+            for n in names:
+                if 'ror_display' in n.get('types', []):
+                    display_name = n.get('value', '')
+                    break
+            if not display_name and names:
+                display_name = names[0].get('value', '')
+
+            # Extract types
+            org_types = [t.lower() for t in item.get('types', [])]
+
+            # Extract location info
+            locations = item.get('locations', [])
+            country = ''
+            state = ''
+            if locations:
+                geonames = locations[0].get('geonames_details', {})
+                country = geonames.get('country_name', '')
+                state = geonames.get('name', '')
+
+            # Extract first link as website
+            links = item.get('links', [])
+            website = links[0] if links else ''
+
+            # Resolve parent hierarchy
+            hierarchy_display, parents_json = _resolve_ror_hierarchy(item)
+
+            results.append({
+                'id': ror_id,
+                'text': display_name,
+                'ror_id': ror_id,
+                'name': display_name,
+                'types': ', '.join(org_types),
+                'country': country,
+                'state': state,
+                'website': website,
+                'parents_json': parents_json,
+                'hierarchy_display': hierarchy_display,
+            })
+
+        return jsonify({'results': results})
+
+    except requests.exceptions.RequestException as e:
+        log.error('ROR search request error: %s', e)
+        return jsonify({'results': [], 'error': 'ROR service unavailable'}), 503
+    except Exception as e:
+        log.error('ROR search unexpected error: %s', e)
+        return jsonify({'results': [], 'error': 'Internal error'}), 500
+
+
+def _resolve_ror_hierarchy(item):
+    """Resolve the parent hierarchy for a ROR organisation record.
+
+    Walks the ``relationships`` array (type = "parent") upward, fetching each
+    parent from the ROR API, until there are no more parents.
+
+    Returns:
+        (hierarchy_display, parents_json)
+            hierarchy_display: str  – e.g. "Curtin University > Faculty of ..."
+            parents_json: str       – JSON array of parent dicts
+    """
+    # Collect parent chain
+    parents = []
+    visited = set()
+
+    def _get_ror_name(ror_item):
+        """Extract display name from a ROR v2 item."""
+        for n in ror_item.get('names', []):
+            if 'ror_display' in n.get('types', []):
+                return n.get('value', '')
+        names = ror_item.get('names', [])
+        return names[0].get('value', '') if names else ''
+
+    current = item
+    selected_name = _get_ror_name(current)
+
+    # Walk up to 10 levels to avoid infinite loops
+    for _ in range(10):
+        rels = current.get('relationships', [])
+        parent_rel = None
+        for rel in rels:
+            if rel.get('type', '').lower() == 'parent':
+                parent_rel = rel
+                break
+
+        if not parent_rel:
+            break
+
+        parent_id = parent_rel.get('id', '')
+        if not parent_id or parent_id in visited:
+            break
+        visited.add(parent_id)
+
+        # Fetch the parent record from ROR
+        try:
+            resp = requests.get(f'{ROR_API_BASE}/{parent_id}', timeout=10)
+            if not resp.ok:
+                log.warning('Could not fetch ROR parent %s: %s', parent_id, resp.status_code)
+                # Best-effort: use the label from the relationship
+                parent_name = parent_rel.get('label', parent_id)
+                parents.append({'id': parent_id, 'name': parent_name})
+                break
+
+            parent_data = resp.json()
+            parent_name = _get_ror_name(parent_data)
+            parents.append({'id': parent_id, 'name': parent_name})
+            current = parent_data
+        except requests.exceptions.RequestException as e:
+            log.warning('ROR parent resolution failed for %s: %s', parent_id, e)
+            parent_name = parent_rel.get('label', parent_id)
+            parents.append({'id': parent_id, 'name': parent_name})
+            break
+
+    # parents is ordered child->root; reverse for display root->child
+    parents.reverse()
+
+    # Build hierarchy display string: root > ... > selected
+    hierarchy_parts = [p['name'] for p in parents] + [selected_name]
+    hierarchy_display = ' > '.join(hierarchy_parts)
+
+    parents_json = json.dumps(parents)
+
+    return hierarchy_display, parents_json
 # Mapping for nested fields: subfield_name -> parent_field_name
 NESTED_FIELD_TERMS = {'instrument_type_name': 'instrument_type'}
 

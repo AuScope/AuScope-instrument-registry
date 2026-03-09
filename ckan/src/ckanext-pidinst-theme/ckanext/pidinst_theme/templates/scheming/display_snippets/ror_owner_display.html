@@ -1,0 +1,38 @@
+{#
+  Display snippet for Owner (ROR) — shows the hierarchy, link, and contact
+  on the dataset read page.
+#}
+
+{% set ror_id = data.get('owner_ror_id', '') %}
+{% set ror_name = data.get('owner_ror_name', '') %}
+{% set hierarchy = data.get('owner_ror_hierarchy_display', '') %}
+{% set website = data.get('owner_ror_website', '') %}
+{% set contact = data.get('owner_ror_contact', '') %}
+
+{% if ror_id %}
+<div class="ror-owner-display">
+  {% if hierarchy %}
+    <p><i class="fa fa-sitemap"></i> {{ hierarchy }}</p>
+  {% else %}
+    <p>{{ ror_name }}</p>
+  {% endif %}
+
+  <p>
+    <a href="{{ ror_id }}" target="_blank" rel="noopener noreferrer" title="View in ROR">
+      <i class="fa fa-external-link"></i> {{ ror_id }}
+    </a>
+  </p>
+
+  {% if website %}
+    <p>
+      <a href="{{ website }}" target="_blank" rel="noopener noreferrer">
+        <i class="fa fa-globe"></i> {{ website }}
+      </a>
+    </p>
+  {% endif %}
+
+  {% if contact %}
+    <p><i class="fa fa-envelope"></i> {{ contact }}</p>
+  {% endif %}
+</div>
+{% endif %}
