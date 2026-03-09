@@ -82,82 +82,84 @@ dataset_fields:
 
   # ======================== OWNER (ROR) ========================
   # ROR-backed owner selection — preferred when the organisation exists in ROR.
-  # The manual PIDINST Owner block above remains the fallback.
+  # The manual PIDINST Owner block below remains the fallback.
+  # Supports multiple owners via composite_repeating.
+  # Contact is required (enforced by composite_rules) when an ROR org is selected.
 
-  - field_name: owner_ror_lookup
+  - field_name: owner_ror
     label: Owner (ROR)
-    form_snippet: ror_owner_field.html
-    display_snippet: ror_owner_display.html
-    help_text: "Search the Research Organization Registry (ROR) for the most specific organisational unit that owns this instrument. Australian education, government, and facility organisations only."
+    preset: composite_repeating
+    validators: composite_repeating_validator
+    form_snippet: composite_repeating_field.html
+    form_blanks: 0
     groupBy: About Instrument
+    composite_rules:
+      - when_present: owner_ror_id
+        require: [owner_ror_contact]
+    help_text: "Search the Research Organization Registry (ROR) for Australian owners (education, government, facility). You may add multiple owners. Each selected owner requires a contact email."
+    subfields:
+      - field_name: owner_ror_lookup
+        label: Facility
+        form_snippet: ror_owner_subfield.html
+        display_snippet: null
 
-  - field_name: owner_ror_id
-    label: Owner ROR ID
-    form_snippet: hidden_field.html
-    display_snippet: null
-    validators: ignore_missing unicode_safe
-    groupBy: About Instrument
+      - field_name: owner_ror_id
+        label: ROR ID
+        form_snippet: composite_hidden_field.html
+        display_snippet: URL
+        validators: ignore_missing unicode_safe
 
-  - field_name: owner_ror_name
-    label: Owner ROR Name
-    form_snippet: hidden_field.html
-    display_snippet: null
-    validators: ignore_missing unicode_safe
-    groupBy: About Instrument
+      - field_name: owner_ror_name
+        label: Name
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
 
-  - field_name: owner_ror_types
-    label: Owner ROR Types
-    form_snippet: hidden_field.html
-    display_snippet: null
-    validators: ignore_missing unicode_safe
-    groupBy: About Instrument
+      - field_name: owner_ror_hierarchy_display
+        label: Hierarchy
+        form_snippet: composite_hidden_field.html
+        validators: ignore_missing unicode_safe
 
-  - field_name: owner_ror_country
-    label: Owner ROR Country
-    form_snippet: hidden_field.html
-    display_snippet: null
-    validators: ignore_missing unicode_safe
-    groupBy: About Instrument
+      - field_name: owner_ror_types
+        label: Types
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
 
-  - field_name: owner_ror_state
-    label: Owner ROR State
-    form_snippet: hidden_field.html
-    display_snippet: null
-    validators: ignore_missing unicode_safe
-    groupBy: About Instrument
+      - field_name: owner_ror_country
+        label: Country
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
 
-  - field_name: owner_ror_website
-    label: Owner ROR Website
-    form_snippet: hidden_field.html
-    display_snippet: null
-    validators: ignore_missing unicode_safe
-    groupBy: About Instrument
+      - field_name: owner_ror_state
+        label: State
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
 
-  - field_name: owner_ror_parents_json
-    label: Owner ROR Parents JSON
-    form_snippet: hidden_field.html
-    display_snippet: null
-    validators: ignore_missing unicode_safe
-    help_text: "JSON array of parent organisations resolved from ROR hierarchy."
-    groupBy: About Instrument
+      - field_name: owner_ror_website
+        label: Website
+        form_snippet: composite_hidden_field.html
+        display_snippet: URL
+        validators: ignore_missing unicode_safe
 
-  - field_name: owner_ror_hierarchy_display
-    label: Owner ROR Hierarchy
-    form_snippet: hidden_field.html
-    display_snippet: null
-    validators: ignore_missing unicode_safe
-    help_text: "Human-readable hierarchy string, e.g. Curtin University > Faculty of Engineering > WA School of Mines"
-    groupBy: About Instrument
+      - field_name: owner_ror_parents_json
+        label: Parents JSON
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
 
-  - field_name: owner_ror_contact
-    label: Owner Contact (ROR)
-    form_snippet: null
-    help_text: "Required when an Owner (ROR) is selected. ROR does not provide contact information, so this must be entered manually."
-    validators: ignore_missing unicode_safe strip_value email_validator
-    groupBy: About Instrument
+      - field_name: owner_ror_contact
+        label: Owner Contact
+        form_attrs:
+          type: email
+          placeholder: contact@example.edu.au
+        help_text: "Contact email for this owner. Required when a facility is selected."
+        validators: ignore_missing unicode_safe strip_value email_validator
 
   - field_name: owner
-    label: Owners
+    label: Owners (Custom)
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html
@@ -188,18 +190,18 @@ dataset_fields:
         label: Owner Identifier Type
         help_text: "Type of the identifier"
 
-      - field_name: owner_relationship_type
-        label: Owner Relationship Type
-        preset: select
-        required: true
-        choices:
-          - value: HostingInstitution
-            label: HostingInstitution
-          - value: DataCollector
-            label: DataCollector
-          - value: Sponsor
-            label: Sponsor
-        help_text: The type of the date
+      # - field_name: owner_relationship_type
+      #   label: Owner Relationship Type
+      #   preset: select
+      #   required: true
+      #   choices:
+      #     - value: HostingInstitution
+      #       label: HostingInstitution
+      #     - value: DataCollector
+      #       label: DataCollector
+      #     - value: Sponsor
+      #       label: Sponsor
+      #   help_text: The type of the date
 
 
 
@@ -240,7 +242,7 @@ dataset_fields:
     help_text: "Type of the identifier"
 
   - field_name: instrument_type
-    label: Instrument Type (Custome)
+    label: Instrument Type (Custom)
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html

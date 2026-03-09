@@ -19,7 +19,7 @@
   --bs-gray-500: #adb5bd;
   --bs-font-sans-serif: "Calibre-light", "Inter", "Segoe UI", Roboto, Arial, sans-serif;
   --bs-font-serif: 'Karmina', Georgia, serif;
-  
+
   --bs-font-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --bs-body-font-family: var(--bs-font-sans-serif);
   --bs-body-font-size: 1.063rem;
@@ -47,12 +47,12 @@
     font-weight: normal;
     font-style: normal;
     font-display: swap; /* key */
-} 
+}
 
-.homepage .hero, 
-.homepage .module-feeds, 
-.main, 
-.media-grid, 
+.homepage .hero,
+.homepage .module-feeds,
+.main,
+.media-grid,
 .module-grid {
     background: none;
     background-color: var(--color-background-default);
@@ -81,7 +81,7 @@ h6, .h6,
 }
 
 /* =====================================================
-   Typography styles for headers   
+   Typography styles for headers
 ===================================================== */
 
 
@@ -329,7 +329,7 @@ hr {
 }
 .account-masthead .account ul li a:hover {
   background-color: var(--color-aus-royal-blue);
-  color: var( --bs-white); 
+  color: var( --bs-white);
 }
 
 /* ========================================================================
@@ -374,18 +374,18 @@ hr {
 }
 
 .masthead .main-navbar .dropdown .dropdown-menu  li a {
-    font-size: 1rem;  
+    font-size: 1rem;
     color: var(--color-aus-black);
     display: block;
-    width: 100%; 
+    width: 100%;
     background-color: transparent;
-} 
+}
 
 .masthead .main-navbar .dropdown .dropdown-menu  li:hover a,
 .masthead .main-navbar .dropdown .dropdown-menu  li:focus a,
 .masthead .main-navbar .dropdown .dropdown-menu  li.active a ,
 .masthead .main-navbar .dropdown .dropdown-menu  li a:active {
-  color: var( --bs-white); 
+  color: var( --bs-white);
   background-color: var(--color-aus-royal-blue);
 }
 .masthead .main-navbar .dropdown .dropdown-menu {
@@ -400,13 +400,13 @@ hr {
 }
 
 .logo {
-    text-align: center; 
+    text-align: center;
 }
 
 .logo img,
 .logo .logo-text {
     display: inline-block;
-    vertical-align:middle; 
+    vertical-align:middle;
 }
 
 /* ===========================================
@@ -496,7 +496,7 @@ body {
 }
 
 .social-media-link i {
-    font-size: 1.25em; 
+    font-size: 1.25em;
 }
 
 .site-footer *, .site-footer *::before, .site-footer *::after {
@@ -504,7 +504,7 @@ body {
 }
 
 .site-footer .col-md-4 {
-  margin-top: 40px ;  
+  margin-top: 40px ;
   margin-bottom: 40px ;
 }
 
@@ -533,7 +533,7 @@ body {
 
 
 .btn{
-  font-weight: normal; 
+  font-weight: normal;
 }
 .btn-primary {
     color: var(--bs-white);
@@ -576,7 +576,7 @@ body {
   padding: 10px;
   opacity: 0;
   transition: opacity 0.3s;
-  pointer-events: none; 
+  pointer-events: none;
   z-index: 10;
 }
 
@@ -585,7 +585,7 @@ body {
 }
 
 .stages li::before {
-  z-index: 2; 
+  z-index: 2;
   position: relative;
 }
 
@@ -616,11 +616,11 @@ body {
 }
 
 .composite-content {
-    display: none; 
+    display: none;
 }
 
 .composite-content.active {
-    display: block; 
+    display: block;
 }
 
 .composite-panel-header {
@@ -638,9 +638,9 @@ body {
 }
 
 .composite-content {
-    display: none; 
+    display: none;
     border: 1px solid var(--bs-gray-500);
-    border-top: none; 
+    border-top: none;
     border-bottom-left-radius: 4px;
     border-bottom-right-radius: 4px;
     padding: 10px;
@@ -648,7 +648,7 @@ body {
 }
 
 .composite-content.active {
-    display: block; 
+    display: block;
 }
 .collapse-button {
     cursor: pointer;
@@ -673,38 +673,60 @@ body {
     box-sizing: border-box;
 }
 
+/* ROR Owner field: place delete button inline with Select2 */
+.ror-owner-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+}
+.ror-owner-input-wrap {
+    flex: 1 1 0;
+    min-width: 200px;
+}
+.ror-owner-controls .select2-container {
+    width: 100% !important;
+}
+.ror-owner-controls > .composite-btn {
+    flex: 0 0 auto;
+    margin-top: 2px;
+}
+.ror-hierarchy-preview {
+    flex-basis: 100%;
+}
+
 
 
 .card {
-    border: 1px solid var(--bs-gray-400); 
+    border: 1px solid var(--bs-gray-400);
     margin-bottom: 1rem; /* Space between cards */
-    box-shadow: 0 2px 6px var(--bs-gray-400); 
+    box-shadow: 0 2px 6px var(--bs-gray-400);
 }
 
 .card-header {
     background-color: var(--bs-gray-300);
-    color: var(--color-aus-royal-blue); 
-    cursor: pointer; 
-    border-bottom: none; 
+    color: var(--color-aus-royal-blue);
+    cursor: pointer;
+    border-bottom: none;
 }
 
 .card-header h4 {
-    margin-bottom: 0; 
+    margin-bottom: 0;
 }
 
 .card-header .btn-link {
-    color: var(--color-aus-royal-blue); 
-    text-decoration: none; 
+    color: var(--color-aus-royal-blue);
+    text-decoration: none;
     background-color: transparent;
-    padding-left: 0; 
+    padding-left: 0;
     font-weight: bold;
     width: 100%;
     text-align: left;
 }
 
 .card-header .btn-link:hover, .card-header .btn-link:focus {
-    text-decoration: none; 
-    color: var(--color-aus-royal-blue-bright); 
+    text-decoration: none;
+    color: var(--color-aus-royal-blue-bright);
 }
 
 .card-header  .btn-link:focus {
@@ -715,9 +737,9 @@ body {
 
 
 .card-body {
-    padding: 1.25rem; 
+    padding: 1.25rem;
     background-color: #f8f9fa;
-    transition: all 0.3s ease; 
+    transition: all 0.3s ease;
 }
 
 
@@ -727,10 +749,10 @@ body {
   font-size: 0.875rem;
   line-height: 1.3;
   background-color: var(--bs-body-bg);
-  border-top: none; 
+  border-top: none;
   border-bottom: none;
   padding-left: 15px;
-  padding-right: 15px;  
+  padding-right: 15px;
 }
 
 .form-group.mediunput.composite-select.control-select .controls select:first-of-type {
@@ -770,7 +792,7 @@ body {
 .schema-table td {
     text-align: left;
     padding: 12px 15px;
-    border-bottom: 1px solid #ddd; 
+    border-bottom: 1px solid #ddd;
 }
 
 .schema-table thead {
@@ -830,9 +852,9 @@ body {
 }
 
 .nav-resource .nav-format-label .format-label {
-  width: 30px; 
-  height: 32.5px; 
-  margin: -14px 0 0 -14px; 
+  width: 30px;
+  height: 32.5px;
+  margin: -14px 0 0 -14px;
   font: normal;
 }
 
@@ -843,7 +865,7 @@ body {
 }
 
 .citation-guide a {
-  color: #0563C1; 
+  color: #0563C1;
 }
 
 .select2-search-choice-close{

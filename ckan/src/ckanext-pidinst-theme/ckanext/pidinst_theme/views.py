@@ -324,9 +324,16 @@ def ror_search():
                 country = geonames.get('country_name', '')
                 state = geonames.get('name', '')
 
-            # Extract first link as website
+            # Extract website link – ROR v2 links are {type, value} dicts
             links = item.get('links', [])
-            website = links[0] if links else ''
+            website = ''
+            for link in links:
+                if isinstance(link, dict) and link.get('type') == 'website':
+                    website = link.get('value', '')
+                    break
+            if not website and links:
+                first = links[0]
+                website = first.get('value', '') if isinstance(first, dict) else str(first)
 
             # Resolve parent hierarchy
             hierarchy_display, parents_json = _resolve_ror_hierarchy(item)

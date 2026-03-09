@@ -46,10 +46,7 @@ h.default_group_type('organization')%} {% set group_type = h.default_group_type(
   <li class="{{ 'active' if request.path.startswith('/platforms') else '' }}">
     <a href="{{ h.url_for('pidinst_theme.platforms_search') }}">{{ _('Platforms') }}</a>
   </li>
-  {{ h.build_nav_main(
-    (org_type ~ '.index', h.humanize_entity_type('organization', org_type, 'main nav') or _('Organisations'), ['organization']),
-    ('home.about', _('About'))
-  ) }}
+
 </ul>
 {% endblock %} {% block header_logo %}
 <a class="logo" href="{{ h.url_for('home.index') }}">
@@ -62,3 +59,8 @@ h.default_group_type('organization')%} {% set group_type = h.default_group_type(
   <span class="logo-text">AuScope Instrument Registry </span>
 </a>
 {% endblock %}
+
+{# {{ h.build_nav_main(
+    (org_type ~ '.index', h.humanize_entity_type('organization', org_type, 'main nav') or _('Organisations'), ['organization']),
+    ('home.about', _('About'))
+  ) }} #}
