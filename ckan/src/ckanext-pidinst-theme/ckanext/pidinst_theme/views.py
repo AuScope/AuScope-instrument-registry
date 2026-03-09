@@ -361,6 +361,84 @@ def ror_search():
         return jsonify({'results': [], 'error': 'Internal error'}), 500
 
 
+@pidinst_theme.route('/api/instrument_facilities')
+def instrument_facilities():
+    """Return a flat list of facility nodes for building the Facilities tree.
+
+    Each node: {id, name, parent_id, count}
+    'count' = number of instruments/platforms that directly list this facility.
+    Parent nodes inferred from owner_ror_parents_json are included with count=0.
+
+    Query params:
+        is_platform – 'true' or 'false' (default 'false')
+    """
+    try:
+        is_platform = request.args.get('is_platform', 'false')
+        context = {
+            'user': toolkit.c.user,
+            'auth_user_obj': toolkit.c.userobj,
+        }
+        fq = f'dataset_type:instrument AND extras_is_platform:{is_platform}'
+        result = toolkit.get_action('package_search')(context, {
+            'q': '*:*',
+            'fq': fq,
+            'rows': 2000,
+            'include_private': bool(toolkit.c.user),
+        })
+
+        nodes = {}  # ror_id -> {id, name, parent_id, count}
+
+        for pkg in result.get('results', []):
+            owner_ror_raw = pkg.get('owner_ror')
+            if not owner_ror_raw:
+                continue
+            # Composite_repeating returns a JSON string or already a list
+            if isinstance(owner_ror_raw, str):
+                try:
+                    owner_ror_list = json.loads(owner_ror_raw)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+            elif isinstance(owner_ror_raw, list):
+                owner_ror_list = owner_ror_raw
+            else:
+                continue
+
+            for entry in owner_ror_list:
+                ror_id   = (entry.get('owner_ror_id')   or '').strip()
+                ror_name = (entry.get('owner_ror_name') or '').strip()
+                if not ror_id or not ror_name:
+                    continue
+
+                parents_raw = entry.get('owner_ror_parents_json', '[]')
+                try:
+                    parents = json.loads(parents_raw) if isinstance(parents_raw, str) else (parents_raw or [])
+                except (json.JSONDecodeError, ValueError):
+                    parents = []
+
+                # Full path root-first: [...parents..., {id: ror_id, name: ror_name}]
+                full_path = parents + [{'id': ror_id, 'name': ror_name}]
+
+                # Ensure all path nodes exist in the map
+                for idx, node in enumerate(full_path):
+                    nid     = node.get('id', '').strip()
+                    nname   = node.get('name', '').strip()
+                    nparent = full_path[idx - 1]['id'] if idx > 0 else None
+                    if not nid:
+                        continue
+                    if nid not in nodes:
+                        nodes[nid] = {'id': nid, 'name': nname, 'parent_id': nparent, 'count': 0}
+
+                # Only the leaf (selected facility) counts as a direct owner
+                if ror_id in nodes:
+                    nodes[ror_id]['count'] += 1
+
+        return jsonify({'nodes': list(nodes.values())})
+
+    except Exception as e:
+        log.error('instrument_facilities error: %s', e)
+        return jsonify({'nodes': [], 'error': str(e)}), 500
+
+
 def _resolve_ror_hierarchy(item):
     """Resolve the parent hierarchy for a ROR organisation record.
 
@@ -584,11 +662,25 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     is_logged_in = bool(toolkit.c.user)
 
     # Collect facet field filters and search extras from request args
-    reserved = {'q', 'page', 'sort'}
+    # owner_ror_name is handled specially – it maps to a text search on extras_owner_ror
+    reserved = {'q', 'page', 'sort', 'owner_ror_name'}
     fields = []
     fields_grouped = {}
     extra_fq_parts = []
     search_extras = {}
+
+    # --- Facility (owner_ror_name) filter: OR logic across extras_owner_ror text field ---
+    owner_ror_names = toolkit.request.args.getlist('owner_ror_name')
+    if owner_ror_names:
+        for name in owner_ror_names:
+            fields.append(('owner_ror_name', name))
+            fields_grouped.setdefault('owner_ror_name', []).append(name)
+        or_clauses = ['extras_owner_ror:"{}"'.format(n) for n in owner_ror_names]
+        if len(or_clauses) == 1:
+            extra_fq_parts.append('+' + or_clauses[0])
+        else:
+            extra_fq_parts.append('+(' + ' OR '.join(or_clauses) + ')')
+
     for param, value in toolkit.request.args.items(multi=True):
         if param in reserved or not value or param.startswith('_'):
             continue
@@ -603,7 +695,8 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     if extra_fq_parts:
         fq += ' ' + ' '.join(extra_fq_parts)
 
-    facet_fields = ['organization', 'tags', 'instrument_type', 'locality']
+    # organization removed – replaced by Facilities tree widget
+    facet_fields = ['tags', 'instrument_type', 'locality']
 
     data_dict = {
         'q': q or '*:*',
@@ -648,7 +741,6 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
 
     search_facets = query.get('search_facets', {})
     facet_titles = {
-        'organization': toolkit._('Organizations'),
         'tags': toolkit._('Tags'),
         'instrument_type': toolkit._('Instrument Type'),
         'locality': toolkit._('Locality'),
@@ -668,6 +760,8 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'sort_by_selected': sort_by,
         'page': pager,
         'query_error': query_error,
+        'is_platform': is_platform_value,
+        'active_owner_ror_names': owner_ror_names,
     }
 
     return base.render(template, extra_vars=extra_vars)
