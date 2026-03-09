@@ -77,6 +77,7 @@ dataset_fields:
   - field_name: owner_org
     label: Organization
     form_snippet: org_visibility.html
+    validators: visibility_validator
     groupBy: About Instrument
 
   # ======================== OWNER (ROR) ========================

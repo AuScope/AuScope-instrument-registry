@@ -572,22 +572,25 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     # Forced server-side filter — cannot be overridden by query params
     # Anonymous users only see public packages; logged-in users see public + their own private ones
     # capacity_filter = '' if toolkit.c.user else ' +capacity:public'
-    # forced_fq = f'type:instrument AND extras_is_platform:{is_platform_value}{capacity_filter}'
-    forced_fq = f'type:instrument AND extras_is_platform:{is_platform_value}'
+    forced_fq = f'dataset_type:instrument AND extras_is_platform:{is_platform_value}'
 
     is_logged_in = bool(toolkit.c.user)
 
-    # Collect facet field filters from request args
+    # Collect facet field filters and search extras from request args
     reserved = {'q', 'page', 'sort'}
     fields = []
     fields_grouped = {}
     extra_fq_parts = []
+    search_extras = {}
     for param, value in toolkit.request.args.items(multi=True):
-        if param in reserved:
+        if param in reserved or not value or param.startswith('_'):
             continue
-        fields.append((param, value))
-        fields_grouped.setdefault(param, []).append(value)
-        extra_fq_parts.append(f'+{param}:"{value}"')
+        if param.startswith('ext_'):
+            search_extras[param] = value
+        else:
+            fields.append((param, value))
+            fields_grouped.setdefault(param, []).append(value)
+            extra_fq_parts.append(f'+{param}:"{value}"')
 
     fq = forced_fq
     if extra_fq_parts:
@@ -606,6 +609,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'facet.limit': 50,
         'facet.mincount': 1,
         'include_private': is_logged_in,
+        'extras': search_extras,
     }
 
     query_error = False
@@ -643,7 +647,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'locality': toolkit._('Locality'),
     }
 
-    remove_field = partial(h.remove_url_param, named_route=named_route)
+    remove_field = partial(h.remove_url_param, alternative_url=toolkit.url_for(named_route))
 
     extra_vars = {
         'dataset_type': display_type,
