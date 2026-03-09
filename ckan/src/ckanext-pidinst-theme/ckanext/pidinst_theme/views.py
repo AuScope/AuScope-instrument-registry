@@ -256,6 +256,262 @@ def fetch_gcmd():
 
 
 ALLOWED_FIELD_TERMS = {'user_keywords', 'measured_variable'}
+
+
+# ---------------------------------------------------------------------------
+# ROR (Research Organization Registry) proxy – Owner (ROR) feature
+# ---------------------------------------------------------------------------
+
+# Only return Australian organisations with these types.
+ROR_ALLOWED_TYPES = {'education', 'government', 'facility'}
+ROR_API_BASE = 'https://api.ror.org/v2/organizations'
+
+
+@pidinst_theme.route('/api/proxy/ror_search', methods=['GET'])
+def ror_search():
+    """Search the ROR API and return simplified results for Select2.
+
+    Query params:
+        q       – search term (required, min 2 chars)
+
+    The endpoint filters to Australian orgs of type education / government /
+    facility.  It also resolves the parent hierarchy for each result so the
+    frontend can cache it.
+    """
+    query_term = request.args.get('q', '').strip()
+    if len(query_term) < 2:
+        return jsonify({'results': []})
+
+    try:
+        # ROR v2 API: filter by country code AU and allowed types
+        # The types filter uses pipe-delimited values for OR logic
+        type_filter = ','.join(f'types:{t}' for t in sorted(ROR_ALLOWED_TYPES))
+        params = {
+            'query': query_term,
+            'filter': f'country.country_code:AU,{type_filter}',
+            'page': 1,
+        }
+        resp = requests.get(ROR_API_BASE, params=params, timeout=10)
+        if not resp.ok:
+            log.error('ROR search failed: %s %s', resp.status_code, resp.text[:200])
+            return jsonify({'results': [], 'error': 'ROR API error'}), 502
+
+        data = resp.json()
+        items = data.get('items', [])
+
+        results = []
+        for item in items:
+            ror_id = item.get('id', '')
+            names = item.get('names', [])
+            # Prefer ror_display name, then the first name entry
+            display_name = ''
+            for n in names:
+                if 'ror_display' in n.get('types', []):
+                    display_name = n.get('value', '')
+                    break
+            if not display_name and names:
+                display_name = names[0].get('value', '')
+
+            # Extract types
+            org_types = [t.lower() for t in item.get('types', [])]
+
+            # Extract location info
+            locations = item.get('locations', [])
+            country = ''
+            state = ''
+            if locations:
+                geonames = locations[0].get('geonames_details', {})
+                country = geonames.get('country_name', '')
+                state = geonames.get('name', '')
+
+            # Extract website link – ROR v2 links are {type, value} dicts
+            links = item.get('links', [])
+            website = ''
+            for link in links:
+                if isinstance(link, dict) and link.get('type') == 'website':
+                    website = link.get('value', '')
+                    break
+            if not website and links:
+                first = links[0]
+                website = first.get('value', '') if isinstance(first, dict) else str(first)
+
+            # Resolve parent hierarchy
+            hierarchy_display, parents_json = _resolve_ror_hierarchy(item)
+
+            results.append({
+                'id': ror_id,
+                'text': display_name,
+                'ror_id': ror_id,
+                'name': display_name,
+                'types': ', '.join(org_types),
+                'country': country,
+                'state': state,
+                'website': website,
+                'parents_json': parents_json,
+                'hierarchy_display': hierarchy_display,
+            })
+
+        return jsonify({'results': results})
+
+    except requests.exceptions.RequestException as e:
+        log.error('ROR search request error: %s', e)
+        return jsonify({'results': [], 'error': 'ROR service unavailable'}), 503
+    except Exception as e:
+        log.error('ROR search unexpected error: %s', e)
+        return jsonify({'results': [], 'error': 'Internal error'}), 500
+
+
+@pidinst_theme.route('/api/instrument_facilities')
+def instrument_facilities():
+    """Return a flat list of facility nodes for building the Facilities tree.
+
+    Each node: {id, name, parent_id, count}
+    'count' = number of instruments/platforms that directly list this facility.
+    Parent nodes inferred from owner_ror_parents_json are included with count=0.
+
+    Query params:
+        is_platform – 'true' or 'false' (default 'false')
+    """
+    try:
+        is_platform = request.args.get('is_platform', 'false')
+        context = {
+            'user': toolkit.c.user,
+            'auth_user_obj': toolkit.c.userobj,
+        }
+        fq = f'dataset_type:instrument AND extras_is_platform:{is_platform}'
+        result = toolkit.get_action('package_search')(context, {
+            'q': '*:*',
+            'fq': fq,
+            'rows': 2000,
+            'include_private': bool(toolkit.c.user),
+        })
+
+        nodes = {}  # ror_id -> {id, name, parent_id, count}
+
+        for pkg in result.get('results', []):
+            owner_ror_raw = pkg.get('owner_ror')
+            if not owner_ror_raw:
+                continue
+            # Composite_repeating returns a JSON string or already a list
+            if isinstance(owner_ror_raw, str):
+                try:
+                    owner_ror_list = json.loads(owner_ror_raw)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+            elif isinstance(owner_ror_raw, list):
+                owner_ror_list = owner_ror_raw
+            else:
+                continue
+
+            for entry in owner_ror_list:
+                ror_id   = (entry.get('owner_ror_id')   or '').strip()
+                ror_name = (entry.get('owner_ror_name') or '').strip()
+                if not ror_id or not ror_name:
+                    continue
+
+                parents_raw = entry.get('owner_ror_parents_json', '[]')
+                try:
+                    parents = json.loads(parents_raw) if isinstance(parents_raw, str) else (parents_raw or [])
+                except (json.JSONDecodeError, ValueError):
+                    parents = []
+
+                # Full path root-first: [...parents..., {id: ror_id, name: ror_name}]
+                full_path = parents + [{'id': ror_id, 'name': ror_name}]
+
+                # Ensure all path nodes exist in the map
+                for idx, node in enumerate(full_path):
+                    nid     = node.get('id', '').strip()
+                    nname   = node.get('name', '').strip()
+                    nparent = full_path[idx - 1]['id'] if idx > 0 else None
+                    if not nid:
+                        continue
+                    if nid not in nodes:
+                        nodes[nid] = {'id': nid, 'name': nname, 'parent_id': nparent, 'count': 0}
+
+                # Only the leaf (selected facility) counts as a direct owner
+                if ror_id in nodes:
+                    nodes[ror_id]['count'] += 1
+
+        return jsonify({'nodes': list(nodes.values())})
+
+    except Exception as e:
+        log.error('instrument_facilities error: %s', e)
+        return jsonify({'nodes': [], 'error': str(e)}), 500
+
+
+def _resolve_ror_hierarchy(item):
+    """Resolve the parent hierarchy for a ROR organisation record.
+
+    Walks the ``relationships`` array (type = "parent") upward, fetching each
+    parent from the ROR API, until there are no more parents.
+
+    Returns:
+        (hierarchy_display, parents_json)
+            hierarchy_display: str  – e.g. "Curtin University > Faculty of ..."
+            parents_json: str       – JSON array of parent dicts
+    """
+    # Collect parent chain
+    parents = []
+    visited = set()
+
+    def _get_ror_name(ror_item):
+        """Extract display name from a ROR v2 item."""
+        for n in ror_item.get('names', []):
+            if 'ror_display' in n.get('types', []):
+                return n.get('value', '')
+        names = ror_item.get('names', [])
+        return names[0].get('value', '') if names else ''
+
+    current = item
+    selected_name = _get_ror_name(current)
+
+    # Walk up to 10 levels to avoid infinite loops
+    for _ in range(10):
+        rels = current.get('relationships', [])
+        parent_rel = None
+        for rel in rels:
+            if rel.get('type', '').lower() == 'parent':
+                parent_rel = rel
+                break
+
+        if not parent_rel:
+            break
+
+        parent_id = parent_rel.get('id', '')
+        if not parent_id or parent_id in visited:
+            break
+        visited.add(parent_id)
+
+        # Fetch the parent record from ROR
+        try:
+            resp = requests.get(f'{ROR_API_BASE}/{parent_id}', timeout=10)
+            if not resp.ok:
+                log.warning('Could not fetch ROR parent %s: %s', parent_id, resp.status_code)
+                # Best-effort: use the label from the relationship
+                parent_name = parent_rel.get('label', parent_id)
+                parents.append({'id': parent_id, 'name': parent_name})
+                break
+
+            parent_data = resp.json()
+            parent_name = _get_ror_name(parent_data)
+            parents.append({'id': parent_id, 'name': parent_name})
+            current = parent_data
+        except requests.exceptions.RequestException as e:
+            log.warning('ROR parent resolution failed for %s: %s', parent_id, e)
+            parent_name = parent_rel.get('label', parent_id)
+            parents.append({'id': parent_id, 'name': parent_name})
+            break
+
+    # parents is ordered child->root; reverse for display root->child
+    parents.reverse()
+
+    # Build hierarchy display string: root > ... > selected
+    hierarchy_parts = [p['name'] for p in parents] + [selected_name]
+    hierarchy_display = ' > '.join(hierarchy_parts)
+
+    parents_json = json.dumps(parents)
+
+    return hierarchy_display, parents_json
 # Mapping for nested fields: subfield_name -> parent_field_name
 NESTED_FIELD_TERMS = {'instrument_type_name': 'instrument_type'}
 
@@ -401,28 +657,46 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     # Forced server-side filter — cannot be overridden by query params
     # Anonymous users only see public packages; logged-in users see public + their own private ones
     # capacity_filter = '' if toolkit.c.user else ' +capacity:public'
-    # forced_fq = f'type:instrument AND extras_is_platform:{is_platform_value}{capacity_filter}'
-    forced_fq = f'type:instrument AND extras_is_platform:{is_platform_value}'
+    forced_fq = f'dataset_type:instrument AND extras_is_platform:{is_platform_value}'
 
     is_logged_in = bool(toolkit.c.user)
 
-    # Collect facet field filters from request args
-    reserved = {'q', 'page', 'sort'}
+    # Collect facet field filters and search extras from request args
+    # owner_ror_name is handled specially – it maps to a text search on extras_owner_ror
+    reserved = {'q', 'page', 'sort', 'owner_ror_name'}
     fields = []
     fields_grouped = {}
     extra_fq_parts = []
+    search_extras = {}
+
+    # --- Facility (owner_ror_name) filter: OR logic across extras_owner_ror text field ---
+    owner_ror_names = toolkit.request.args.getlist('owner_ror_name')
+    if owner_ror_names:
+        for name in owner_ror_names:
+            fields.append(('owner_ror_name', name))
+            fields_grouped.setdefault('owner_ror_name', []).append(name)
+        or_clauses = ['extras_owner_ror:"{}"'.format(n) for n in owner_ror_names]
+        if len(or_clauses) == 1:
+            extra_fq_parts.append('+' + or_clauses[0])
+        else:
+            extra_fq_parts.append('+(' + ' OR '.join(or_clauses) + ')')
+
     for param, value in toolkit.request.args.items(multi=True):
-        if param in reserved:
+        if param in reserved or not value or param.startswith('_'):
             continue
-        fields.append((param, value))
-        fields_grouped.setdefault(param, []).append(value)
-        extra_fq_parts.append(f'+{param}:"{value}"')
+        if param.startswith('ext_'):
+            search_extras[param] = value
+        else:
+            fields.append((param, value))
+            fields_grouped.setdefault(param, []).append(value)
+            extra_fq_parts.append(f'+{param}:"{value}"')
 
     fq = forced_fq
     if extra_fq_parts:
         fq += ' ' + ' '.join(extra_fq_parts)
 
-    facet_fields = ['organization', 'tags', 'instrument_type', 'locality']
+    # organization removed – replaced by Facilities tree widget
+    facet_fields = ['tags', 'instrument_type', 'locality']
 
     data_dict = {
         'q': q or '*:*',
@@ -435,6 +709,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'facet.limit': 50,
         'facet.mincount': 1,
         'include_private': is_logged_in,
+        'extras': search_extras,
     }
 
     query_error = False
@@ -466,13 +741,12 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
 
     search_facets = query.get('search_facets', {})
     facet_titles = {
-        'organization': toolkit._('Organizations'),
         'tags': toolkit._('Tags'),
         'instrument_type': toolkit._('Instrument Type'),
         'locality': toolkit._('Locality'),
     }
 
-    remove_field = partial(h.remove_url_param, named_route=named_route)
+    remove_field = partial(h.remove_url_param, alternative_url=toolkit.url_for(named_route))
 
     extra_vars = {
         'dataset_type': display_type,
@@ -486,6 +760,8 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'sort_by_selected': sort_by,
         'page': pager,
         'query_error': query_error,
+        'is_platform': is_platform_value,
+        'active_owner_ror_names': owner_ror_names,
     }
 
     return base.render(template, extra_vars=extra_vars)

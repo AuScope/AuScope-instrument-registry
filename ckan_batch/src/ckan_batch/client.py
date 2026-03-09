@@ -33,11 +33,25 @@ def _extract_name_from_ckan_error(err: Any) -> Optional[str]:
         return None
 
 
+
 class CKANClient(RemoteCKAN):
     """
     CKAN API client for managing datasets (instruments, etc.).
     Inherits from RemoteCKAN and provides convenient methods for batch operations.
     """
+
+    def _normalize_facility_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        out = dict(payload)
+
+        if out.get("website") in ("", None):
+            out.pop("website", None)
+
+        if out.get("is_part_of") in ("", None):
+            out.pop("is_part_of", None)
+
+        out["type"] = "facility"
+        return out
+
 
     def create_resources_for_dataset(
         self,
@@ -419,3 +433,205 @@ class CKANClient(RemoteCKAN):
             start += rows
 
         return out
+
+
+    def create_facilities(
+        self,
+        facilities: List[Dict[str, Any]],
+        *,
+        dry_run: bool = False,
+        allow_update_if_exists: bool = False,
+    ) -> CreateResult:
+        """
+        Create CKAN facilities using group_create (or group_update if enabled and exists).
+
+        Assumptions:
+        - Each payload matches the facility scheming group schema.
+        - Facility objects are CKAN groups with type='facility'.
+        - Parent relationship, if present, is stored in `is_part_of` as the parent facility name.
+        """
+        created: List[Dict[str, Any]] = []
+        failed: List[Dict[str, Any]] = []
+
+        for i, payload in enumerate(facilities, start=1):
+            payload_to_send = dict(payload)
+            payload_to_send["type"] = "facility"
+            payload_to_send = _normalize_facility_payload(payload_to_send)  # optional pre-processing if needed
+
+            if dry_run:
+                created.append(
+                    {
+                        "status": "dry_run",
+                        "index": i,
+                        "title": payload_to_send.get("title"),
+                        "name": payload_to_send.get("name"),
+                        "payload": payload_to_send,
+                    }
+                )
+                continue
+
+            try:
+                resp = self.action.group_create(**payload_to_send)
+                created.append(
+                    {
+                        "status": "created",
+                        "index": i,
+                        "id": resp.get("id"),
+                        "name": resp.get("name"),
+                        "title": resp.get("title"),
+                        "response": resp,
+                    }
+                )
+
+            except CKANAPIError as e:
+                msg = getattr(e, "error_dict", None) or str(e)
+
+                if allow_update_if_exists and payload_to_send.get("name"):
+                    try:
+                        existing = self.action.group_show(
+                            id=payload_to_send["name"],
+                            type="facility",
+                        )
+                        payload_to_send["id"] = existing["id"]
+                        resp2 = self.action.group_update(**payload_to_send)
+                        created.append(
+                            {
+                                "status": "updated",
+                                "index": i,
+                                "id": resp2.get("id"),
+                                "name": resp2.get("name"),
+                                "title": resp2.get("title"),
+                                "response": resp2,
+                            }
+                        )
+                        continue
+                    except Exception as e2:
+                        failed.append(
+                            {
+                                "index": i,
+                                "title": payload_to_send.get("title"),
+                                "name": payload_to_send.get("name"),
+                                "error": f"Create failed; update attempt failed: {e2}",
+                                "ckan_error": msg,
+                                "payload": payload_to_send,
+                            }
+                        )
+                        continue
+
+                failed.append(
+                    {
+                        "index": i,
+                        "title": payload_to_send.get("title"),
+                        "name": payload_to_send.get("name"),
+                        "error": "CKANAPIError",
+                        "ckan_error": msg,
+                        "payload": payload_to_send,
+                    }
+                )
+
+            except Exception as e:
+                failed.append(
+                    {
+                        "index": i,
+                        "title": payload_to_send.get("title"),
+                        "name": payload_to_send.get("name"),
+                        "error": f"Unexpected error: {e}",
+                        "payload": payload_to_send,
+                    }
+                )
+
+        return CreateResult(created=created, failed=failed, resource_results=[])
+
+    def delete_all_facilities(
+        self,
+        *,
+        dry_run: bool = True,
+        include_only_names: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Delete all CKAN groups of type 'facility'.
+
+        Args:
+            dry_run: If True, only list facilities without deleting.
+            include_only_names: Optional whitelist of facility names to delete.
+
+        Returns:
+            List of facilities that were (or would be) deleted.
+        """
+        facilities = self.action.group_list(
+            all_fields=True,
+            type="facility",
+        )
+
+        to_delete: List[Dict[str, Any]] = []
+        for grp in facilities:
+            name = grp.get("name")
+            if include_only_names and name not in include_only_names:
+                continue
+
+            to_delete.append(
+                {
+                    "id": grp.get("id"),
+                    "name": name,
+                    "title": grp.get("title"),
+                    "type": grp.get("type"),
+                }
+            )
+
+        print(f"Found {len(to_delete)} facility group(s)")
+        for g in to_delete[:20]:
+            print(f" - {g['name']} ({g.get('id')}) | {g.get('title')}")
+        if len(to_delete) > 20:
+            print(f" ... and {len(to_delete) - 20} more")
+
+        if dry_run:
+            print("\nDRY RUN: no deletions performed.")
+            return to_delete
+
+        deleted = 0
+        failed: List[Dict[str, Any]] = []
+        for g in to_delete:
+            try:
+                self.action.group_delete(id=g["id"])
+                deleted += 1
+            except CKANAPIError as e:
+                failed.append({"group": g, "error": getattr(e, "error_dict", None) or str(e)})
+            except Exception as e:
+                failed.append({"group": g, "error": f"Unexpected error: {e}"})
+
+        print(f"\nDeleted: {deleted}")
+        if failed:
+            print(f"Failed: {len(failed)}")
+            for f in failed[:10]:
+                print(" -", f)
+
+        return to_delete
+
+
+    def get_all_facilities(
+        self,
+        *,
+        verbose: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        Return all facility groups.
+        """
+        results = self.action.group_list(
+            all_fields=True,
+            type="facility",
+        )
+
+        if verbose:
+            return results
+
+        return [
+            {
+                "id": g.get("id"),
+                "name": g.get("name"),
+                "title": g.get("title"),
+                "type": g.get("type"),
+                "facility_identifier": g.get("facility_identifier"),
+                "is_part_of": g.get("is_part_of"),
+            }
+            for g in results
+        ]

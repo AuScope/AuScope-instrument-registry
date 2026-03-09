@@ -1,5 +1,24 @@
 {% ckan_extends %}
 
+{% block groups_search_form %}
+  {# Use 'dataset-search-form' so the spatial query JS can append ext_bbox #}
+  {% set facets = {
+    'fields': fields_grouped,
+    'search': search_facets,
+    'titles': facet_titles,
+    'translated_fields': translated_fields,
+    'remove_field': remove_field }
+  %}
+  {% set sorting = [
+    (_('Relevance'), 'score desc, metadata_modified desc'),
+    (_('Name Ascending'), 'title_string asc'),
+    (_('Name Descending'), 'title_string desc'),
+    (_('Last Modified'), 'metadata_modified desc')
+    ]
+  %}
+  {% snippet 'snippets/search_form.html', form_id='dataset-search-form', type=dataset_type, query=q, sorting=sorting, sorting_selected=sort_by_selected, count=page.item_count, facets=facets, placeholder=h.humanize_entity_type('package', dataset_type, 'search_placeholder') or _('Search datasets...'), show_empty=request.args, fields=fields %}
+{% endblock %}
+
 {% block organization_facets %}
   <div class="filters">
     <div>

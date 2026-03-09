@@ -14,6 +14,8 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
             self.updateCollapsiblePanels();
             self.initializeAllSelect2().then(() => {
               self.reapplySelect2Values();
+              self.initializeRorSelect2();
+              self.reapplyRorValues();
             });
           }, 100);
         });
@@ -30,6 +32,8 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       this.assignUniqueIdsAndDestroySelect2().then(() => {
         self.initializeAllSelect2().then(() => {
           self.reapplySelect2Values();
+          self.initializeRorSelect2();
+          self.reapplyRorValues();
         });
       });
     },
@@ -39,15 +43,15 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       $('input[name*="author-"][name*="-author_affiliation"]:not([name$="_identifier"])').each(function () {
         var $input = $(this);
         if (!$input.data("select2")) return;
-        
+
         var identifierFieldId = $input.attr('id').replace('affiliation', 'affiliation_identifier');
         var $identifierField = $('#' + identifierFieldId);
         if ($identifierField.length === 0) return;
-        
+
         var selectedId = $identifierField.val();
         var selectedText = $input.val();
         if (!selectedId || !selectedText) return;
-        
+
         try {
           $input.select2('data', { id: selectedText, text: selectedText }, true);
           $input.val(selectedId);
@@ -60,12 +64,26 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
 
     assignUniqueIdsAndDestroySelect2: function () {
       return new Promise(function (resolve) {
-        $('input[name*="author-"][name*="-author_affiliation"]:not([name$="_identifier"])').each(function (index) {
+        // Destroy author-affiliation Select2 instances
+        $('input[name*="author-"][name*="-author_affiliation"]:not([name$="_identifier"])').each(function () {
           var $input = $(this);
           if ($input.data('select2')) {
             $input.select2('destroy');
           }
         });
+        // Destroy ROR owner Select2 instances
+        $('input.ror-owner-lookup').each(function () {
+          var $input = $(this);
+          if ($input.data('select2')) {
+            try { $input.select2('destroy'); } catch (e) { /* noop */ }
+          }
+          $input.removeData('select2');
+        });
+        // Clean leftover Select2 containers from cloneNode
+        $('[data-ror-subfield] .select2-container').remove();
+        $('input.ror-owner-lookup')
+          .removeClass('select2-offscreen select2-hidden-accessible')
+          .removeAttr('style');
         resolve();
       });
     },
@@ -122,16 +140,16 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
     fillDependentFields: function ($inputField, affiliationId, affiliationName) {
       var identifierFieldId = $inputField.attr('id').replace('affiliation', 'affiliation_identifier');
       var identifierTypeFieldId = $inputField.attr('id').replace('affiliation', 'affiliation_identifier_type');
-      
+
       if ($inputField.length) {
         $inputField.val(affiliationName);
       }
-      
+
       var $identifierField = $('#' + identifierFieldId);
       if ($identifierField.length) {
         $identifierField.val(affiliationId);
       }
-      
+
       var $identifierTypeField = $('#' + identifierTypeFieldId);
       if ($identifierTypeField.length) {
         $identifierTypeField.val('ROR');
@@ -195,7 +213,7 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
         panelHeader.appendChild(headerText);
         group.insertBefore(panelHeader, group.firstChild);
       }
-      
+
       const panelHeaderClone = panelHeader.cloneNode(true);
       panelHeader.parentNode.replaceChild(panelHeaderClone, panelHeader);
 
@@ -203,6 +221,127 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
         contentWrapper.classList.toggle('active');
         const indicator = panelHeaderClone.querySelector('.toggle-indicator');
         indicator.textContent = contentWrapper.classList.contains('active') ? '▲' : '▼';
+      });
+    },
+
+    // ----------------------------------------------------------------
+    // ROR Owner (Facility) Select2 – integrated into the same
+    // destroy → cloneNode → reinit lifecycle as author_affiliation.
+    // ----------------------------------------------------------------
+
+    _rorEsc: function (s) {
+      if (!s) return '';
+      var d = document.createElement('div');
+      d.appendChild(document.createTextNode(String(s)));
+      return d.innerHTML;
+    },
+
+    _rorDerivePrefix: function ($input) {
+      var name = $input.attr('name') || '';
+      var m = name.match(/^(.+-\d+-)/);
+      return m ? m[1] : '';
+    },
+
+    initializeRorSelect2: function () {
+      var self = this;
+      $('input.ror-owner-lookup').each(function () {
+        var $input = $(this);
+        // Skip hidden template rows
+        if ($input.closest('.composite-control-repeating').css('display') === 'none') return;
+        // Skip if already initialised
+        if ($input.data('select2')) return;
+
+        var prefix = self._rorDerivePrefix($input);
+        if (!prefix) return;
+
+        var $block   = $input.closest('[data-ror-subfield]');
+        var $preview = $block.find('.ror-hierarchy-preview');
+        var $text    = $block.find('.ror-hierarchy-text');
+
+        function fid(sub) { return '#field-' + prefix + sub; }
+        function setH(sub, v) { $(fid(sub)).val(v); }
+        var esc = self._rorEsc;
+
+        var debounce;
+        $input.select2({
+          placeholder: 'Start typing to search ROR\u2026',
+          minimumInputLength: 2,
+          allowClear: true,
+          multiple: false,
+          query: function (q) {
+            clearTimeout(debounce);
+            debounce = setTimeout(function () {
+              $.ajax({
+                url: '/api/proxy/ror_search',
+                dataType: 'json',
+                data: { q: q.term },
+                success: function (r) { q.callback({ results: r.results || [] }); },
+                error:   function ()  { q.callback({ results: [] }); }
+              });
+            }, 300);
+          },
+          formatResult: function (item) {
+            var h = '<div class="ror-result">';
+            h += '<strong>' + esc(item.name) + '</strong>';
+            if (item.types) h += ' <small class="text-muted">(' + esc(item.types) + ')</small>';
+            if (item.state || item.country) {
+              var loc = item.state ? item.state + ', ' + item.country : item.country;
+              h += '<br><small class="text-muted"><i class="fa fa-map-marker"></i> ' + esc(loc) + '</small>';
+            }
+            if (item.hierarchy_display && item.hierarchy_display !== item.name) {
+              h += '<br><small class="text-muted"><i class="fa fa-sitemap"></i> ' + esc(item.hierarchy_display) + '</small>';
+            }
+            h += '</div>';
+            return h;
+          },
+          formatSelection: function (item) { return esc(item.name || item.text || ''); },
+          escapeMarkup: function (m) { return m; }
+        })
+        .on('change', function (e) {
+          if (e.added) {
+            setH('owner_ror_id',                e.added.ror_id || e.added.id || '');
+            setH('owner_ror_name',              e.added.name || '');
+            setH('owner_ror_types',             e.added.types || '');
+            setH('owner_ror_country',           e.added.country || '');
+            setH('owner_ror_state',             e.added.state || '');
+            setH('owner_ror_website',           e.added.website || '');
+            setH('owner_ror_parents_json',      e.added.parents_json || '[]');
+            setH('owner_ror_hierarchy_display', e.added.hierarchy_display || '');
+            var hier = e.added.hierarchy_display || e.added.name || '';
+            if (hier) { $text.text(hier); $preview.show(); }
+          } else if (!$input.select2('val')) {
+            $.each(['owner_ror_id','owner_ror_name','owner_ror_types','owner_ror_country',
+                    'owner_ror_state','owner_ror_website','owner_ror_parents_json',
+                    'owner_ror_hierarchy_display'], function (_, s) { setH(s, ''); });
+            $preview.hide(); $text.text('');
+          }
+        });
+      });
+    },
+
+    reapplyRorValues: function () {
+      var self = this;
+      $('input.ror-owner-lookup').each(function () {
+        var $input = $(this);
+        if (!$input.data('select2')) return;
+        var prefix = self._rorDerivePrefix($input);
+        if (!prefix) return;
+
+        var rorId   = $('#field-' + prefix + 'owner_ror_id').val();
+        var rorName = $input.data('display-name') || $('#field-' + prefix + 'owner_ror_name').val();
+        if (!rorId || !rorName) return;
+
+        try {
+          $input.select2('data', { id: rorId, text: rorName, name: rorName });
+          var hier = $('#field-' + prefix + 'owner_ror_hierarchy_display').val();
+          if (hier) {
+            var $block = $input.closest('[data-ror-subfield]');
+            $block.find('.ror-hierarchy-text').text(hier);
+            $block.find('.ror-hierarchy-preview').show();
+          }
+        } catch (e) {
+          console.error('Error restoring ROR Select2:', $input.attr('id'), e);
+        }
       });
     },
 

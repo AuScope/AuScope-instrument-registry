@@ -77,14 +77,92 @@ dataset_fields:
   - field_name: owner_org
     label: Organization
     form_snippet: org_visibility.html
+    validators: visibility_validator
     groupBy: About Instrument
 
-  - field_name: owner
-    label: Owners
+  # ======================== OWNER (ROR) ========================
+  # ROR-backed owner selection — preferred when the organisation exists in ROR.
+  # The manual PIDINST Owner block below remains the fallback.
+  # Supports multiple owners via composite_repeating.
+  # Contact is required (enforced by composite_rules) when an ROR org is selected.
+
+  - field_name: owner_ror
+    label: Owner (ROR)
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html
-    required: true
+    form_blanks: 0
+    groupBy: About Instrument
+    composite_rules:
+      - when_present: owner_ror_id
+        require: [owner_ror_contact]
+    help_text: "Search the Research Organization Registry (ROR) for Australian owners (education, government, facility). You may add multiple owners. Each selected owner requires a contact email."
+    subfields:
+      - field_name: owner_ror_lookup
+        label: Facility
+        form_snippet: ror_owner_subfield.html
+        display_snippet: null
+
+      - field_name: owner_ror_id
+        label: ROR ID
+        form_snippet: composite_hidden_field.html
+        display_snippet: URL
+        validators: ignore_missing unicode_safe
+
+      - field_name: owner_ror_name
+        label: Name
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+
+      - field_name: owner_ror_hierarchy_display
+        label: Hierarchy
+        form_snippet: composite_hidden_field.html
+        validators: ignore_missing unicode_safe
+
+      - field_name: owner_ror_types
+        label: Types
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+
+      - field_name: owner_ror_country
+        label: Country
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+
+      - field_name: owner_ror_state
+        label: State
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+
+      - field_name: owner_ror_website
+        label: Website
+        form_snippet: composite_hidden_field.html
+        display_snippet: URL
+        validators: ignore_missing unicode_safe
+
+      - field_name: owner_ror_parents_json
+        label: Parents JSON
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+
+      - field_name: owner_ror_contact
+        label: Owner Contact
+        form_attrs:
+          type: email
+          placeholder: contact@example.edu.au
+        help_text: "Contact email for this owner. Required when a facility is selected."
+        validators: ignore_missing unicode_safe strip_value email_validator
+
+  - field_name: owner
+    label: Owners (Custom)
+    preset: composite_repeating
+    validators: composite_repeating_validator
+    form_snippet: composite_repeating_field.html
     groupBy: About Instrument
     composite_rules:
       - when_present: owner_identifier
@@ -112,18 +190,20 @@ dataset_fields:
         label: Owner Identifier Type
         help_text: "Type of the identifier"
 
-      - field_name: owner_relationship_type
-        label: Owner Relationship Type
-        preset: select
-        required: true
-        choices:
-          - value: HostingInstitution
-            label: HostingInstitution
-          - value: DataCollector
-            label: DataCollector
-          - value: Sponsor
-            label: Sponsor
-        help_text: The type of the date
+      # - field_name: owner_relationship_type
+      #   label: Owner Relationship Type
+      #   preset: select
+      #   required: true
+      #   choices:
+      #     - value: HostingInstitution
+      #       label: HostingInstitution
+      #     - value: DataCollector
+      #       label: DataCollector
+      #     - value: Sponsor
+      #       label: Sponsor
+      #   help_text: The type of the date
+
+
 
   - field_name: instrument_type_gcmd_code
     label: Instrument Type (GCMD)
@@ -162,7 +242,7 @@ dataset_fields:
     help_text: "Type of the identifier"
 
   - field_name: instrument_type
-    label: Instrument Type (Custome)
+    label: Instrument Type (Custom)
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html

@@ -1,0 +1,55 @@
+{#
+  Composite-subfield form snippet for owner_ror_lookup within the owner_ror
+  composite_repeating field.
+
+  Called by pidinst_composite_repeating.html with:
+    field          – the subfield definition (field_name: owner_ror_lookup)
+    subfield_index – current row number (1-based string from loop.index)
+    parent         – parent field name, "owner_ror"
+    field_dict     – data dict for this row (subfield values)
+
+  NOTE:
+  - .controls wrapper is required so pidinst-composite-repeating.js places
+    the minus (delete) button here, right next to the lookup input.
+  - data-ror-subfield is used by ror-owner-module.js for scoped initialisation
+    and is NOT a CKAN module (avoids cloning/reinit issues).
+#}
+
+{% set field_prefix = parent ~ '-' ~ subfield_index ~ '-' %}
+{% set lookup_name  = field_prefix ~ field.field_name %}
+{% set lookup_id    = 'field-' ~ lookup_name %}
+
+<div class="control-group ror-owner-lookup-block"
+     data-ror-subfield="1"
+     data-field-prefix="{{ field_prefix }}">
+
+  <label class="control-label" for="{{ lookup_id }}">
+    {{ h.scheming_language_text(field.label) }}
+  </label>
+
+  {#
+    .controls is where pidinst-composite-repeating.js appends the minus button.
+    Placing it here puts the delete button inline with the org lookup.
+  #}
+  <div class="controls ror-owner-controls">
+    <div class="ror-owner-input-wrap">
+      <input class="form-control ror-owner-lookup"
+             id="{{ lookup_id }}"
+             name="{{ lookup_name }}"
+             value="{{ field_dict.get('owner_ror_id', '') }}"
+             data-display-name="{{ field_dict.get('owner_ror_name', '') }}"
+             placeholder="Start typing to search ROR (e.g. CSIRO, Curtin University)…">
+    </div>
+    {# minus button is appended here by pidinst-composite-repeating.js #}
+
+    {# Hierarchy preview – shown once a facility is selected #}
+    <div class="ror-hierarchy-preview"
+         style="{% if not field_dict.get('owner_ror_hierarchy_display') %}display:none;{% endif %} margin-top:4px;">
+      <small class="text-muted">
+        <i class="fa fa-sitemap"></i>
+        <span class="ror-hierarchy-text">{{ field_dict.get('owner_ror_hierarchy_display', '') }}</span>
+      </small>
+    </div>
+  </div>
+
+</div>

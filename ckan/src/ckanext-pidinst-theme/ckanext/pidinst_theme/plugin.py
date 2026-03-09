@@ -170,7 +170,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     # IValidators
 
     def get_validators(self):
-        return validators.get_validators()
+        return validators.get_validators() or {}
 
 
     def dataset_facets(self, facets_dict, package_type):
