@@ -378,7 +378,7 @@ def instrument_facilities():
                 'count':    0,
             }
 
-        # 2) Count instruments per facility via instrument_owner field
+        # 2) Count instruments per facility via owner field
         fq = f'dataset_type:instrument AND extras_is_platform:{is_platform}'
         result = toolkit.get_action('package_search')(context, {
             'q': '*:*',
@@ -388,7 +388,7 @@ def instrument_facilities():
         })
 
         for pkg in result.get('results', []):
-            owner_raw = pkg.get('instrument_owner')
+            owner_raw = pkg.get('owner')
             if not owner_raw:
                 continue
             if isinstance(owner_raw, str):

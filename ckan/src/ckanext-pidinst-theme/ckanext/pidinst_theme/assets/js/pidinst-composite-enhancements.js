@@ -70,9 +70,17 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
 
           var facTitle   = $opt.data('facility-title')   || '';
           var facContact = $opt.data('facility-contact') || '';
+          var facId      = $opt.data('facility-identifier')      || '';
+          var facIdType  = $opt.data('facility-identifier-type')  || '';
 
+          // Visible / editable fields
           $row.find('input[name$="owner_facility_name"]').val(facTitle);
           $row.find('input[name$="owner_contact"]').val(facContact);
+
+          // Hidden fields for DOI minting
+          $row.find('input[name$="owner_name"]').val(facTitle);
+          $row.find('input[name$="owner_identifier"]').val(facId);
+          $row.find('input[name$="owner_identifier_type"]').val(facIdType);
         });
       });
     },

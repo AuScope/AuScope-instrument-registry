@@ -110,6 +110,27 @@ dataset_fields:
         display_snippet: null
         validators: ignore_missing unicode_safe
 
+      - field_name: owner_name
+        label: Owner Name
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+        help_text: "Resolved facility title — used by DOI minting as the contributor name."
+
+      - field_name: owner_identifier
+        label: Owner Identifier
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+        help_text: "Facility identifier (ROR or other) — used by DOI minting."
+
+      - field_name: owner_identifier_type
+        label: Owner Identifier Type
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+        help_text: "Type of the facility identifier — used by DOI minting."
+
       - field_name: owner_contact
         label: Owner Contact
         form_attrs:

@@ -1,6 +1,6 @@
 {#
   Composite subfield form snippet for owner_facility_id within the
-  instrument_owner composite_repeating field.
+  owner composite_repeating field.
 
   Renders a <select> dropdown populated with all Facility groups.
   When a facility is selected, JavaScript fills the sibling
@@ -10,7 +10,7 @@
   Called by composite_repeating_field.html with:
     field          – the subfield definition (field_name: owner_facility_id)
     subfield_index – current row number (1-based string)
-    parent         – parent field name, "instrument_owner"
+    parent         – parent field name, "owner"
     field_dict     – data dict for this row
 #}
 
@@ -35,9 +35,14 @@
       <option value="">-- Select a facility --</option>
       {% set facilities = h.get_facility_list() %}
       {% for fac in facilities %}
+        {# Resolve identifier: prefer ROR, fall back to free-text #}
+        {% set fac_id = fac.facility_identifier_ror or fac.facility_identifier or '' %}
+        {% set fac_id_type = fac.facility_identifier_type or '' %}
         <option value="{{ fac.name }}"
                 data-facility-title="{{ fac.title or fac.name }}"
                 data-facility-contact="{{ fac.facility_contact or '' }}"
+                data-facility-identifier="{{ fac_id }}"
+                data-facility-identifier-type="{{ fac_id_type }}"
                 {% if fac.name == value %}selected{% endif %}>
           {{ fac.title or fac.name }}
         </option>
