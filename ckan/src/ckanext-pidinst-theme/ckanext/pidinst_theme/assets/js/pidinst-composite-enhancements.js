@@ -5,6 +5,8 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       this.hideDependentFields();
       this.updateCollapsiblePanels();
       this.updateIndexes();
+      // Initialize facility selects AFTER updateCollapsiblePanels has rebuilt the DOM
+      this.initFacilitySelects();
 
       // Re-process after row add/remove
       $(document).on('click', '.composite-btn.btn-success', function () {
@@ -12,6 +14,7 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
           setTimeout(function () {
             self.updateIndexes();
             self.updateCollapsiblePanels();
+            self.initFacilitySelects();
             self.initializeAllSelect2().then(() => {
               self.reapplySelect2Values();
             });
@@ -30,6 +33,46 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       this.assignUniqueIdsAndDestroySelect2().then(() => {
         self.initializeAllSelect2().then(() => {
           self.reapplySelect2Values();
+        });
+      });
+    },
+
+    /* ── Facility owner Select2 ──────────────────────────────────────── */
+    initFacilitySelects: function () {
+      var $dropdowns = $('.owner-facility-dropdown');
+
+      // Destroy any stale Select2 instances (after DOM rebuild)
+      $dropdowns.each(function () {
+        if ($(this).data('select2')) {
+          $(this).select2('destroy');
+        }
+      });
+
+      // Initialize Select2 on each facility dropdown and bind the change
+      // handler DIRECTLY (not via $(document) delegation) — Select2 v3 does
+      // not reliably bubble 'change' through jQuery delegated event listeners.
+      $dropdowns.each(function () {
+        var $select = $(this);
+
+        $select.select2({
+          placeholder: '-- Select a facility --',
+          allowClear: true,
+          width: 'resolve'
+        });
+
+        $select.off('change.ownerFacility').on('change.ownerFacility', function () {
+
+          var $opt     = $select.find('option:selected');
+          var $row     = $select.closest('.composite-control-repeating');
+
+          var facTitle   = $opt.data('facility-title')   || '';
+          var facContact = $opt.data('facility-contact') || '';
+
+          var $nameField    = $row.find('input[name$="owner_facility_name"]');
+          var $contactField = $row.find('input[name$="owner_contact"]');
+
+          $nameField.val(facTitle);
+          $contactField.val(facContact);
         });
       });
     },

@@ -93,6 +93,7 @@ dataset_fields:
     form_snippet: composite_repeating_field.html
     form_blanks: 1
     groupBy: About Instrument
+    required: true
     help_text: "Select one or more facilities as owners. A contact email is required for each selected owner."
     subfields:
       - field_name: owner_facility_id
@@ -100,9 +101,11 @@ dataset_fields:
         form_snippet: owner_facility_select.html
         help_text: "Select a facility from the registry"
         validators: ignore_missing unicode_safe
+        required: true
 
       - field_name: owner_facility_name
         label: Facility Name
+        required: true
         form_snippet: composite_hidden_field.html
         display_snippet: null
         validators: ignore_missing unicode_safe
@@ -114,7 +117,6 @@ dataset_fields:
           placeholder: contact@example.edu.au
         help_text: "Contact email for this owner. Pre-filled from facility if available."
         validators: ignore_missing unicode_safe strip_value email_validator
-
 
 
   - field_name: instrument_type_gcmd_code

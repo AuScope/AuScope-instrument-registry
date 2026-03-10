@@ -535,20 +535,34 @@ def get_facility_list():
         title  – display title
     Plus any extras stored on the group (e.g. facility_contact, ror_id …).
     The list is sorted alphabetically by title.
+
+    Uses group_show per facility (not group_list) because group_list's
+    include_extras parameter is unreliable across CKAN versions — it may
+    return an empty extras list even when extras exist.
     """
     try:
         context = {'ignore_auth': True}
-        groups = toolkit.get_action('group_list')(context, {
+        # Get the list of facility slugs first
+        names = toolkit.get_action('group_list')(context, {
             'type': 'facility',
-            'all_fields': True,
-            'include_extras': True,
         })
         result = []
-        for g in groups:
-            item = {'name': g['name'], 'title': g.get('title', '')}
-            for e in g.get('extras', []):
-                item[e['key']] = e['value']
-            result.append(item)
+        for name in names:
+            try:
+                g = toolkit.get_action('group_show')(context, {
+                    'id': name,
+                    'include_extras': True,
+                })
+                # Start with ALL top-level keys — ckanext-scheming returns
+                # custom fields (e.g. facility_contact) as top-level keys on
+                # group_show, not inside the extras list.
+                item = dict(g)
+                # Also flatten extras list in case any extras weren't promoted
+                for e in g.get('extras', []):
+                    item[e['key']] = e['value']
+                result.append(item)
+            except Exception:
+                pass
         return sorted(result, key=lambda x: x.get('title', '').lower())
     except Exception:
         return []

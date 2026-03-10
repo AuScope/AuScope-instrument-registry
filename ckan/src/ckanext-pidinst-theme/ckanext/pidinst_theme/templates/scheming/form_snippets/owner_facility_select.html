@@ -20,7 +20,6 @@
 {% set value        = field_dict.get(field.field_name, '') %}
 
 <div class="form-group owner-facility-select-block"
-     data-module="owner-facility-select-module"
      data-field-prefix="{{ field_prefix }}">
 
   <label class="control-label" for="{{ sel_id }}">
@@ -31,7 +30,8 @@
     <select id="{{ sel_id }}"
             name="{{ sel_name }}"
             class="form-control owner-facility-dropdown"
-            data-field-prefix="{{ field_prefix }}">
+            data-field-prefix="{{ field_prefix }}"
+            style="width:100%">
       <option value="">-- Select a facility --</option>
       {% set facilities = h.get_facility_list() %}
       {% for fac in facilities %}

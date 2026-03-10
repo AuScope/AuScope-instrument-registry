@@ -640,6 +640,7 @@ class CKANClient(RemoteCKAN):
         """
         results = self.action.group_list(
             all_fields=True,
+            include_extras=True,
             type="facility",
         )
 
