@@ -349,22 +349,33 @@ def instrument_facilities():
         }
 
         # 1) Fetch all facilities (CKAN groups of type "facility")
-        all_groups = toolkit.get_action('group_list')(context, {
+        # Use group_show per facility — group_list with include_extras is
+        # unreliable in some CKAN versions, and ckanext-scheming promotes
+        # custom fields to top-level keys on group_show anyway.
+        group_names = toolkit.get_action('group_list')(context, {
             'type': 'facility',
-            'all_fields': True,
-            'include_extras': True,
         })
 
         # Build a quick lookup  name -> facility dict
         facility_map = {}
-        for g in all_groups:
-            extras = {e['key']: e['value'] for e in g.get('extras', [])}
+        for gname in group_names:
+            try:
+                g = toolkit.get_action('group_show')(context, {
+                    'id': gname,
+                    'include_extras': True,
+                })
+            except Exception:
+                continue
+            # Merge top-level keys + extras (scheming fields are top-level)
+            merged = dict(g)
+            for e in g.get('extras', []):
+                merged.setdefault(e['key'], e['value'])
             facility_map[g['name']] = {
-                'id': g['name'],
-                'title': g.get('title') or g['name'],
-                'parent_id': extras.get('parent_facility') or None,
-                'contact': extras.get('facility_contact', ''),
-                'count': 0,
+                'id':       g['name'],
+                'title':    g.get('title') or g['name'],
+                'parent_id': merged.get('parent_facility') or None,
+                'contact':  merged.get('facility_contact', ''),
+                'count':    0,
             }
 
         # 2) Count instruments per facility via instrument_owner field

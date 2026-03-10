@@ -5,7 +5,7 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       this.hideDependentFields();
       this.updateCollapsiblePanels();
       this.updateIndexes();
-      // Initialize facility selects AFTER updateCollapsiblePanels has rebuilt the DOM
+      // Initialize facility selects AFTER updateCollapsiblePanels has run
       this.initFacilitySelects();
 
       // Re-process after row add/remove
@@ -37,20 +37,23 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       });
     },
 
-    /* ── Facility owner Select2 ──────────────────────────────────────── */
+    /* ── Facility owner Select2 ──────────────────────────────────────────
+     *  Scoped to this.el so only the instrument_owner instance acts on
+     *  the facility dropdowns.  Other composite-field instances find
+     *  zero dropdowns and return immediately.
+     * ─────────────────────────────────────────────────────────────────── */
     initFacilitySelects: function () {
-      var $dropdowns = $('.owner-facility-dropdown');
+      var $dropdowns = this.el.find('.owner-facility-dropdown');
+      if ($dropdowns.length === 0) return;
 
-      // Destroy any stale Select2 instances (after DOM rebuild)
+      // Destroy stale Select2 instances (after DOM rebuild / cloneNode)
       $dropdowns.each(function () {
         if ($(this).data('select2')) {
           $(this).select2('destroy');
         }
       });
 
-      // Initialize Select2 on each facility dropdown and bind the change
-      // handler DIRECTLY (not via $(document) delegation) — Select2 v3 does
-      // not reliably bubble 'change' through jQuery delegated event listeners.
+      // (Re-)initialize Select2 and bind change handler
       $dropdowns.each(function () {
         var $select = $(this);
 
@@ -60,19 +63,16 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
           width: 'resolve'
         });
 
+        // Direct binding — Select2 v3 doesn't reliably bubble 'change'
         $select.off('change.ownerFacility').on('change.ownerFacility', function () {
-
           var $opt     = $select.find('option:selected');
           var $row     = $select.closest('.composite-control-repeating');
 
           var facTitle   = $opt.data('facility-title')   || '';
           var facContact = $opt.data('facility-contact') || '';
 
-          var $nameField    = $row.find('input[name$="owner_facility_name"]');
-          var $contactField = $row.find('input[name$="owner_contact"]');
-
-          $nameField.val(facTitle);
-          $contactField.val(facContact);
+          $row.find('input[name$="owner_facility_name"]').val(facTitle);
+          $row.find('input[name$="owner_contact"]').val(facContact);
         });
       });
     },
@@ -103,8 +103,7 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
 
     assignUniqueIdsAndDestroySelect2: function () {
       return new Promise(function (resolve) {
-        // Destroy author-affiliation Select2 instances
-        $('input[name*="author-"][name*="-author_affiliation"]:not([name$="_identifier"])').each(function () {
+        $('input[name*="author-"][name*="-author_affiliation"]:not([name$="_identifier"])').each(function (index) {
           var $input = $(this);
           if ($input.data('select2')) {
             $input.select2('destroy');
