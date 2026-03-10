@@ -86,7 +86,7 @@ dataset_fields:
   # provide a contact email for each.  If the facility already has a
   # contact recorded, it is used as the default but can be overridden.
 
-  - field_name: instrument_owner
+  - field_name: owner
     label: Owner
     preset: composite_repeating
     validators: composite_repeating_validator
@@ -102,13 +102,6 @@ dataset_fields:
         help_text: "Select a facility from the registry"
         validators: ignore_missing unicode_safe
         required: true
-
-      - field_name: owner_facility_name
-        label: Facility Name
-        required: true
-        form_snippet: composite_hidden_field.html
-        display_snippet: null
-        validators: ignore_missing unicode_safe
 
       - field_name: owner_name
         label: Owner Name

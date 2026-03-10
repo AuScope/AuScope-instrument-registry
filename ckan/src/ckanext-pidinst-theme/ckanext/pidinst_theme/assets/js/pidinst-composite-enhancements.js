@@ -38,7 +38,7 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
     },
 
     /* ── Facility owner Select2 ──────────────────────────────────────────
-     *  Scoped to this.el so only the instrument_owner instance acts on
+     *  Scoped to this.el so only the owner instance acts on
      *  the facility dropdowns.  Other composite-field instances find
      *  zero dropdowns and return immediately.
      * ─────────────────────────────────────────────────────────────────── */
@@ -73,8 +73,6 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
           var facId      = $opt.data('facility-identifier')      || '';
           var facIdType  = $opt.data('facility-identifier-type')  || '';
 
-          // Visible / editable fields
-          $row.find('input[name$="owner_facility_name"]').val(facTitle);
           $row.find('input[name$="owner_contact"]').val(facContact);
 
           // Hidden fields for DOI minting
