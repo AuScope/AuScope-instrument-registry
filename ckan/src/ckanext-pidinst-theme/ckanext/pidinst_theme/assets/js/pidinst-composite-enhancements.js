@@ -48,11 +48,19 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       var $dropdowns = this.el.find('.owner-facility-dropdown');
       if ($dropdowns.length === 0) return;
 
-      // Destroy stale Select2 instances (after DOM rebuild / cloneNode)
+      // Thoroughly clean up Select2 artifacts (stale clones, hiding)
       $dropdowns.each(function () {
-        if ($(this).data('select2')) {
-          $(this).select2('destroy');
+        var $sel = $(this);
+        if ($sel.data('select2')) {
+          $sel.select2('destroy');
         }
+        // Remove dead Select2 containers left by cloneNode
+        $sel.siblings('.select2-container').remove();
+        // Remove Select2 hiding classes and data attributes
+        $sel.removeClass('select2-offscreen select2-hidden-accessible');
+        $sel.removeAttr('data-select2-id');
+        // Reset inline style to the original width (Select2 may have hidden it)
+        $sel.attr('style', 'width:100%');
       });
 
       // (Re-)initialize Select2 and bind change handler
@@ -93,10 +101,16 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       var $dropdowns = this.el.find('.funder-facility-dropdown');
       if ($dropdowns.length === 0) return;
 
+      // Thoroughly clean up Select2 artifacts (stale clones, hiding)
       $dropdowns.each(function () {
-        if ($(this).data('select2')) {
-          $(this).select2('destroy');
+        var $sel = $(this);
+        if ($sel.data('select2')) {
+          $sel.select2('destroy');
         }
+        $sel.siblings('.select2-container').remove();
+        $sel.removeClass('select2-offscreen select2-hidden-accessible');
+        $sel.removeAttr('data-select2-id');
+        $sel.attr('style', 'width:100%');
       });
 
       $dropdowns.each(function () {
