@@ -7,6 +7,7 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       this.updateIndexes();
       // Initialize facility selects AFTER updateCollapsiblePanels has run
       this.initFacilitySelects();
+      this.initFunderFacilitySelects();
 
       // Re-process after row add/remove
       $(document).on('click', '.composite-btn.btn-success', function () {
@@ -15,6 +16,7 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
             self.updateIndexes();
             self.updateCollapsiblePanels();
             self.initFacilitySelects();
+            self.initFunderFacilitySelects();
             self.initializeAllSelect2().then(() => {
               self.reapplySelect2Values();
             });
@@ -79,6 +81,46 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
           $row.find('input[name$="owner_name"]').val(facTitle);
           $row.find('input[name$="owner_identifier"]').val(facId);
           $row.find('input[name$="owner_identifier_type"]').val(facIdType);
+        });
+      });
+    },
+
+    /* ── Funder facility Select2 ───────────────────────────────────────
+     *  Same pattern as initFacilitySelects but for the funder composite.
+     *  Scoped to this.el so only the funder instance processes these.
+     * ─────────────────────────────────────────────────────────────────── */
+    initFunderFacilitySelects: function () {
+      var $dropdowns = this.el.find('.funder-facility-dropdown');
+      if ($dropdowns.length === 0) return;
+
+      $dropdowns.each(function () {
+        if ($(this).data('select2')) {
+          $(this).select2('destroy');
+        }
+      });
+
+      $dropdowns.each(function () {
+        var $select = $(this);
+
+        $select.select2({
+          placeholder: '-- Select a funder --',
+          allowClear: true,
+          width: 'resolve'
+        });
+
+        $select.off('change.funderFacility').on('change.funderFacility', function () {
+          var $opt = $select.find('option:selected');
+          var $row = $select.closest('.composite-control-repeating');
+
+          var facTitle     = $opt.data('facility-title')           || '';
+          var facId        = $opt.data('facility-identifier')      || '';
+          var facIdType    = $opt.data('facility-identifier-type')  || '';
+          var facSchemaUri = $opt.data('facility-schema-uri')       || '';
+
+          $row.find('input[name$="funder_name"]').val(facTitle);
+          $row.find('input[name$="funder_identifier"]').val(facId);
+          $row.find('input[name$="funder_identifier_type"]').val(facIdType);
+          $row.find('input[name$="schema_uri"]').val(facSchemaUri);
         });
       });
     },

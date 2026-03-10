@@ -109,9 +109,9 @@ def get_org_list():
 
 
 def users_role_in_org(user_name, org_id=None):
-    # If no org_id supplied, fall back to 'auscope' for backward compatibility
+    # If no org_id supplied, fall back to 'auscope-org' for backward compatibility
     if not org_id:
-        org_id = 'auscope'
+        org_id = 'auscope-org'
     return authz.users_role_for_group_or_org(group_id=org_id, user_name=user_name)
 
 def current_date():

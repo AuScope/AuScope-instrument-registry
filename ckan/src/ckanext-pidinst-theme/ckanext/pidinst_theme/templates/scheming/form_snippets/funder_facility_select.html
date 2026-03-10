@@ -1,0 +1,64 @@
+{#
+  Composite subfield form snippet for funder_facility_id within the
+  funder composite_repeating field.
+
+  Renders a <select> dropdown populated with all Facility groups.
+  When a facility is selected, JavaScript fills the sibling
+  funder_name, funder_identifier, funder_identifier_type and schema_uri.
+
+  Called by composite_repeating_field.html with:
+    field          – the subfield definition (field_name: funder_facility_id)
+    subfield_index – current row number (1-based string)
+    parent         – parent field name, "funder"
+    field_dict     – data dict for this row
+#}
+
+{% set field_prefix = parent ~ '-' ~ subfield_index ~ '-' %}
+{% set sel_name     = field_prefix ~ field.field_name %}
+{% set sel_id       = 'field-' ~ sel_name %}
+{% set value        = field_dict.get(field.field_name, '') %}
+
+{# Map identifier types to their schema URIs #}
+{% set schema_uri_map = {
+  'ROR':  'https://ror.org/',
+  'GRID': 'https://www.grid.ac/',
+  'DOI':  'https://doi.org/',
+  'ISNI': 'https://isni.org/',
+} %}
+
+<div class="form-group funder-facility-select-block"
+     data-field-prefix="{{ field_prefix }}">
+
+  <label class="control-label" for="{{ sel_id }}">
+    {{ h.scheming_language_text(field.label) }}
+  </label>
+
+  <div class="controls">
+    <select id="{{ sel_id }}"
+            name="{{ sel_name }}"
+            class="form-control funder-facility-dropdown"
+            data-field-prefix="{{ field_prefix }}"
+            style="width:100%">
+      <option value="">-- Select a funder --</option>
+      {% set facilities = h.get_facility_list() %}
+      {% for fac in facilities %}
+        {# Resolve identifier: prefer ROR, fall back to free-text #}
+        {% set fac_id = fac.facility_identifier_ror or fac.facility_identifier or '' %}
+        {% set fac_id_type = fac.facility_identifier_type or '' %}
+        {% set fac_schema_uri = schema_uri_map.get(fac_id_type, '') %}
+        <option value="{{ fac.name }}"
+                data-facility-title="{{ fac.title or fac.name }}"
+                data-facility-identifier="{{ fac_id }}"
+                data-facility-identifier-type="{{ fac_id_type }}"
+                data-facility-schema-uri="{{ fac_schema_uri }}"
+                {% if fac.name == value %}selected{% endif %}>
+          {{ fac.title or fac.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {% if field.help_text %}
+    <p class="help-block">{{ h.scheming_language_text(field.help_text) }}</p>
+  {% endif %}
+</div>

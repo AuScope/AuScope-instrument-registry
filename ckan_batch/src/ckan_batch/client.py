@@ -241,7 +241,7 @@ class CKANClient(RemoteCKAN):
 
     def delete_all_in_org(
         self,
-        owner_org: str = "auscope",
+        owner_org: str = "auscope-org",
         *,
         dry_run: bool = True,
         dataset_type: Optional[str] = "instrument",

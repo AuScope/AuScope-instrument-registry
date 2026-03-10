@@ -10,15 +10,15 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1 FROM public."group" g
-    WHERE g.name = 'auscope' AND g.type = 'organization'
+    WHERE g.name = 'auscope-org' AND g.type = 'organization'
   ) THEN
     INSERT INTO public."group"
       (id, name, title, description, state, type, approval_status, image_url, is_organization)
     VALUES
       (
         org_uuid,
-        'auscope',
-        'AuScope',
+        'auscope-org',
+        'AuScope-Org',
         'AuScope is Australia''s provider of research infrastructure to the national geoscience community working on fundamental geoscience questions and grand challenges — climate change, natural resources security and natural hazards. We are funded by the Australian Government via the Department of Education (NCRIS). You can find our team, tools, data, analytics and services at Geoscience Australia, CSIRO, state and territory geological surveys and universities across the Australian continent.',
         'active',
         'organization',
@@ -31,7 +31,7 @@ BEGIN
   -- Re-read org id from DB, and keep both forms
   SELECT id INTO org_uuid
   FROM public."group"
-  WHERE name = 'auscope' AND type = 'organization'
+  WHERE name = 'auscope-org' AND type = 'organization'
   LIMIT 1;
 
   org_id_text := org_uuid::text;
