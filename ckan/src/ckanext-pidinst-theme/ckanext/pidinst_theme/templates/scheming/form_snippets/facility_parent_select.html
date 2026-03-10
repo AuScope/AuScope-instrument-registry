@@ -1,0 +1,32 @@
+{#
+  Form snippet for parent_facility field on the Facility (group) form.
+  Renders a <select> dropdown of all existing facilities (excluding self).
+#}
+
+{% set field_id   = 'field-' ~ field.field_name %}
+{% set field_name = field.field_name %}
+{% set value      = data.get(field_name, '') %}
+
+<div class="form-group">
+  <label class="control-label" for="{{ field_id }}">
+    {{ h.scheming_language_text(field.label) }}
+  </label>
+  <div class="controls">
+    <select id="{{ field_id }}" name="{{ field_name }}" class="form-control">
+      <option value="">-- None --</option>
+      {% set facilities = h.get_facility_list() %}
+      {% for fac in facilities %}
+        {# Exclude self to prevent circular parent reference #}
+        {% if fac.name != data.get('name', '') %}
+          <option value="{{ fac.name }}"
+                  {% if fac.name == value %}selected{% endif %}>
+            {{ fac.title or fac.name }}
+          </option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  {% if field.help_text %}
+    <p class="help-block">{{ h.scheming_language_text(field.help_text) }}</p>
+  {% endif %}
+</div>

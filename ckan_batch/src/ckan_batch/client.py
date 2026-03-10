@@ -547,6 +547,7 @@ class CKANClient(RemoteCKAN):
         *,
         dry_run: bool = True,
         include_only_names: Optional[List[str]] = None,
+        hard_delete: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Delete all CKAN groups of type 'facility'.
@@ -554,6 +555,8 @@ class CKANClient(RemoteCKAN):
         Args:
             dry_run: If True, only list facilities without deleting.
             include_only_names: Optional whitelist of facility names to delete.
+            hard_delete: If True, permanently remove groups using group_purge.
+                If False, perform soft delete using group_delete.
 
         Returns:
             List of facilities that were (or would be) deleted.
@@ -575,12 +578,17 @@ class CKANClient(RemoteCKAN):
                     "name": name,
                     "title": grp.get("title"),
                     "type": grp.get("type"),
+                    "state": grp.get("state"),
                 }
             )
 
-        print(f"Found {len(to_delete)} facility group(s)")
+        mode = "HARD DELETE" if hard_delete else "SOFT DELETE"
+        print(f"Found {len(to_delete)} facility group(s) for {mode}")
         for g in to_delete[:20]:
-            print(f" - {g['name']} ({g.get('id')}) | {g.get('title')}")
+            print(
+                f" - {g['name']} ({g.get('id')}) | "
+                f"{g.get('title')} | state={g.get('state')}"
+            )
         if len(to_delete) > 20:
             print(f" ... and {len(to_delete) - 20} more")
 
@@ -590,14 +598,28 @@ class CKANClient(RemoteCKAN):
 
         deleted = 0
         failed: List[Dict[str, Any]] = []
+
         for g in to_delete:
             try:
-                self.action.group_delete(id=g["id"])
+                if hard_delete:
+                    self.action.group_purge(id=g["id"])
+                else:
+                    self.action.group_delete(id=g["id"])
                 deleted += 1
             except CKANAPIError as e:
-                failed.append({"group": g, "error": getattr(e, "error_dict", None) or str(e)})
+                failed.append(
+                    {
+                        "group": g,
+                        "error": getattr(e, "error_dict", None) or str(e),
+                    }
+                )
             except Exception as e:
-                failed.append({"group": g, "error": f"Unexpected error: {e}"})
+                failed.append(
+                    {
+                        "group": g,
+                        "error": f"Unexpected error: {e}",
+                    }
+                )
 
         print(f"\nDeleted: {deleted}")
         if failed:

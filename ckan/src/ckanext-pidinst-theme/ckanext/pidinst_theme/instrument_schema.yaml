@@ -80,128 +80,40 @@ dataset_fields:
     validators: visibility_validator
     groupBy: About Instrument
 
-  # ======================== OWNER (ROR) ========================
-  # ROR-backed owner selection — preferred when the organisation exists in ROR.
-  # The manual PIDINST Owner block below remains the fallback.
-  # Supports multiple owners via composite_repeating.
-  # Contact is required (enforced by composite_rules) when an ROR org is selected.
+  # ======================== OWNER (FACILITY) ========================
+  # Owners are selected from the Facility registry (CKAN groups of type
+  # "facility").  Users pick one or more facilities from a dropdown and
+  # provide a contact email for each.  If the facility already has a
+  # contact recorded, it is used as the default but can be overridden.
 
-  - field_name: owner_ror
-    label: Owner (ROR)
+  - field_name: instrument_owner
+    label: Owner
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html
-    form_blanks: 0
+    form_blanks: 1
     groupBy: About Instrument
-    composite_rules:
-      - when_present: owner_ror_id
-        require: [owner_ror_contact]
-    help_text: "Search the Research Organization Registry (ROR) for Australian owners (education, government, facility). You may add multiple owners. Each selected owner requires a contact email."
+    help_text: "Select one or more facilities as owners. A contact email is required for each selected owner."
     subfields:
-      - field_name: owner_ror_lookup
+      - field_name: owner_facility_id
         label: Facility
-        form_snippet: ror_owner_subfield.html
-        display_snippet: null
-
-      - field_name: owner_ror_id
-        label: ROR ID
-        form_snippet: composite_hidden_field.html
-        display_snippet: URL
+        form_snippet: owner_facility_select.html
+        help_text: "Select a facility from the registry"
         validators: ignore_missing unicode_safe
 
-      - field_name: owner_ror_name
-        label: Name
+      - field_name: owner_facility_name
+        label: Facility Name
         form_snippet: composite_hidden_field.html
         display_snippet: null
         validators: ignore_missing unicode_safe
 
-      - field_name: owner_ror_hierarchy_display
-        label: Hierarchy
-        form_snippet: composite_hidden_field.html
-        validators: ignore_missing unicode_safe
-
-      - field_name: owner_ror_types
-        label: Types
-        form_snippet: composite_hidden_field.html
-        display_snippet: null
-        validators: ignore_missing unicode_safe
-
-      - field_name: owner_ror_country
-        label: Country
-        form_snippet: composite_hidden_field.html
-        display_snippet: null
-        validators: ignore_missing unicode_safe
-
-      - field_name: owner_ror_state
-        label: State
-        form_snippet: composite_hidden_field.html
-        display_snippet: null
-        validators: ignore_missing unicode_safe
-
-      - field_name: owner_ror_website
-        label: Website
-        form_snippet: composite_hidden_field.html
-        display_snippet: URL
-        validators: ignore_missing unicode_safe
-
-      - field_name: owner_ror_parents_json
-        label: Parents JSON
-        form_snippet: composite_hidden_field.html
-        display_snippet: null
-        validators: ignore_missing unicode_safe
-
-      - field_name: owner_ror_contact
+      - field_name: owner_contact
         label: Owner Contact
         form_attrs:
           type: email
           placeholder: contact@example.edu.au
-        help_text: "Contact email for this owner. Required when a facility is selected."
+        help_text: "Contact email for this owner. Pre-filled from facility if available."
         validators: ignore_missing unicode_safe strip_value email_validator
-
-  - field_name: owner
-    label: Owners (Custom)
-    preset: composite_repeating
-    validators: composite_repeating_validator
-    form_snippet: composite_repeating_field.html
-    groupBy: About Instrument
-    composite_rules:
-      - when_present: owner_identifier
-        require: [owner_identifier_type]
-    subfields:
-      - field_name: owner_name
-        label: Owner Name
-        required: true
-        display_property: dc:creator
-        help_text: Full name of the owner
-
-      - field_name: owner_contact
-        label: Owner Contact
-        required: true
-        display_snippet: None
-        display_email_name_field: owner_name
-        validators: ignore_missing unicode_safe strip_value email_validator
-        help_text: Contact address of the owner
-
-      - field_name: owner_identifier
-        label: Owner Identifier
-        help_text: "Identifier used to identify the owner"
-
-      - field_name: owner_identifier_type
-        label: Owner Identifier Type
-        help_text: "Type of the identifier"
-
-      # - field_name: owner_relationship_type
-      #   label: Owner Relationship Type
-      #   preset: select
-      #   required: true
-      #   choices:
-      #     - value: HostingInstitution
-      #       label: HostingInstitution
-      #     - value: DataCollector
-      #       label: DataCollector
-      #     - value: Sponsor
-      #       label: Sponsor
-      #   help_text: The type of the date
 
 
 

@@ -1,24 +1,32 @@
 group_type: facility
-about: Facility groups used to represent instrument facilities
+about: Facility groups used to represent instrument facilities (ROR-backed or custom)
 fields:
+
+  # ======================== HIDDEN IDENTITY FIELDS ========================
+  # title and name are auto-populated by JS from the identifier fields.
+
   - field_name: title
     label: Facility Name
-    form_placeholder: e.g. AuScope Passive Seismic Laboratory
+    form_snippet: hidden_field.html
     required: true
 
   - field_name: name
     label: URL
-    form_placeholder: e.g. auscope-passive-seismic-laboratory
+    form_snippet: hidden_field.html
     required: true
     validators: not_empty group_name_validator unicode_safe
 
-  - field_name: facility_identifier
-    label: Facility Identifier
-    help_text: Stable external identifier, e.g. a ROR identifier
+  # ======================== IDENTIFIER FIELDS ========================
+  # facility_identifier_type drives the form behaviour:
+  #   ROR  → show facility_identifier_ror (Select2 search), hide free-text
+  #   else → show facility_identifier (free text), hide ROR search
 
   - field_name: facility_identifier_type
     label: Facility Identifier Type
     preset: select
+    required: true
+    default: ROR
+    form_include_blank_choice: false
     choices:
       - value: ROR
         label: ROR
@@ -30,16 +38,83 @@ fields:
         label: Local
       - value: URL
         label: URL
+    validators: ignore_missing unicode_safe
+
+  - field_name: facility_identifier_ror
+    label: Facility Identifier
+    form_snippet: ror_facility_lookup.html
+    display_snippet: link.html
+    help_text: "ROR identifier. Use the search box to find and select an organisation."
+    validators: ignore_missing unicode_safe
+
+  - field_name: facility_identifier
+    label: Facility Identifier
+    form_placeholder: e.g. AuScope Passive Seismic Laboratory
+    help_text: "Name or identifier for this facility"
+    validators: ignore_missing unicode_safe
+
+  # ======================== ROR-SPECIFIC FIELDS ========================
+  # Auto-populated when a user selects a ROR organisation.
+  # Visible (read-only) when identifier type is ROR; hidden otherwise.
+
+  - field_name: ror_hierarchy_display
+    label: Hierarchy
+    form_attrs:
+      readonly: true
+    help_text: "Full hierarchy path from ROR, e.g. University > Faculty > Lab"
+    validators: ignore_missing unicode_safe
+
+  - field_name: ror_parents_json
+    label: Parents JSON
+    form_snippet: hidden_field.html
+    display_snippet: null
+    help_text: JSON array of parent organisations from ROR (root-first)
+    validators: ignore_missing unicode_safe
+
+  - field_name: ror_types
+    label: Organisation Types
+    form_attrs:
+      readonly: true
+    help_text: ROR organisation types (e.g. education, government, facility)
+    validators: ignore_missing unicode_safe
+
+  - field_name: ror_country
+    label: Country
+    form_attrs:
+      readonly: true
+    validators: ignore_missing unicode_safe
+
+  # ======================== SHARED FIELDS ========================
 
   - field_name: facility_contact
     label: Contact
+    help_text: Contact email for this facility
+    validators: ignore_missing unicode_safe
 
   - field_name: website
     label: Website
     validators: ignore_missing url_validator
 
-  - field_name: state
+  - field_name: facility_state
     label: State
+    preset: select
+    choices:
+      - value: Australian Capital Territory
+        label: Australian Capital Territory
+      - value: New South Wales
+        label: New South Wales
+      - value: Northern Territory
+        label: Northern Territory
+      - value: Queensland
+        label: Queensland
+      - value: South Australia
+        label: South Australia
+      - value: Tasmania
+        label: Tasmania
+      - value: Victoria
+        label: Victoria
+      - value: Western Australia
+        label: Western Australia
 
   - field_name: short_description
     label: Short Description
@@ -48,3 +123,12 @@ fields:
   - field_name: aliases
     label: Aliases
     help_text: Optional alternate names for this facility
+    validators: ignore_missing unicode_safe
+
+  # Parent Facility – visible only for non-ROR facilities.
+  # For ROR facilities, parents are auto-created via the API on form submit.
+  - field_name: parent_facility
+    label: Parent Facility
+    form_snippet: facility_parent_select.html
+    help_text: If this facility is part of a larger facility, select the parent here.
+    validators: ignore_missing unicode_safe

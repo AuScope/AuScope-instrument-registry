@@ -17,6 +17,6 @@
 {% endblock %}
 
 {% block secondary_content %}
-  {% snippet 'snippets/facility_tree_facet.html', is_platform='false', active_owner_ror_names=active_owner_ror_names %}
+  {% snippet 'snippets/facility_tree_facet.html', is_platform='false', active_facility_filters=active_facility_filters %}
   {{ super() }}
 {% endblock %}

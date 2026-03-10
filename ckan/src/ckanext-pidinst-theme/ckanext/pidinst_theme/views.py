@@ -301,52 +301,18 @@ def ror_search():
 
         results = []
         for item in items:
-            ror_id = item.get('id', '')
-            names = item.get('names', [])
-            # Prefer ror_display name, then the first name entry
-            display_name = ''
-            for n in names:
-                if 'ror_display' in n.get('types', []):
-                    display_name = n.get('value', '')
-                    break
-            if not display_name and names:
-                display_name = names[0].get('value', '')
-
-            # Extract types
-            org_types = [t.lower() for t in item.get('types', [])]
-
-            # Extract location info
-            locations = item.get('locations', [])
-            country = ''
-            state = ''
-            if locations:
-                geonames = locations[0].get('geonames_details', {})
-                country = geonames.get('country_name', '')
-                state = geonames.get('name', '')
-
-            # Extract website link – ROR v2 links are {type, value} dicts
-            links = item.get('links', [])
-            website = ''
-            for link in links:
-                if isinstance(link, dict) and link.get('type') == 'website':
-                    website = link.get('value', '')
-                    break
-            if not website and links:
-                first = links[0]
-                website = first.get('value', '') if isinstance(first, dict) else str(first)
-
-            # Resolve parent hierarchy
+            fields = _extract_ror_fields(item)
             hierarchy_display, parents_json = _resolve_ror_hierarchy(item)
 
             results.append({
-                'id': ror_id,
-                'text': display_name,
-                'ror_id': ror_id,
-                'name': display_name,
-                'types': ', '.join(org_types),
-                'country': country,
-                'state': state,
-                'website': website,
+                'id': fields['id'],
+                'text': fields['name'],
+                'ror_id': fields['id'],
+                'name': fields['name'],
+                'types': fields['types'],
+                'country': fields['country'],
+                'facility_state': fields['facility_state'],
+                'website': fields['website'],
                 'parents_json': parents_json,
                 'hierarchy_display': hierarchy_display,
             })
@@ -363,11 +329,14 @@ def ror_search():
 
 @pidinst_theme.route('/api/instrument_facilities')
 def instrument_facilities():
-    """Return a flat list of facility nodes for building the Facilities tree.
+    """Return a flat list of facility nodes for the Facilities tree widget.
 
-    Each node: {id, name, parent_id, count}
-    'count' = number of instruments/platforms that directly list this facility.
-    Parent nodes inferred from owner_ror_parents_json are included with count=0.
+    Each node: {id, name, title, parent_id, contact, count}
+      - id/name   = CKAN group name (URL slug)
+      - title     = human-readable name
+      - parent_id = name of the parent facility group, or null
+      - contact   = facility_contact value
+      - count     = number of instruments/platforms that list this facility as owner
 
     Query params:
         is_platform – 'true' or 'false' (default 'false')
@@ -378,6 +347,27 @@ def instrument_facilities():
             'user': toolkit.c.user,
             'auth_user_obj': toolkit.c.userobj,
         }
+
+        # 1) Fetch all facilities (CKAN groups of type "facility")
+        all_groups = toolkit.get_action('group_list')(context, {
+            'type': 'facility',
+            'all_fields': True,
+            'include_extras': True,
+        })
+
+        # Build a quick lookup  name -> facility dict
+        facility_map = {}
+        for g in all_groups:
+            extras = {e['key']: e['value'] for e in g.get('extras', [])}
+            facility_map[g['name']] = {
+                'id': g['name'],
+                'title': g.get('title') or g['name'],
+                'parent_id': extras.get('parent_facility') or None,
+                'contact': extras.get('facility_contact', ''),
+                'count': 0,
+            }
+
+        # 2) Count instruments per facility via instrument_owner field
         fq = f'dataset_type:instrument AND extras_is_platform:{is_platform}'
         result = toolkit.get_action('package_search')(context, {
             'q': '*:*',
@@ -386,57 +376,306 @@ def instrument_facilities():
             'include_private': bool(toolkit.c.user),
         })
 
-        nodes = {}  # ror_id -> {id, name, parent_id, count}
-
         for pkg in result.get('results', []):
-            owner_ror_raw = pkg.get('owner_ror')
-            if not owner_ror_raw:
+            owner_raw = pkg.get('instrument_owner')
+            if not owner_raw:
                 continue
-            # Composite_repeating returns a JSON string or already a list
-            if isinstance(owner_ror_raw, str):
+            if isinstance(owner_raw, str):
                 try:
-                    owner_ror_list = json.loads(owner_ror_raw)
+                    owner_list = json.loads(owner_raw)
                 except (json.JSONDecodeError, ValueError):
                     continue
-            elif isinstance(owner_ror_raw, list):
-                owner_ror_list = owner_ror_raw
+            elif isinstance(owner_raw, list):
+                owner_list = owner_raw
             else:
                 continue
 
-            for entry in owner_ror_list:
-                ror_id   = (entry.get('owner_ror_id')   or '').strip()
-                ror_name = (entry.get('owner_ror_name') or '').strip()
-                if not ror_id or not ror_name:
-                    continue
+            for entry in owner_list:
+                fac_id = (entry.get('owner_facility_id') or '').strip()
+                if fac_id and fac_id in facility_map:
+                    facility_map[fac_id]['count'] += 1
 
-                parents_raw = entry.get('owner_ror_parents_json', '[]')
-                try:
-                    parents = json.loads(parents_raw) if isinstance(parents_raw, str) else (parents_raw or [])
-                except (json.JSONDecodeError, ValueError):
-                    parents = []
-
-                # Full path root-first: [...parents..., {id: ror_id, name: ror_name}]
-                full_path = parents + [{'id': ror_id, 'name': ror_name}]
-
-                # Ensure all path nodes exist in the map
-                for idx, node in enumerate(full_path):
-                    nid     = node.get('id', '').strip()
-                    nname   = node.get('name', '').strip()
-                    nparent = full_path[idx - 1]['id'] if idx > 0 else None
-                    if not nid:
-                        continue
-                    if nid not in nodes:
-                        nodes[nid] = {'id': nid, 'name': nname, 'parent_id': nparent, 'count': 0}
-
-                # Only the leaf (selected facility) counts as a direct owner
-                if ror_id in nodes:
-                    nodes[ror_id]['count'] += 1
-
-        return jsonify({'nodes': list(nodes.values())})
+        return jsonify({'nodes': list(facility_map.values())})
 
     except Exception as e:
         log.error('instrument_facilities error: %s', e)
         return jsonify({'nodes': [], 'error': str(e)}), 500
+
+
+@pidinst_theme.route('/api/facility/create_from_ror', methods=['POST'])
+def create_facility_from_ror():
+    """Create a Facility group from a ROR record, including parent facilities.
+
+    Expects JSON body:
+        {ror_id, name, types, country, facility_state, website, parents_json, hierarchy_display}
+
+    Automatically creates parent facilities that don't yet exist.
+    Returns the created (or already existing) facility.
+    """
+    if not toolkit.c.user:
+        return jsonify({'error': 'Authentication required'}), 403
+
+    data = request.get_json(silent=True) or {}
+    ror_id   = (data.get('ror_id') or '').strip()
+    ror_name = (data.get('name') or '').strip()
+    if not ror_id or not ror_name:
+        return jsonify({'error': 'ror_id and name are required'}), 400
+
+    context = {
+        'user': toolkit.c.user,
+        'auth_user_obj': toolkit.c.userobj,
+    }
+
+    try:
+        parents_json_str = data.get('parents_json', '[]')
+        parents = json.loads(parents_json_str) if isinstance(parents_json_str, str) else (parents_json_str or [])
+
+        # Parents are root-first.  We need to ensure each exists before creating
+        # children so parent_facility references are valid.
+        created_facilities = []
+        previous_name = None
+
+        for parent in parents:
+            pid   = (parent.get('id') or '').strip()
+            pname = (parent.get('name') or '').strip()
+            if not pid or not pname:
+                continue
+            slug = _ror_name_to_slug(pname)
+            existing = _get_facility_by_name(context, slug)
+            if existing:
+                _reactivate_if_deleted(context, existing)
+            else:
+                fac_data = {
+                    'name': slug,
+                    'title': pname,
+                    'type': 'facility',
+                    'facility_identifier_type': 'ROR',
+                    'facility_identifier_ror': pid,
+                    'ror_hierarchy_display': '',
+                    'ror_parents_json': '[]',
+                    'ror_types': parent.get('types', ''),
+                    'ror_country': parent.get('country', ''),
+                    'facility_state': parent.get('facility_state', ''),
+                    'website': parent.get('website', ''),
+                    'parent_facility': previous_name or '',
+                }
+                toolkit.get_action('group_create')(context, fac_data)
+                created_facilities.append(slug)
+            previous_name = slug
+
+        # Now create the leaf facility itself
+        slug = _ror_name_to_slug(ror_name)
+        existing = _get_facility_by_name(context, slug)
+        if existing:
+            # Reactivate if soft-deleted and return
+            _reactivate_if_deleted(context, existing)
+            return jsonify({
+                'status': 'exists',
+                'facility': {
+                    'name': existing['name'],
+                    'title': existing.get('title', ''),
+                    'contact': _get_extra(existing, 'facility_contact', ''),
+                },
+            })
+
+        fac_data = {
+            'name': slug,
+            'title': ror_name,
+            'type': 'facility',
+            'facility_identifier_type': 'ROR',
+            'facility_identifier_ror': ror_id,
+            'ror_hierarchy_display': data.get('hierarchy_display', ''),
+            'ror_parents_json': parents_json_str,
+            'ror_types': data.get('types', ''),
+            'ror_country': data.get('country', ''),
+            'facility_state': data.get('facility_state', ''),
+            'website': data.get('website', ''),
+            'parent_facility': previous_name or '',
+        }
+        new_fac = toolkit.get_action('group_create')(context, fac_data)
+        created_facilities.append(slug)
+
+        return jsonify({
+            'status': 'created',
+            'facility': {
+                'name': new_fac['name'],
+                'title': new_fac.get('title', ''),
+                'contact': '',
+            },
+            'also_created': created_facilities,
+        })
+
+    except toolkit.NotAuthorized:
+        return jsonify({'error': 'Not authorized to create facilities'}), 403
+    except Exception as e:
+        log.error('create_facility_from_ror error: %s', e)
+        return jsonify({'error': str(e)}), 500
+
+
+@pidinst_theme.route('/api/facility/ensure_ror_parents', methods=['POST'])
+def ensure_ror_parents():
+    """Ensure that all ROR parent facilities in a parents_json chain exist.
+
+    Called by the facility form's JS before submit so that the new
+    facility's parent_facility reference is valid.
+
+    Expects JSON body:   { parents_json: '<JSON string>' }
+    parents_json is a root-first array of {id, name} dicts.
+    """
+    if not toolkit.c.user:
+        return jsonify({'error': 'Authentication required'}), 403
+
+    data = request.get_json(silent=True) or {}
+    parents_json_str = data.get('parents_json', '[]')
+    try:
+        parents = json.loads(parents_json_str) if isinstance(parents_json_str, str) else (parents_json_str or [])
+    except (json.JSONDecodeError, ValueError):
+        parents = []
+
+    if not parents:
+        return jsonify({'status': 'ok', 'created': []})
+
+    context = {
+        'user': toolkit.c.user,
+        'auth_user_obj': toolkit.c.userobj,
+    }
+
+    try:
+        created = []
+        previous_name = None
+
+        for parent in parents:
+            pid   = (parent.get('id') or '').strip()
+            pname = (parent.get('name') or '').strip()
+            if not pid or not pname:
+                continue
+            slug = _ror_name_to_slug(pname)
+            existing = _get_facility_by_name(context, slug)
+            if existing:
+                # Reactivate if it was soft-deleted
+                _reactivate_if_deleted(context, existing)
+            else:
+                fac_data = {
+                    'name': slug,
+                    'title': pname,
+                    'type': 'facility',
+                    'facility_identifier_type': 'ROR',
+                    'facility_identifier_ror': pid,
+                    'ror_hierarchy_display': '',
+                    'ror_parents_json': '[]',
+                    'ror_types': parent.get('types', ''),
+                    'ror_country': parent.get('country', ''),
+                    'facility_state': parent.get('facility_state', ''),
+                    'website': parent.get('website', ''),
+                    'parent_facility': previous_name or '',
+                }
+                toolkit.get_action('group_create')(context, fac_data)
+                created.append(slug)
+            previous_name = slug
+
+        return jsonify({'status': 'ok', 'created': created})
+
+    except toolkit.NotAuthorized:
+        return jsonify({'error': 'Not authorized to create facilities'}), 403
+    except Exception as e:
+        log.error('ensure_ror_parents error: %s', e)
+        return jsonify({'error': str(e)}), 500
+
+
+def _ror_name_to_slug(name):
+    """Convert a ROR organisation name to a CKAN-safe URL slug."""
+    slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+    # CKAN requires min 2 chars and max 100 chars
+    if len(slug) < 2:
+        slug = slug + '-facility'
+    return slug[:100]
+
+
+def _get_facility_by_name(context, name):
+    """Try to fetch a facility group by name.  Returns None if not found.
+
+    Also finds soft-deleted groups (state='deleted') so callers can
+    decide whether to reactivate them.
+    """
+    try:
+        return toolkit.get_action('group_show')(
+            dict(context, include_datasets=False),
+            {'id': name},
+        )
+    except (toolkit.ObjectNotFound, Exception):
+        return None
+
+
+def _reactivate_if_deleted(context, group_dict):
+    """If a group is soft-deleted, set its state back to 'active'.
+
+    CKAN group_delete only sets state='deleted' but keeps the name
+    reserved.  This helper re-activates such groups so they become
+    visible again in group_list.
+    """
+    if not group_dict:
+        return group_dict
+    if group_dict.get('state') == 'deleted':
+        log.info('Reactivating soft-deleted facility group: %s', group_dict['name'])
+        group_dict['state'] = 'active'
+        return toolkit.get_action('group_update')(context, group_dict)
+    return group_dict
+
+
+def _get_extra(group_dict, key, default=''):
+    """Extract an extra value from a CKAN group dict."""
+    for e in group_dict.get('extras', []):
+        if e.get('key') == key:
+            return e.get('value', default)
+    return default
+
+
+def _get_ror_display_name(ror_item):
+    """Extract the display name from a ROR v2 item dict."""
+    for n in ror_item.get('names', []):
+        if 'ror_display' in n.get('types', []):
+            return n.get('value', '')
+    names = ror_item.get('names', [])
+    return names[0].get('value', '') if names else ''
+
+
+def _extract_ror_fields(ror_item):
+    """Extract all display-relevant fields from a ROR v2 API item dict.
+
+    Returns a plain dict with keys:
+        id, name, types, country, facility_state, website
+    """
+    ror_id = ror_item.get('id', '')
+    name = _get_ror_display_name(ror_item)
+
+    org_types = ', '.join(t.lower() for t in ror_item.get('types', []))
+
+    locations = ror_item.get('locations', [])
+    country = ''
+    facility_state = ''
+    if locations:
+        geonames = locations[0].get('geonames_details', {})
+        country = geonames.get('country_name', '')
+        facility_state = geonames.get('country_subdivision_name', '')
+
+    links = ror_item.get('links', [])
+    website = ''
+    for link in links:
+        if isinstance(link, dict) and link.get('type') == 'website':
+            website = link.get('value', '')
+            break
+    if not website and links:
+        first = links[0]
+        website = first.get('value', '') if isinstance(first, dict) else str(first)
+
+    return {
+        'id': ror_id,
+        'name': name,
+        'types': org_types,
+        'country': country,
+        'facility_state': facility_state,
+        'website': website,
+    }
 
 
 def _resolve_ror_hierarchy(item):
@@ -448,22 +687,13 @@ def _resolve_ror_hierarchy(item):
     Returns:
         (hierarchy_display, parents_json)
             hierarchy_display: str  – e.g. "Curtin University > Faculty of ..."
-            parents_json: str       – JSON array of parent dicts
+            parents_json: str       – JSON array of full parent field dicts
     """
-    # Collect parent chain
     parents = []
     visited = set()
 
-    def _get_ror_name(ror_item):
-        """Extract display name from a ROR v2 item."""
-        for n in ror_item.get('names', []):
-            if 'ror_display' in n.get('types', []):
-                return n.get('value', '')
-        names = ror_item.get('names', [])
-        return names[0].get('value', '') if names else ''
-
     current = item
-    selected_name = _get_ror_name(current)
+    selected_name = _get_ror_display_name(current)
 
     # Walk up to 10 levels to avoid infinite loops
     for _ in range(10):
@@ -482,24 +712,24 @@ def _resolve_ror_hierarchy(item):
             break
         visited.add(parent_id)
 
-        # Fetch the parent record from ROR
+        # Fetch the full parent record from ROR so we can store all fields
         try:
             resp = requests.get(f'{ROR_API_BASE}/{parent_id}', timeout=10)
             if not resp.ok:
                 log.warning('Could not fetch ROR parent %s: %s', parent_id, resp.status_code)
-                # Best-effort: use the label from the relationship
                 parent_name = parent_rel.get('label', parent_id)
-                parents.append({'id': parent_id, 'name': parent_name})
+                parents.append({'id': parent_id, 'name': parent_name,
+                                'types': '', 'country': '', 'facility_state': '', 'website': ''})
                 break
 
             parent_data = resp.json()
-            parent_name = _get_ror_name(parent_data)
-            parents.append({'id': parent_id, 'name': parent_name})
+            parents.append(_extract_ror_fields(parent_data))
             current = parent_data
         except requests.exceptions.RequestException as e:
             log.warning('ROR parent resolution failed for %s: %s', parent_id, e)
             parent_name = parent_rel.get('label', parent_id)
-            parents.append({'id': parent_id, 'name': parent_name})
+            parents.append({'id': parent_id, 'name': parent_name,
+                            'types': '', 'country': '', 'facility_state': '', 'website': ''})
             break
 
     # parents is ordered child->root; reverse for display root->child
@@ -662,20 +892,20 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     is_logged_in = bool(toolkit.c.user)
 
     # Collect facet field filters and search extras from request args
-    # owner_ror_name is handled specially – it maps to a text search on extras_owner_ror
-    reserved = {'q', 'page', 'sort', 'owner_ror_name'}
+    # owner_facility is handled specially – maps to a text search on extras_instrument_owner
+    reserved = {'q', 'page', 'sort', 'owner_facility'}
     fields = []
     fields_grouped = {}
     extra_fq_parts = []
     search_extras = {}
 
-    # --- Facility (owner_ror_name) filter: OR logic across extras_owner_ror text field ---
-    owner_ror_names = toolkit.request.args.getlist('owner_ror_name')
-    if owner_ror_names:
-        for name in owner_ror_names:
-            fields.append(('owner_ror_name', name))
-            fields_grouped.setdefault('owner_ror_name', []).append(name)
-        or_clauses = ['extras_owner_ror:"{}"'.format(n) for n in owner_ror_names]
+    # --- Facility owner filter: OR logic across extras_instrument_owner text field ---
+    owner_facilities = toolkit.request.args.getlist('owner_facility')
+    if owner_facilities:
+        for fac in owner_facilities:
+            fields.append(('owner_facility', fac))
+            fields_grouped.setdefault('owner_facility', []).append(fac)
+        or_clauses = ['extras_instrument_owner:"{}"'.format(f) for f in owner_facilities]
         if len(or_clauses) == 1:
             extra_fq_parts.append('+' + or_clauses[0])
         else:
@@ -761,7 +991,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'page': pager,
         'query_error': query_error,
         'is_platform': is_platform_value,
-        'active_owner_ror_names': owner_ror_names,
+        'active_facility_filters': owner_facilities,
     }
 
     return base.render(template, extra_vars=extra_vars)

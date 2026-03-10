@@ -1,0 +1,53 @@
+{#
+  Form snippet for the facility_identifier_ror field on the Facility group form.
+
+  Renders a Select2 search box that queries /api/proxy/ror_search.
+  Visible only when facility_identifier_type == "ROR"; hidden otherwise.
+
+  The attached JS module (ror-facility-lookup-module) also orchestrates:
+    - Toggling visibility of this field vs facility_identifier (free text)
+    - Toggling visibility of ROR-specific fields and parent_facility
+    - Auto-populating title, name, hierarchy, country, state, etc.
+    - On form submit with ROR: calls /api/facility/ensure_ror_parents first
+#}
+
+{% set field_id   = 'field-' ~ field.field_name %}
+{% set field_name = field.field_name %}
+{% set value      = data.get(field_name, '') %}
+{% set display_name = data.get('title', '') %}
+{% set id_type    = data.get('facility_identifier_type', 'ROR') %}
+
+<div class="form-group ror-facility-lookup-block"
+     data-module="ror-facility-lookup-module"
+     data-field-id="{{ field_id }}"
+     data-current-ror-id="{{ value }}"
+     data-current-display-name="{{ display_name }}"
+     data-current-id-type="{{ id_type }}">
+
+  <label class="control-label" for="{{ field_id }}">
+    {{ h.scheming_language_text(field.label) }}
+  </label>
+
+  <div class="controls">
+    <input class="form-control ror-facility-search"
+           id="{{ field_id }}"
+           name="{{ field_name }}"
+           type="text"
+           value="{{ value }}"
+           placeholder="Start typing to search ROR (e.g. CSIRO, Curtin University)…">
+
+    {# Hierarchy preview #}
+    {% set hier = data.get('ror_hierarchy_display', '') %}
+    <div class="ror-hierarchy-preview"
+         style="{% if not hier %}display:none;{% endif %} margin-top:4px;">
+      <small class="text-muted">
+        <i class="fa fa-sitemap"></i>
+        <span class="ror-hierarchy-text">{{ hier }}</span>
+      </small>
+    </div>
+  </div>
+
+  {% if field.help_text %}
+    <p class="help-block">{{ h.scheming_language_text(field.help_text) }}</p>
+  {% endif %}
+</div>

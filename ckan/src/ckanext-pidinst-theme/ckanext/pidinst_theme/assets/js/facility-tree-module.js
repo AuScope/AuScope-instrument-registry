@@ -1,9 +1,12 @@
 /**
  * Facility Tree Module
  *
- * Renders a hierarchical checkbox tree of facilities (ROR organisations)
- * in the search page sidebar.  Checking items filters the result set via
- * the `owner_ror_name` URL parameter (multi-value, OR logic).
+ * Renders a hierarchical checkbox tree of facilities (CKAN groups of type
+ * "facility") in the search page sidebar.  Checking items filters the
+ * result set via the `owner_facility` URL parameter (multi-value, OR logic).
+ *
+ * Nodes are fetched from /api/instrument_facilities which now reads from
+ * CKAN groups, returning {id, title, parent_id, contact, count}.
  */
 this.ckan.module('facility-tree-module', function ($, _) {
   'use strict';
@@ -26,7 +29,7 @@ this.ckan.module('facility-tree-module', function ($, _) {
 
       // Also read directly from the current URL in case of client navigation
       var urlParams = new URLSearchParams(window.location.search);
-      var urlFilters = urlParams.getAll('owner_ror_name');
+      var urlFilters = urlParams.getAll('owner_facility');
       if (urlFilters.length > 0) {
         self._activeFilters = urlFilters;
       }
@@ -52,9 +55,9 @@ this.ckan.module('facility-tree-module', function ($, _) {
         return;
       }
 
-      // Index nodes by id
-      var nodeMap = {};
-      nodes.forEach(function (n) { nodeMap[n.id] = n; });
+      // Store nodeMap on self for _totalCount
+      self._nodeMap = {};
+      nodes.forEach(function (n) { self._nodeMap[n.id] = n; });
 
       // Build children map  { parent_id: [child_node, ...] }
       var childrenMap = {};
@@ -64,9 +67,11 @@ this.ckan.module('facility-tree-module', function ($, _) {
         childrenMap[pid].push(n);
       });
 
-      // Sort children alphabetically by name
+      // Sort children alphabetically by title
       Object.keys(childrenMap).forEach(function (pid) {
-        childrenMap[pid].sort(function (a, b) { return a.name.localeCompare(b.name); });
+        childrenMap[pid].sort(function (a, b) {
+          return (a.title || a.id).localeCompare(b.title || b.id);
+        });
       });
 
       var $container = self.el.find('.facility-tree-container');
@@ -83,7 +88,7 @@ this.ckan.module('facility-tree-module', function ($, _) {
       // ---- Render root nodes ------------------------------------------ //
       var roots = childrenMap['__root__'] || [];
       roots.forEach(function (node) {
-        $container.append(self._buildNode(node, childrenMap, nodeMap, 0));
+        $container.append(self._buildNode(node, childrenMap, 0));
       });
 
       // Show container, hide loader
@@ -91,19 +96,19 @@ this.ckan.module('facility-tree-module', function ($, _) {
       $container.show();
 
       // ---- Wire up events --------------------------------------------- //
-      self._bindEvents($container, $selectAllCb, childrenMap, nodeMap);
+      self._bindEvents($container, $selectAllCb, childrenMap);
     },
 
     /* ------------------------------------------------------------------ */
     /* Build a single tree node element (recursive)                        */
     /* ------------------------------------------------------------------ */
-    _buildNode: function (node, childrenMap, nodeMap, depth) {
+    _buildNode: function (node, childrenMap, depth) {
       var self = this;
-      var children   = childrenMap[node.id] || [];
+      var children    = childrenMap[node.id] || [];
       var hasChildren = children.length > 0;
       var total       = self._totalCount(node.id, childrenMap);
-      var cbId        = 'fac-' + btoa(unescape(encodeURIComponent(node.id))).replace(/[^a-zA-Z0-9]/g, '_');
-      var isChecked   = self._activeFilters.indexOf(node.name) !== -1;
+      var cbId        = 'fac-' + node.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+      var isChecked   = self._activeFilters.indexOf(node.id) !== -1;
 
       var $wrapper = $('<div class="facility-tree-node"></div>').attr('data-node-id', node.id);
       if (isChecked) { $wrapper.addClass('checked'); }
@@ -122,11 +127,10 @@ this.ckan.module('facility-tree-module', function ($, _) {
       var $cb = $('<input type="checkbox">')
         .attr('id', cbId)
         .attr('data-node-id', node.id)
-        .attr('data-node-name', node.name)
         .prop('checked', isChecked);
 
       var $lbl = $('<label></label>').attr('for', cbId);
-      $lbl.append($('<span class="facility-tree-name"></span>').text(node.name));
+      $lbl.append($('<span class="facility-tree-name"></span>').text(node.title || node.id));
       if (total > 0) {
         $lbl.append($('<span class="facility-tree-count"></span>').text('(' + total + ')'));
       }
@@ -138,12 +142,12 @@ this.ckan.module('facility-tree-module', function ($, _) {
       if (hasChildren) {
         var $childContainer = $('<div class="facility-tree-children" style="display:none;"></div>');
         children.forEach(function (child) {
-          $childContainer.append(self._buildNode(child, childrenMap, nodeMap, depth + 1));
+          $childContainer.append(self._buildNode(child, childrenMap, depth + 1));
         });
         $wrapper.append($childContainer);
 
         // Auto-expand if any descendant is in active filters
-        if (self._anyDescendantActive(node.id, childrenMap, nodeMap)) {
+        if (self._anyDescendantActive(node.id, childrenMap)) {
           $childContainer.show();
           $toggle.html('&#9660;'); // ▼
         }
@@ -157,9 +161,6 @@ this.ckan.module('facility-tree-module', function ($, _) {
     /* ------------------------------------------------------------------ */
     _totalCount: function (nodeId, childrenMap) {
       var self = this;
-      // nodeMap is on self after _render is called... pass it via closure below
-      // Actually, we access the module-level nodeMap through calls here.
-      // We stored it on self during render so this is clean.
       var node = self._nodeMap && self._nodeMap[nodeId];
       var own  = node ? (node.count || 0) : 0;
       var children = childrenMap[nodeId] || [];
@@ -171,41 +172,24 @@ this.ckan.module('facility-tree-module', function ($, _) {
     },
 
     /* ------------------------------------------------------------------ */
-    /* Check whether any descendant name appears in active filters         */
+    /* Check whether any descendant is in active filters                   */
     /* ------------------------------------------------------------------ */
-    _anyDescendantActive: function (nodeId, childrenMap, nodeMap) {
+    _anyDescendantActive: function (nodeId, childrenMap) {
       var self = this;
       var children = childrenMap[nodeId] || [];
       for (var i = 0; i < children.length; i++) {
         var child = children[i];
-        if (self._activeFilters.indexOf(child.name) !== -1) { return true; }
-        if (self._anyDescendantActive(child.id, childrenMap, nodeMap)) { return true; }
+        if (self._activeFilters.indexOf(child.id) !== -1) { return true; }
+        if (self._anyDescendantActive(child.id, childrenMap)) { return true; }
       }
       return false;
     },
 
     /* ------------------------------------------------------------------ */
-    /* Collect all descendant names (for cascade check)                   */
-    /* ------------------------------------------------------------------ */
-    _descendantNames: function (nodeId, childrenMap) {
-      var self   = this;
-      var names  = [];
-      var children = childrenMap[nodeId] || [];
-      children.forEach(function (c) {
-        names.push(c.name);
-        names = names.concat(self._descendantNames(c.id, childrenMap));
-      });
-      return names;
-    },
-
-    /* ------------------------------------------------------------------ */
     /* Event binding                                                       */
     /* ------------------------------------------------------------------ */
-    _bindEvents: function ($container, $selectAllCb, childrenMap, nodeMap) {
+    _bindEvents: function ($container, $selectAllCb, childrenMap) {
       var self = this;
-
-      // Store nodeMap for use in _totalCount
-      self._nodeMap = nodeMap;
 
       // ---- Toggle expand/collapse for nodes with children ------------- //
       $container.on('click', '.facility-tree-toggle.has-children', function () {
@@ -249,28 +233,28 @@ this.ckan.module('facility-tree-module', function ($, _) {
     },
 
     /* ------------------------------------------------------------------ */
-    /* Collect checked names and navigate                                  */
+    /* Collect checked IDs and navigate                                    */
     /* ------------------------------------------------------------------ */
     _applyFilters: function ($container) {
       var self  = this;
-      var names = [];
+      var ids = [];
       $container.find('input[type="checkbox"][data-node-id]:checked').each(function () {
-        var name = $(this).attr('data-node-name');
-        if (name && names.indexOf(name) === -1) {
-          names.push(name);
+        var nid = $(this).attr('data-node-id');
+        if (nid && ids.indexOf(nid) === -1) {
+          ids.push(nid);
         }
       });
-      self._navigateTo(names);
+      self._navigateTo(ids);
     },
 
     /* ------------------------------------------------------------------ */
     /* Build URL and reload                                                */
     /* ------------------------------------------------------------------ */
-    _navigateTo: function (names) {
+    _navigateTo: function (ids) {
       var params = new URLSearchParams(window.location.search);
-      params.delete('owner_ror_name');
+      params.delete('owner_facility');
       params.delete('page'); // reset pagination when filter changes
-      names.forEach(function (n) { params.append('owner_ror_name', n); });
+      ids.forEach(function (id) { params.append('owner_facility', id); });
       window.location.search = params.toString();
     }
   };

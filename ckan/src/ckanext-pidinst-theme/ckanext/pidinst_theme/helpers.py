@@ -527,6 +527,33 @@ def json_loads(value):
         return []
 
 
+def get_facility_list():
+    """Return all Facility groups with flattened extras for template use.
+
+    Each item in the returned list is a dict with at minimum:
+        name   – CKAN group name (slug)
+        title  – display title
+    Plus any extras stored on the group (e.g. facility_contact, ror_id …).
+    The list is sorted alphabetically by title.
+    """
+    try:
+        context = {'ignore_auth': True}
+        groups = toolkit.get_action('group_list')(context, {
+            'type': 'facility',
+            'all_fields': True,
+            'include_extras': True,
+        })
+        result = []
+        for g in groups:
+            item = {'name': g['name'], 'title': g.get('title', '')}
+            for e in g.get('extras', []):
+                item[e['key']] = e['value']
+            result.append(item)
+        return sorted(result, key=lambda x: x.get('title', '').lower())
+    except Exception:
+        return []
+
+
 _FACILITY_LABELS = {
     'default label': 'Facility',
     'default label plural': 'Facilities',
@@ -572,4 +599,5 @@ def get_helpers():
         "pidinst_instrument_meta": pidinst_instrument_meta,
         "json_loads": json_loads,
         "humanize_entity_type": humanize_entity_type,
+        "get_facility_list": get_facility_list,
     }
