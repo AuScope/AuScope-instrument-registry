@@ -1,3 +1,5 @@
+import json
+
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 from ckanext.doi.lib import metadata as doi_metadata
@@ -121,6 +123,9 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
             except Exception as e:
                 logging.error(f"Failed to track dataset creation: {e}")
 
+        # Sync facility group membership
+        self._sync_facility_groups(context, pkg_dict)
+
     def after_dataset_update(self, context, pkg_dict):
         # Track analytics event
         user = context.get('user')
@@ -134,7 +139,100 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
             except Exception as e:
                 logging.error(f"Failed to track dataset update: {e}")
 
+        # Sync facility group membership
+        self._sync_facility_groups(context, pkg_dict)
+
         # self.process_doi_metadata(pkg_dict)
+
+    def _sync_facility_groups(self, context, pkg_dict):
+        """Add/remove this package from facility CKAN groups so that
+        group-based faceting (``fq=groups:name``) and facility-page
+        dataset counts work automatically.
+
+        Reads ``owner_facility_id`` values from the ``owner`` composite
+        field and ensures the package is a member of exactly those
+        facility groups.
+        """
+        try:
+            pkg_id = pkg_dict.get('id')
+            if not pkg_id:
+                return
+
+            # ---- Desired facility IDs from the owner field -------------- #
+            owner_raw = pkg_dict.get('owner')
+            desired = set()
+
+            if owner_raw:
+                if isinstance(owner_raw, str):
+                    try:
+                        owner_list = json.loads(owner_raw)
+                    except (json.JSONDecodeError, ValueError):
+                        owner_list = []
+                elif isinstance(owner_raw, list):
+                    owner_list = owner_raw
+                else:
+                    owner_list = []
+
+                for entry in owner_list:
+                    fac_id = (entry.get('owner_facility_id') or '').strip()
+                    if fac_id:
+                        desired.add(fac_id)
+
+            # ---- Current facility group memberships --------------------- #
+            ctx = {'ignore_auth': True}
+
+            # All facility group names in the system
+            all_facility_names = set(
+                toolkit.get_action('group_list')(ctx, {'type': 'facility'})
+            )
+
+            # Current groups this package belongs to
+            pkg_full = toolkit.get_action('package_show')(ctx, {'id': pkg_id})
+            current_facility_groups = {
+                g['name'] for g in pkg_full.get('groups', [])
+                if g.get('name') in all_facility_names
+            }
+
+            # ---- Reconcile ------------------------------------------------ #
+            to_add = (desired & all_facility_names) - current_facility_groups
+            to_remove = current_facility_groups - desired
+
+            for fac_id in to_add:
+                try:
+                    toolkit.get_action('member_create')(ctx, {
+                        'id': fac_id,
+                        'object': pkg_id,
+                        'object_type': 'package',
+                        'capacity': 'public',
+                    })
+                except Exception as e:
+                    logging.error(
+                        'Failed to add package %s to facility group %s: %s',
+                        pkg_id, fac_id, e,
+                    )
+
+            for fac_id in to_remove:
+                try:
+                    toolkit.get_action('member_delete')(ctx, {
+                        'id': fac_id,
+                        'object': pkg_id,
+                        'object_type': 'package',
+                    })
+                except Exception as e:
+                    logging.error(
+                        'Failed to remove package %s from facility group %s: %s',
+                        pkg_id, fac_id, e,
+                    )
+
+            if to_add or to_remove:
+                logging.info(
+                    'Facility group sync for %s: added=%s removed=%s',
+                    pkg_id, to_add, to_remove,
+                )
+
+        except Exception as e:
+            logging.exception('Failed to sync facility groups for %s: %s',
+                              pkg_dict.get('id', '?'), e)
 
     def after_dataset_show(self, *args, **kwargs):
         return schema.after_dataset_show(*args, **kwargs)

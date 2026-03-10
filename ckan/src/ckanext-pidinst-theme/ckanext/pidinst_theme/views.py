@@ -903,20 +903,20 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     is_logged_in = bool(toolkit.c.user)
 
     # Collect facet field filters and search extras from request args
-    # owner_facility is handled specially – maps to a text search on extras_instrument_owner
+    # owner_facility is handled specially – maps to CKAN group membership
     reserved = {'q', 'page', 'sort', 'owner_facility'}
     fields = []
     fields_grouped = {}
     extra_fq_parts = []
     search_extras = {}
 
-    # --- Facility owner filter: OR logic across extras_instrument_owner text field ---
+    # --- Facility owner filter: OR logic across CKAN group membership ---
     owner_facilities = toolkit.request.args.getlist('owner_facility')
     if owner_facilities:
         for fac in owner_facilities:
             fields.append(('owner_facility', fac))
             fields_grouped.setdefault('owner_facility', []).append(fac)
-        or_clauses = ['extras_instrument_owner:"{}"'.format(f) for f in owner_facilities]
+        or_clauses = ['groups:"{}"'.format(f) for f in owner_facilities]
         if len(or_clauses) == 1:
             extra_fq_parts.append('+' + or_clauses[0])
         else:
