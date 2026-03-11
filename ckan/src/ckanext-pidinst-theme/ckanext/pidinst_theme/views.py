@@ -825,11 +825,11 @@ def field_terms_autocomplete(field_name):
         return jsonify({"error": str(e), "terms": []}), 500
 
 
-@pidinst_theme.route('/dataset/<id>/new_version', methods=['GET', 'POST'])
+@pidinst_theme.route('/instrument/<id>/new_version', methods=['GET', 'POST'])
 def new_version(id):
     """
-    Create a new version of an existing dataset/instrument.
-    Clones the current dataset with prepopulated data and adds IsNewVersionOf relationship.
+    Create a new version of an existing instrument.
+    Clones the current instrument with prepopulated data and adds IsNewVersionOf relationship.
     """
     context = {'user': current_user.name}
 
@@ -837,7 +837,7 @@ def new_version(id):
         # Check if user has permission to create packages
         check_access('package_create', context)
     except NotAuthorized:
-        return base.abort(403, toolkit._('Unauthorized to create datasets'))
+        return base.abort(403, toolkit._('Unauthorized to create instruments'))
 
     try:
         # Get the original package data
@@ -856,8 +856,8 @@ def new_version(id):
         session['package_new_version_data'] = cloned_data
         session.modified = True
 
-        # Get the dataset type
-        dataset_type = original_pkg.get('type', 'dataset')
+        # Get the instrument type
+        dataset_type = original_pkg.get('type', 'instrument')
 
         # Set up proper context for template rendering
         # Set form action to the standard package create endpoint
@@ -877,11 +877,11 @@ def new_version(id):
         return toolkit.render('package/new_version.html', extra_vars=extra_vars)
 
     except NotFound:
-        return base.abort(404, toolkit._('Dataset not found'))
+        return base.abort(404, toolkit._('Instrument not found'))
     except Exception as e:
         log.error(f'Error creating new version: {str(e)}')
         toolkit.h.flash_error(toolkit._('An error occurred while preparing the new version'))
-        return toolkit.redirect_to('dataset.read', id=id)
+        return toolkit.redirect_to('instrument.read', id=id)
 
 
 def _instrument_platform_search(is_platform_value, template, named_route, display_type='instrument'):
