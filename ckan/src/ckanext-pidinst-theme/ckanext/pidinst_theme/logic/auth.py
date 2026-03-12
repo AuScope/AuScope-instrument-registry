@@ -6,6 +6,45 @@ from ckan.logic.auth import get_package_object, get_resource_object
 import logging
 
 
+# ---------------------------------------------------------------------------
+# DOI / Publication lifecycle helpers
+# ---------------------------------------------------------------------------
+
+def _package_extra_value(package, key):
+    """Return the value of a package extra by key from a SQLAlchemy package
+    model object, or None if the key is absent."""
+    for extra in (package.extras or []):
+        if extra.key == key:
+            return extra.value
+    return None
+
+
+def _is_doi_published(package):
+    """Return True if this record is in the protected DOI-published state.
+
+    A record is considered protected when ALL of the following are true:
+    - It is currently public (``package.private is False``), AND
+    - It has a non-empty DOI assigned (stored in the ``doi`` scheming extra).
+
+    ``publication_status`` is not yet used as the primary gate because it is a
+    new field with no back-filled values.  Once the workflow that sets it is
+    implemented, this helper should be updated to also accept
+    ``publication_status == 'published'`` as an additional sufficient condition.
+
+    Business rule intent:
+    - Public DOI records are part of a permanent scholarly identifier contract.
+    - They must not be deleted (which would break the DOI).
+    - They must not be silently made private (which would hide the DOI landing
+      page and break resolution).
+    - Future controlled operations (withdraw, mark-as-duplicate) will update
+      ``publication_status`` and handle DataCite notifications explicitly.
+    """
+    if package.private:
+        return False
+    doi = _package_extra_value(package, 'doi')
+    return bool(doi and doi.strip())
+
+
 @tk.auth_allow_anonymous_access
 def pidinst_theme_get_sum(context, data_dict):
     return {"success": True}
@@ -193,6 +232,20 @@ def package_delete(next_auth, context, data_dict):
         package = get_package_object(context, data_dict)
     except:
         return {'success': False, 'msg': 'Unable to retrieve package'}
+
+    # DOI lifecycle guard — must be checked before the admin bypass.
+    # A record with a published DOI cannot be deleted by anyone, including
+    # admins. Deletion would permanently break DOI resolution. The correct
+    # path is to use the withdraw or duplicate workflow (not yet implemented).
+    if _is_doi_published(package):
+        return {
+            'success': False,
+            'msg': (
+                'This record has a published DOI and cannot be deleted. '
+                'Use the withdraw or duplicate workflow instead.'
+            ),
+        }
+
     user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
     if user_role == 'admin':
         return {'success': True}

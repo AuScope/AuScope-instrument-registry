@@ -16,6 +16,7 @@ from ckanext.pidinst_theme.logic import (
     email_notifications
 )
 import ckan.authz as authz
+from ckanext.pidinst_theme.logic.auth import _is_doi_published
 
 @tk.side_effect_free
 def pidinst_theme_get_sum(context, data_dict):
@@ -175,6 +176,24 @@ def package_update(next_action, context, data_dict):
     manage_parent_related_resource(data_dict)
 
     package = get_package_object(context, {'id': data_dict['id']})
+
+    # DOI lifecycle guard: prevent a public DOI record from being silently made
+    # private. This would break DOI landing-page resolution and bypass the
+    # formal withdrawal workflow (not yet implemented, but reserved).
+    # The 'private' value in data_dict can be a bool or a string ('True'/'False')
+    # depending on whether the call comes from the UI form or the API.
+    if _is_doi_published(package):
+        new_private = data_dict.get('private', package.private)
+        if isinstance(new_private, str):
+            new_private = new_private.strip().lower() not in ('false', '0')
+        if new_private:
+            raise ValidationError({
+                'private': [
+                    'A record with a published DOI cannot be made private. '
+                    'Use the withdraw workflow instead.'
+                ]
+            })
+
     if package.private and data_dict['private'] == 'False' and \
             (not data_dict['publication_date'] or data_dict['publication_date'] == ''):
         data_dict['publication_date'] = datetime.now()
