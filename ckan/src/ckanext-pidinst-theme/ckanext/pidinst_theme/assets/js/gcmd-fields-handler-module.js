@@ -2,8 +2,20 @@ this.ckan.module('gcmd-fields-handler-module', function ($, _) {
     return {
         initialize: function () {
             var labelFieldName = this.el.data('label-field');
-            this.scheme = this.el.data('scheme') || 'science';
-            
+
+            // Determine scheme based on is_platform flag present in the form
+            var isPlatform = $('#field-is_platform').val() === 'true';
+            this.scheme = isPlatform
+                ? (this.el.data('scheme-platform') || this.el.data('scheme') || 'science')
+                : (this.el.data('scheme') || 'science');
+
+            // Update label to match instrument vs platform context
+            var labelKey = isPlatform ? 'label-platform' : 'label-instrument';
+            var labelText = this.el.data(labelKey);
+            if (labelText) {
+                this.el.find('.gcmd-label-text').text(labelText);
+            }
+
             this.textInputElement = $('#field-' + labelFieldName);
             this.inputElement = this.el.find('input.gcmd-keywords');
 

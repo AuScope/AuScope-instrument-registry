@@ -1,4 +1,4 @@
-scheming_version: 2
+﻿scheming_version: 2
 dataset_type: instrument
 about: AuScope Instrument Registry schema based on PIDINST
 about_url: https://www.github.com/AuScope/AuScope-instrument-registry
@@ -135,11 +135,14 @@ dataset_fields:
 
   - field_name: instrument_type_gcmd_code
     label: Instrument Type (GCMD)
+    label_platform: Platform Type (GCMD)
     form_snippet: gcmd_field.html
     display_snippet: gcmd_field.html
     label_field_name: instrument_type_gcmd
     gcmd_scheme: instruments
+    gcmd_scheme_platform: platforms
     help_text: Select from the NASA GCMD Instrument/Sensors Keywords (served via ARDC Research Vocabularies Australia). Start typing to search and select one or more.
+    help_text_platform: Select from the NASA GCMD Platforms Keywords (served via ARDC Research Vocabularies Australia). Start typing to search and select one or more.
     groupBy: About Instrument
 
   - field_name: instrument_type_gcmd
@@ -148,47 +151,28 @@ dataset_fields:
     help_text: Select from the NASA GCMD Instrument/Sensors Keywords (served via ARDC Research Vocabularies Australia). Start typing to search and select one or more.
     groupBy: About Instrument
 
-  - field_name: instrument_type_identifier_gcmd
-    label: Instrument Type Identifier GCMD
-    form_snippet: hidden_field.html
-    display_snippet: null
-    preset: select
-    choices:
-      - value: https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-instruments/22-8-2026-02-13/concept
-        label: gcmd-instruments
-    default: https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-instruments/22-8-2026-02-13/concept
-    help_text: Identifier for the instrument type (GCMD)
-
-  - field_name: instrument_type_identifier_type_gcmd
-    label: Instrument Type Identifier Type GCMD
-    form_snippet: hidden_field.html
-    display_snippet: null
-    choices:
-      - value: URL
-        label: URL
-    default: URL
-    help_text: "Type of the identifier"
-
   - field_name: instrument_type
-    label: Instrument Type (Custom)
+    label: Type (Custom)
+    label_instrument: Instrument Type (Custom)
+    label_platform: Platform Type (Custom)
     preset: composite_repeating
     validators: composite_repeating_validator
     form_snippet: composite_repeating_field.html
     form_blanks: 1
     groupBy: About Instrument
-    help_text: "Optional: use this only if you can’t find a suitable Instrument Type in the GCMD list above. You may add one or more custom entries."
+    help_text: "Optional: use this only if you can’t find a suitable Type in the GCMD list above. You may add one or more custom entries."
     subfields:
       - field_name: instrument_type_name
-        label: Instrument Type Name
+        label: Type Name
         required: true
-        help_text: Classification of the type of the instrument
+        help_text: Classification of the type of the instrument or platform
 
       - field_name: instrument_type_identifier
-        label: Instrument Type Identifier
-        help_text: Identifier for the instrument type
+        label: Type Identifier
+        help_text: Identifier for the instrument or platform type
 
       - field_name: instrument_type_identifier_type
-        label: Instrument Type Identifier Type
+        label: Type Identifier Type
         # Do we need to keep choices or there always free texts?
         # preset: select
         # choices:
