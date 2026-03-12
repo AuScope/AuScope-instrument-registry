@@ -364,13 +364,6 @@ dataset_fields:
         validators: ignore_missing unicode_safe
         help_text: "Type of the facility identifier — auto-populated from selected facility."
 
-      - field_name: schema_uri
-        label: Schema URI
-        form_snippet: composite_hidden_field.html
-        display_snippet: null
-        validators: ignore_missing unicode_safe
-        help_text: "URI of the funder identifier scheme — auto-populated from selected facility."
-
       - field_name: award_number
         label: Award Number
         help_text: The code assigned by the funder to a sponsored award (grant).

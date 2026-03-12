@@ -129,12 +129,10 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
           var facTitle     = $opt.data('facility-title')           || '';
           var facId        = $opt.data('facility-identifier')      || '';
           var facIdType    = $opt.data('facility-identifier-type')  || '';
-          var facSchemaUri = $opt.data('facility-schema-uri')       || '';
 
           $row.find('input[name$="funder_name"]').val(facTitle);
           $row.find('input[name$="funder_identifier"]').val(facId);
           $row.find('input[name$="funder_identifier_type"]').val(facIdType);
-          $row.find('input[name$="schema_uri"]').val(facSchemaUri);
         });
       });
     },
