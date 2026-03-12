@@ -1,0 +1,42 @@
+{% extends "package/snippets/additional_info.html" %}
+
+{%- set exclude_fields = [
+    'id',
+    'title',
+    'name',
+    'notes',
+    'tag_string',
+    'license_id',
+    'owner_org',
+    ] -%}
+
+{% block package_additional_info %}
+  {%- set is_platform = (pkg_dict.get('is_platform', 'false') | string | lower == 'true') -%}
+  {%- for field in schema.dataset_fields -%}
+    {%- if field.field_name not in exclude_fields
+        and field.display_snippet is not none -%}
+      {#- Resolve the correct label based on is_platform -#}
+      {%- if is_platform and field.get('label_platform') -%}
+        {%- set display_label = field.label_platform -%}
+      {%- elif not is_platform and field.get('label_instrument') -%}
+        {%- set display_label = field.label_instrument -%}
+      {%- else -%}
+        {%- set display_label = field.label -%}
+      {%- endif -%}
+      <tr>
+        <th scope="row" class="dataset-label">{{
+          h.scheming_language_text(display_label) }}</th>
+        <td class="dataset-details"{%
+          if field.display_property %} property="{{ field.display_property
+          }}"{% endif %}>{%- snippet 'scheming/snippets/display_field.html',
+          field=field, data=pkg_dict, schema=schema -%}</td>
+      </tr>
+    {%- endif -%}
+  {%- endfor -%}
+  {% if h.check_access('package_update',{'id':pkg_dict.id}) %}
+    <tr>
+      <th scope="row" class="dataset-label">{{ _("State") }}</th>
+      <td class="dataset-details">{{ _(pkg_dict.state) }}</td>
+    </tr>
+  {% endif %}
+{% endblock %}

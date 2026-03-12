@@ -2,17 +2,25 @@
 
 {%- set label_field = field.get('label_field_name', 'gcmd_keywords') -%}
 {%- set scheme = field.get('gcmd_scheme', 'science') -%}
+{%- set scheme_platform = field.get('gcmd_scheme_platform', scheme) -%}
+{%- set label_instrument = h.scheming_language_text(field.label) -%}
+{%- set label_platform = h.scheming_language_text(field.get('label_platform', field.label)) -%}
+{%- set help_text_platform = field.get('help_text_platform', '') -%}
 
-<div data-module="gcmd-fields-handler-module" 
-     data-label-field="{{ label_field }}" 
+<div data-module="gcmd-fields-handler-module"
+     data-label-field="{{ label_field }}"
      data-scheme="{{ scheme }}"
-     class="form-group" 
+     data-scheme-platform="{{ scheme_platform }}"
+     data-label-instrument="{{ label_instrument }}"
+     data-label-platform="{{ label_platform }}"
+     {% if help_text_platform %}data-help-text-platform="{{ help_text_platform }}"{% endif %}
+     class="form-group"
      id="{{ field.field_name }}">
     <label class="form-label" for="field-{{ field.field_name }}">
         {% if h.scheming_field_required(field) %}
             <span title="This field is required" class="control-required">*</span>
         {% endif %}
-        {{ h.scheming_language_text(field.label) }}
+        <span class="gcmd-label-text">{{ label_instrument }}</span>
     </label>
     <input class="form-control gcmd-keywords" 
            id="field-{{ field.field_name }}" 

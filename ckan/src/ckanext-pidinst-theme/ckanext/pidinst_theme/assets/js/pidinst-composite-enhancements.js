@@ -37,6 +37,30 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
           self.reapplySelect2Values();
         });
       });
+
+      this.applyDynamicLabel();
+    },
+
+    applyDynamicLabel: function () {
+      var labelInstrument = this.options.labelInstrument;
+      var labelPlatform   = this.options.labelPlatform;
+      if (!labelInstrument && !labelPlatform) return;
+
+      var isPlatform = $('#field-is_platform').val() === 'true';
+      var newLabel   = isPlatform ? (labelPlatform || labelInstrument)
+                                  : (labelInstrument || labelPlatform);
+      if (!newLabel) return;
+
+      // composite_header renders a <label> as the first label inside this.el
+      var $label = this.el.find('label:first');
+      if (!$label.length) return;
+
+      // Preserve the required-star span if present
+      var $required = $label.find('.control-required').detach();
+      $label.text(newLabel);
+      if ($required.length) {
+        $label.prepend($required);
+      }
     },
 
     /* ── Facility owner Select2 ──────────────────────────────────────────

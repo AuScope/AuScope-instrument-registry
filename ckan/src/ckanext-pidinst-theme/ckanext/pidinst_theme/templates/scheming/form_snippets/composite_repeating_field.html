@@ -6,6 +6,8 @@
     data-module-field-name="{{ field.field_name }}"
     data-module-required="{{ '1' if h.scheming_field_required(field) else '0' }}"
     data-module-start-empty="{{ '1' if field.get('form_blanks', 1) == 0 else '0' }}"
+    {% if field.get('label_instrument') %}data-module-label-instrument="{{ h.scheming_language_text(field.label_instrument) }}"{% endif %}
+    {% if field.get('label_platform') %}data-module-label-platform="{{ h.scheming_language_text(field.label_platform) }}"{% endif %}
     id="composite-repeating-div-{{ field.field_name }}"
   >
     <input type="hidden" class="hidden-title-input" value="{{ field.field_name }}" />
