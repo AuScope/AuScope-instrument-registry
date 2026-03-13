@@ -23,6 +23,7 @@ pidinst_theme-js:
     - js/analytics-tracking.js
     - js/cover-photo-module.js
     - js/gcmd-taxonomy-tree-module.js
+    - js/vocab-picker-module.js
     - js/pidinst_theme.js
   extra:
     preload:

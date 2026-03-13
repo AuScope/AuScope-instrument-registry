@@ -324,3 +324,84 @@
   list-style: none;
   padding: 6px 0;
 }
+
+/* ── Vocab Picker (type_picker / measured_var_picker) ──────────── */
+.vocab-picker-container {
+  margin-bottom: 12px;
+}
+
+.vocab-picker-row {
+  margin-bottom: 8px;
+}
+
+.vocab-picker-row .form-label {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.vocab-picker-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.vocab-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.vocab-picker-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vocab-picker-badge-gcmd {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 3px;
+  background-color: #337ab7;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.vocab-picker-badge-custom {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 3px;
+  background-color: #5cb85c;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.vocab-picker-remove {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: #d9534f;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.vocab-picker-remove:hover {
+  color: #c9302c;
+}
+
+.vocab-picker-empty {
+  color: #999;
+  font-style: italic;
+  padding: 6px 0;
+}

@@ -1,0 +1,126 @@
+{% import 'macros/form.html' as form %}
+
+{#-  Unified "Type picker" for instrument_type / platform_type.
+     Two searchable dropdowns (GCMD + Custom taxonomy) with Add (+) buttons.
+     Added items appear as a list with Remove (-) buttons.
+     All entries are stored as composite-repeating hidden inputs.
+-#}
+
+{%- set field_name  = field.field_name -%}
+{%- set gcmd_scheme = field.get('gcmd_scheme', 'instruments') -%}
+{%- set gcmd_scheme_platform = field.get('gcmd_scheme_platform', gcmd_scheme) -%}
+{%- set custom_taxonomy = field.get('custom_taxonomy', 'instrument') -%}
+{%- set custom_taxonomy_platform = field.get('custom_taxonomy_platform', custom_taxonomy) -%}
+
+{#- Dynamic labels for instrument vs platform context -#}
+{%- set gcmd_label_instrument   = h.scheming_language_text(field.get('gcmd_label', 'Instrument Type (GCMD)')) -%}
+{%- set gcmd_label_platform     = h.scheming_language_text(field.get('gcmd_label_platform', 'Platform Type (GCMD)')) -%}
+{%- set custom_label_instrument = h.scheming_language_text(field.get('custom_label', 'Instrument Type (Custom)')) -%}
+{%- set custom_label_platform   = h.scheming_language_text(field.get('custom_label_platform', 'Platform Type (Custom)')) -%}
+
+{%- set gcmd_help   = field.get('gcmd_help_text', 'Select from GCMD vocabulary. Start typing to search.') -%}
+{%- set custom_help = field.get('custom_help_text', 'Select from custom taxonomy terms.') -%}
+
+{#- Build existing entries JSON for JS prepopulation -#}
+{%- set field_dict_list = h.composite_repeating_get_value_dict_list(
+       field.field_name, field.subfields, data, 0) -%}
+
+{#- Also grab legacy GCMD data that may not yet be in the composite field -#}
+{%- set legacy_gcmd_codes_raw = data.get(field.get('gcmd_code_field', 'instrument_type_gcmd_code'), '') -%}
+{%- set legacy_gcmd_labels_raw = data.get(field.get('gcmd_label_field', 'instrument_type_gcmd'), '') -%}
+
+<div data-module="vocab-picker-module"
+     data-module-mode="composite"
+     data-module-gcmd-scheme="{{ gcmd_scheme }}"
+     data-module-gcmd-scheme-platform="{{ gcmd_scheme_platform }}"
+     data-module-custom-taxonomy="{{ custom_taxonomy }}"
+     data-module-custom-taxonomy-platform="{{ custom_taxonomy_platform }}"
+     data-module-field-name="{{ field_name }}"
+     data-module-name-subfield="{{ field.subfields[0].field_name }}"
+     data-module-identifier-subfield="{{ field.subfields[1].field_name }}"
+     data-module-identifier-type-subfield="{{ field.subfields[2].field_name }}"
+     data-module-gcmd-label-instrument="{{ gcmd_label_instrument }}"
+     data-module-gcmd-label-platform="{{ gcmd_label_platform }}"
+     data-module-custom-label-instrument="{{ custom_label_instrument }}"
+     data-module-custom-label-platform="{{ custom_label_platform }}"
+     data-module-gcmd-code-field="{{ field.get('gcmd_code_field', 'instrument_type_gcmd_code') }}"
+     data-module-gcmd-label-field="{{ field.get('gcmd_label_field', 'instrument_type_gcmd') }}"
+     class="vocab-picker-container"
+     id="vocab-picker-{{ field_name }}">
+
+  {#- Existing composite data for JS -#}
+  <script type="application/json" class="vocab-picker-existing-composite">
+    [
+    {%- for fd in field_dict_list -%}
+      {%- set entry_name = fd.get(field.subfields[0].field_name, '') -%}
+      {%- if entry_name -%}
+        {{ '' if loop.first else ',' }}
+        {
+          "name": {{ entry_name | tojson }},
+          "identifier": {{ fd.get(field.subfields[1].field_name, '') | tojson }},
+          "identifierType": {{ fd.get(field.subfields[2].field_name, '') | tojson }}
+        }
+      {%- endif -%}
+    {%- endfor -%}
+    ]
+  </script>
+
+  {#- Legacy GCMD data for migration -#}
+  <script type="application/json" class="vocab-picker-existing-gcmd">
+    {
+      "codes": {{ legacy_gcmd_codes_raw | tojson }},
+      "labels": {{ legacy_gcmd_labels_raw | tojson }}
+    }
+  </script>
+
+  {#- GCMD and Custom dropdowns side by side -#}
+  <div class="row">
+    <div class="col-md-6 vocab-picker-row">
+      <label class="form-label">
+        <span class="vocab-picker-gcmd-label-text">{{ gcmd_label_instrument }}</span>
+      </label>
+      <div class="input-group">
+        <input type="text" class="form-control vocab-picker-gcmd-select"
+               placeholder="Search GCMD keywords...">
+        <span class="input-group-btn">
+          <button type="button" class="btn btn-success vocab-picker-gcmd-add" title="Add selected GCMD keyword">
+            <i class="fa fa-plus"></i>
+          </button>
+        </span>
+      </div>
+      <div class="info-block" style="margin-top:4px;">
+        <i class="fa fa-info-circle"></i> {{ gcmd_help }}
+      </div>
+    </div>
+
+    <div class="col-md-6 vocab-picker-row">
+      <label class="form-label">
+        <span class="vocab-picker-custom-label-text">{{ custom_label_instrument }}</span>
+      </label>
+      <div class="input-group">
+        <input type="text" class="form-control vocab-picker-custom-select"
+               placeholder="Search custom terms...">
+        <span class="input-group-btn">
+          <button type="button" class="btn btn-success vocab-picker-custom-add" title="Add selected custom term">
+            <i class="fa fa-plus"></i>
+          </button>
+        </span>
+      </div>
+      <div class="info-block" style="margin-top:4px;">
+        <i class="fa fa-info-circle"></i> {{ custom_help }}
+      </div>
+    </div>
+  </div>
+
+  {#- List of added entries -#}
+  <ul class="vocab-picker-list" style="margin-top:12px;"></ul>
+
+  {#- Dynamic hidden inputs for composite_repeating submission -#}
+  <div class="vocab-picker-hidden-inputs"></div>
+
+  {% if errors[field.field_name] %}
+    {% for error in errors[field.field_name] %}
+      <span class="error-block">{{ error }}</span>
+    {% endfor %}
+  {% endif %}
+</div>

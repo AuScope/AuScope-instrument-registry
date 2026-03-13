@@ -1,6 +1,6 @@
 taxonomies:
-  - name: instrument
-    title: Instrument
+  - name: Instruments
+    title: Instruments
     uri: "https://example.org/taxonomy/instrument"
     terms:
       - label: "Spectrometer"
@@ -37,8 +37,8 @@ taxonomies:
             extras:
               identifier_type: "URI"
 
-  - name: platform
-    title: Platform
+  - name: platforms
+    title: Platforms
     uri: "https://example.org/taxonomy/platform"
     terms:
       - label: "Research Vessel"
@@ -75,7 +75,7 @@ taxonomies:
             extras:
               identifier_type: "URI"
 
-  - name: measured_variable
+  - name: measured-variable
     title: Measured Variable
     uri: "https://example.org/taxonomy/measured-variable"
     terms:

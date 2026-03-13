@@ -136,8 +136,8 @@ dataset_fields:
   - field_name: instrument_type_gcmd_code
     label: Instrument Type (GCMD)
     label_platform: Platform Type (GCMD)
-    form_snippet: gcmd_field.html
-    display_snippet: gcmd_field.html
+    form_snippet: hidden_field.html
+    display_snippet: null
     label_field_name: instrument_type_gcmd
     gcmd_scheme: instruments
     gcmd_scheme_platform: platforms
@@ -152,19 +152,29 @@ dataset_fields:
     groupBy: About Instrument
 
   - field_name: instrument_type
-    label: Type (Custom)
-    label_instrument: Instrument Type (Custom)
-    label_platform: Platform Type (Custom)
+    label: Instrument Type
+    label_platform: Platform Type
     preset: composite_repeating
     validators: composite_repeating_validator
-    form_snippet: composite_repeating_field.html
-    form_blanks: 1
+    form_snippet: type_picker_field.html
+    form_blanks: 0
     groupBy: About Instrument
-    help_text: "Optional: use this only if you can’t find a suitable Type in the GCMD list above. You may add one or more custom entries."
+    gcmd_scheme: instruments
+    gcmd_scheme_platform: platforms
+    custom_taxonomy: Instruments
+    custom_taxonomy_platform: platforms
+    gcmd_label: Instrument Type (GCMD)
+    gcmd_label_platform: Platform Type (GCMD)
+    custom_label: Instrument Type (Custom)
+    custom_label_platform: Platform Type (Custom)
+    gcmd_code_field: instrument_type_gcmd_code
+    gcmd_label_field: instrument_type_gcmd
+    gcmd_help_text: Select from the NASA GCMD Instrument/Sensors Keywords. Start typing to search.
+    custom_help_text: Select from custom taxonomy terms.
+    help_text: Select one or more types from GCMD vocabulary and/or custom taxonomy.
     subfields:
       - field_name: instrument_type_name
         label: Type Name
-        required: true
         help_text: Classification of the type of the instrument or platform
 
       - field_name: instrument_type_identifier
@@ -173,13 +183,6 @@ dataset_fields:
 
       - field_name: instrument_type_identifier_type
         label: Type Identifier Type
-        # Do we need to keep choices or there always free texts?
-        # preset: select
-        # choices:
-        #   - value: URL
-        #     label: URL
-        #   - value: Other
-        #     label: Other
         help_text: "Type of the identifier"
 
   - field_name: manufacturer
@@ -259,8 +262,8 @@ dataset_fields:
 
   - field_name: measured_variable_gcmd_code
     label: Measured Variables (GCMD)
-    form_snippet: gcmd_field.html
-    display_snippet: gcmd_field.html
+    form_snippet: hidden_field.html
+    display_snippet: null
     label_field_name: measured_variable_gcmd
     gcmd_scheme: measured_variables
     help_text: Select one or more measured variables from the GCMD Measurement Name Keywords vocabulary (autocomplete)
@@ -274,13 +277,33 @@ dataset_fields:
 
 
   - field_name: measured_variable
-    label: User Specified Measured Variables
-    form_snippet: field_terms_autocomplete.html
-    display_snippet: field_terms_display.html
-    validators: ignore_missing json_list_or_string
-    output_validators: json_list_output
-    help_text: Optional free-text additions. Use the ‘Measured Variables (GCMD)’ field first.
+    label: Measured Variables
+    preset: composite_repeating
+    validators: composite_repeating_validator
+    form_snippet: measured_var_picker_field.html
+    form_blanks: 0
     groupBy: About Instrument
+    gcmd_scheme: measured_variables
+    custom_taxonomy: measured-variable
+    gcmd_label: Measured Variables (GCMD)
+    custom_label: User Specified Measured Variables
+    gcmd_code_field: measured_variable_gcmd_code
+    gcmd_label_field: measured_variable_gcmd
+    gcmd_help_text: Select from the GCMD Measurement Name Keywords vocabulary.
+    custom_help_text: Select from custom taxonomy terms, or type to add new.
+    help_text: Select one or more measured variables from GCMD vocabulary and/or custom taxonomy.
+    subfields:
+      - field_name: measured_variable_name
+        label: Variable Name
+        help_text: Name of the measured variable
+
+      - field_name: measured_variable_identifier
+        label: Variable Identifier
+        help_text: URI identifier for the measured variable
+
+      - field_name: measured_variable_identifier_type
+        label: Variable Identifier Type
+        help_text: "Type of the identifier"
 
   # - field_name: gcmd_keywords_code
   #   label: GCMD Science Keywords

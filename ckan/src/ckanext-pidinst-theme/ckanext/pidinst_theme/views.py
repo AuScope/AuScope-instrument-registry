@@ -339,6 +339,61 @@ ALLOWED_FIELD_TERMS = {'user_keywords', 'measured_variable'}
 
 
 # ---------------------------------------------------------------------------
+# Custom taxonomy terms proxy (ckanext-taxonomy)
+# ---------------------------------------------------------------------------
+
+ALLOWED_TAXONOMIES = {'Instruments', 'platforms', 'measured-variable'}
+
+
+@pidinst_theme.route('/api/proxy/taxonomy_terms/<taxonomy_name>', methods=['GET'])
+def taxonomy_terms_search(taxonomy_name):
+    """Search terms from a ckanext-taxonomy vocabulary for Select2 dropdowns.
+
+    Query params:
+        q – search string (optional, filters by label substring)
+
+    Returns JSON: {"results": [{"id": "<uri>", "text": "<label>", "uri": "<uri>"}]}
+    """
+    if taxonomy_name not in ALLOWED_TAXONOMIES:
+        return jsonify({'results': [], 'error': 'Taxonomy not allowed'}), 400
+
+    query_term = request.args.get('q', '').strip().lower()
+
+    def _flatten(terms):
+        """Recursively flatten a hierarchical term list."""
+        flat = []
+        for term in (terms or []):
+            flat.append(term)
+            flat.extend(_flatten(term.get('children', [])))
+        return flat
+
+    try:
+        context = {'ignore_auth': True}
+        terms = get_action('taxonomy_term_list')(context, {
+            'id': taxonomy_name,
+        })
+
+        results = []
+        for term in _flatten(terms):
+            label = term.get('label', '')
+            uri = term.get('uri', '')
+            if query_term and query_term not in label.lower():
+                continue
+            results.append({
+                'id': uri or label,
+                'text': label,
+                'uri': uri,
+            })
+
+        results.sort(key=lambda x: x['text'].lower())
+        return jsonify({'results': results[:100]})
+
+    except Exception as e:
+        log.error(f"Error fetching taxonomy terms for {taxonomy_name}: {e}")
+        return jsonify({'results': [], 'error': 'Failed to fetch terms'}), 500
+
+
+# ---------------------------------------------------------------------------
 # ROR (Research Organization Registry) proxy – Owner (ROR) feature
 # ---------------------------------------------------------------------------
 
