@@ -25,16 +25,18 @@
   {% endif %}
 
   <form method="post" class="dataset-form" style="margin-top: 1.5em;">
-    <div class="form-group{% if errors.duplicate_of %} has-error{% endif %}">
-      <label for="duplicate_of" class="control-label">
-        {{ _('Authoritative record (name or ID)') }} <span class="control-required">*</span>
+    <div class="form-group{% if errors.duplicate_of %} has-error{% endif %}"
+         data-module="duplicate-of-module"
+         data-current-pkg-id="{{ pkg.id }}">
+      <label for="duplicate_of_search" class="control-label">
+        {{ _('Authoritative record') }} <span class="control-required">*</span>
       </label>
-      <input id="duplicate_of" name="duplicate_of" type="text"
-             class="form-control"
-             placeholder="{{ _('Dataset name or UUID') }}"
-             value="{{ request.form.get('duplicate_of', '') }}"
-             required>
-      <p class="help-block">{{ _('The dataset name (slug) or ID of the record this is a duplicate of.') }}</p>
+      <input id="duplicate_of" name="duplicate_of" type="hidden"
+             value="{{ request.form.get('duplicate_of', '') }}">
+      <input id="duplicate_of_search" type="text"
+             class="pidinst-duplicate-of-search form-control"
+             style="width:100%">
+      <p class="help-block">{{ _('Search for the authoritative record this dataset is a duplicate of.') }}</p>
     </div>
 
     <div class="form-actions">

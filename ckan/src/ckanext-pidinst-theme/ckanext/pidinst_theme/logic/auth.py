@@ -1,6 +1,20 @@
 import ckan.plugins.toolkit as tk
 import ckan.authz as authz
-from ckan.logic.auth import get_package_object, get_resource_object, get_resource_view_object
+import ckan.model as model
+from ckan.logic.auth import get_package_object, get_resource_object
+from ckanext.doi.model.crud import DOIQuery
+
+
+def get_resource_view_object(context, data_dict=None):
+    """Fetch a ResourceView model object by id, mirroring CKAN's get_*_object helpers."""
+    resource_view = context.get('resource_view')
+    if not resource_view:
+        id_ = (data_dict or {}).get('id') or (data_dict or {}).get('resource_view_id')
+        if id_:
+            resource_view = model.ResourceView.get(id_)
+        if not resource_view:
+            raise tk.ObjectNotFound
+    return resource_view
 
 import logging
 
@@ -10,20 +24,28 @@ import logging
 # ---------------------------------------------------------------------------
 
 def _package_extra_value(package, key):
-    """Return the value of a package extra by key from a SQLAlchemy package
-    model object, or None if the key is absent."""
-    for extra in (package.extras or []):
+    """Return the value of a package extra by key.
+
+    Handles both the CKAN association proxy (dict-like mapping of key→value)
+    and the legacy case where extras is a list of PackageExtra ORM objects.
+    """
+    extras = package.extras
+    if not extras:
+        return None
+    if hasattr(extras, 'get'):
+        return extras.get(key)
+    for extra in extras:
         if extra.key == key:
             return extra.value
     return None
 
 
 def _is_doi_published(package):
-    """Return True if the package is public and has a non-empty DOI (protected state)."""
+    """Return True if the package is public and has a published DOI record."""
     if package.private:
         return False
-    doi = _package_extra_value(package, 'doi')
-    return bool(doi and doi.strip())
+    doi_record = DOIQuery.read_package(package.id)
+    return doi_record is not None and doi_record.published is not None
 
 
 @tk.auth_allow_anonymous_access
@@ -186,21 +208,12 @@ def package_delete(next_auth, context, data_dict):
     except:
         return {'success': False, 'msg': 'Unable to retrieve package'}
 
-    # DOI lifecycle guard: DOI-published records cannot be deleted — use withdraw/duplicate.
-    if _is_doi_published(package):
-        return {
-            'success': False,
-            'msg': (
-                'This record has a published DOI and cannot be deleted. '
-                'Use the withdraw or duplicate workflow instead.'
-            ),
-        }
+    if not package.private:
+        return {'success': False, 'msg': 'Public records cannot be deleted. Use the withdraw workflow instead.'}
 
     user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
     if user_role == 'admin':
         return {'success': True}
-    elif not package.private:
-        return {'success': False, 'msg': 'You are not authorised to delete a published dataset'}
     elif (user_role == 'member' or user_role == 'editor') and package.creator_user_id and user.id == package.creator_user_id:
         return {'success': True}
     else:

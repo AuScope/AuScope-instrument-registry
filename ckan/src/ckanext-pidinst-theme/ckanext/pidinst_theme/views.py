@@ -1049,6 +1049,7 @@ def withdraw(pkg_name):
 
     return toolkit.render('package/lifecycle_withdraw.html', {
         'pkg': pkg,
+        'pkg_dict': pkg,
         'errors': errors,
     })
 
@@ -1084,6 +1085,7 @@ def mark_duplicate(pkg_name):
 
     return toolkit.render('package/lifecycle_mark_duplicate.html', {
         'pkg': pkg,
+        'pkg_dict': pkg,
         'errors': errors,
     })
 
