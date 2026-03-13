@@ -15,6 +15,10 @@
   {% block family_info %}
     {% snippet 'package/snippets/family_info.html', pkg=pkg, am_following=am_following %}
   {% endblock %}
+
+  {% block lifecycle_actions %}
+    {% snippet 'package/snippets/lifecycle_actions.html', pkg=pkg %}
+  {% endblock %}
 {% endblock %}
 
 {% block structured_data %}

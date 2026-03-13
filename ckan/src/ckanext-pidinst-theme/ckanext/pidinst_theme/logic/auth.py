@@ -1,7 +1,6 @@
 import ckan.plugins.toolkit as tk
 import ckan.authz as authz
-from ckan.lib.plugins import get_permission_labels
-from ckan.logic.auth import get_package_object, get_resource_object
+from ckan.logic.auth import get_package_object, get_resource_object, get_resource_view_object
 
 import logging
 
@@ -20,25 +19,7 @@ def _package_extra_value(package, key):
 
 
 def _is_doi_published(package):
-    """Return True if this record is in the protected DOI-published state.
-
-    A record is considered protected when ALL of the following are true:
-    - It is currently public (``package.private is False``), AND
-    - It has a non-empty DOI assigned (stored in the ``doi`` scheming extra).
-
-    ``publication_status`` is not yet used as the primary gate because it is a
-    new field with no back-filled values.  Once the workflow that sets it is
-    implemented, this helper should be updated to also accept
-    ``publication_status == 'published'`` as an additional sufficient condition.
-
-    Business rule intent:
-    - Public DOI records are part of a permanent scholarly identifier contract.
-    - They must not be deleted (which would break the DOI).
-    - They must not be silently made private (which would hide the DOI landing
-      page and break resolution).
-    - Future controlled operations (withdraw, mark-as-duplicate) will update
-      ``publication_status`` and handle DataCite notifications explicitly.
-    """
+    """Return True if the package is public and has a non-empty DOI (protected state)."""
     if package.private:
         return False
     doi = _package_extra_value(package, 'doi')
@@ -51,15 +32,7 @@ def pidinst_theme_get_sum(context, data_dict):
 
 
 def user_is_member_of_package_org(user, package):
-    """
-    Return True if the package is in an organization and the user has the member role in
-    that organization.
-
-    :param user: A user object
-    :param package: A package object
-    :returns: True if the user has the 'member' role in the organization that owns the
-              package, False otherwise
-    """
+    """Return True if the user has the 'member' role in the package's organisation."""
     if package.owner_org:
         role_in_org = authz.users_role_for_group_or_org(package.owner_org, user.name)
         if role_in_org == 'member':
@@ -68,15 +41,7 @@ def user_is_member_of_package_org(user, package):
 
 
 def user_owns_package_as_member(user, package):
-    """
-    Checks that the given user created the package, and has the 'member' role in the
-    organization that owns the package.
-
-    :param user: A user object
-    :param package: A package object
-    :returns: True if the user created the package and has the 'member' role in the
-              organization to which package belongs. False otherwise.
-    """
+    """Return True if the user created the package and has the 'member' role in its organisation."""
     if user_is_member_of_package_org(user, package):
         return package.creator_user_id and user.id == package.creator_user_id
 
@@ -170,12 +135,6 @@ def package_update(next_auth, context, data_dict):
 
 @tk.chained_auth_function
 def resource_update(next_auth, context, data_dict):
-    '''
-    :param next_auth:
-    :param context:
-    :param data_dict:
-
-    '''
     user = context['auth_user_obj']
     resource = get_resource_object(context, data_dict)
     package = resource.package
@@ -200,12 +159,6 @@ def resource_update(next_auth, context, data_dict):
 
 @tk.chained_auth_function
 def resource_view_update(next_auth, context, data_dict):
-    '''
-    :param next_auth:
-    :param context:
-    :param data_dict:
-
-    '''
     user = context['auth_user_obj']
     resource_view = get_resource_view_object(context, data_dict)
     resource = get_resource_object(context, {'id': resource_view.resource_id})
@@ -233,10 +186,7 @@ def package_delete(next_auth, context, data_dict):
     except:
         return {'success': False, 'msg': 'Unable to retrieve package'}
 
-    # DOI lifecycle guard — must be checked before the admin bypass.
-    # A record with a published DOI cannot be deleted by anyone, including
-    # admins. Deletion would permanently break DOI resolution. The correct
-    # path is to use the withdraw or duplicate workflow (not yet implemented).
+    # DOI lifecycle guard: DOI-published records cannot be deleted — use withdraw/duplicate.
     if _is_doi_published(package):
         return {
             'success': False,
@@ -255,8 +205,6 @@ def package_delete(next_auth, context, data_dict):
         return {'success': True}
     else:
         return {'success': False, 'msg': 'Unauthorized to delete dataset'}
-
-    return next_auth(context, data_dict)
 
 @tk.chained_auth_function
 def resource_delete(next_auth, context, data_dict):
@@ -298,26 +246,13 @@ def resource_view_delete(next_auth, context, data_dict):
 
 @tk.chained_auth_function
 def package_show(next_auth, context, data_dict):
-    """
-    Override package_show authorization to ignore auth if the package is public.
-    """
     package = get_package_object(context, data_dict)
-    package_id = data_dict.get('id')
     user = context.get('auth_user_obj')
 
-    logger = logging.getLogger(__name__)
-    # logger.info('Entering package_show auth override')
-
     if package:
-        # logger.info(f'Package {package_id} found, private: {package.private}')
         if not package.private:
             return {'success': True}
 
-    # if user:
-    #     logger.info(f'User {user.name} with ID {user.id} is attempting to access package {package_id}')
-    # else:
-    #     logger.info(f'Anonymous user is attempting to access package {package_id}')
-        
     if package and package.owner_org:
         user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
         if user_role == 'member' and package.private and hasattr(user, 'id') and package.creator_user_id != user.id:       
@@ -333,6 +268,32 @@ def package_list(next_auth, context, data_dict):
     """
     return {'success': True}
 
+
+def _require_org_admin_or_editor(context, data_dict, action_label):
+    """Shared auth check: allow only org admins/editors."""
+    user = context.get('auth_user_obj')
+    if not user:
+        return {'success': False, 'msg': f'Must be logged in to {action_label}.'}
+    try:
+        package = get_package_object(context, data_dict)
+    except Exception:
+        return {'success': False, 'msg': 'Unable to retrieve package.'}
+    if not package.owner_org:
+        return {'success': False, 'msg': 'Package has no organisation.'}
+    user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
+    if user_role in ('admin', 'editor'):
+        return {'success': True}
+    return {'success': False, 'msg': f'Only org admins or editors can {action_label}.'}
+
+
+def package_mark_duplicate(context, data_dict):
+    return _require_org_admin_or_editor(context, data_dict, 'mark a record as duplicate')
+
+
+def package_withdraw(context, data_dict):
+    return _require_org_admin_or_editor(context, data_dict, 'withdraw a record')
+
+
 def get_auth_functions():
     return {
         "pidinst_theme_get_sum": pidinst_theme_get_sum,
@@ -347,4 +308,6 @@ def get_auth_functions():
         "resource_view_delete": resource_view_delete,
         "package_show": package_show,
         "package_list": package_list,
+        "package_withdraw": package_withdraw,
+        "package_mark_duplicate": package_mark_duplicate,
     }

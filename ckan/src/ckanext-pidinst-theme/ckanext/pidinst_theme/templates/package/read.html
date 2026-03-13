@@ -1,118 +1,174 @@
 {% extends "package/read_base.html" %}
 
 {% block primary_content_inner %}
-  {{ super() }}
+  {# ── Tombstone: withdrawn records show only minimal safe metadata ─────── #}
+  {% if pkg.publication_status == 'withdrawn' %}
+    <div class="withdrawn-tombstone" style="border-left: 4px solid #c0392b; padding: 1em 1.5em; margin-bottom: 1.5em; background: #fdf3f2;">
+      <h1>{{ h.dataset_display_name(pkg) }}</h1>
 
-  {% block package_badges %}
-    {# Version badges: only show if there is more than one version #}
-    {%- set versions = pkg.versions or [] -%}
-    {%- set vcount = versions | length -%}
+      <div class="alert alert-danger" role="alert">
+        <strong>{{ _('This record has been withdrawn.') }}</strong>
+        {% if pkg.withdrawal_reason %}
+          <p>{{ pkg.withdrawal_reason }}</p>
+        {% endif %}
+      </div>
 
-    {%- if vcount > 1 -%}
-      <span class="badge badge-info" title="{{ _('Instrument version') }}">
-        v{{ pkg.version_number }}
-      </span>
+      <p><strong>{{ _('Publication Status') }}:</strong> {{ pkg.publication_status | capitalize }}</p>
 
-      {%- if pkg.is_latest -%}
-        <span class="badge badge-success" title="{{ _('Latest version') }}">
-          {{ _('Latest') }}
-        </span>
-      {%- endif -%}
-    {%- endif -%}
+      {% if pkg.doi %}
+        <p><strong>{{ _('DOI') }}:</strong>
+          <a href="https://doi.org/{{ pkg.doi }}">https://doi.org/{{ pkg.doi }}</a>
+        </p>
+      {% endif %}
 
-    {%- if pkg.private -%}
-      <span class="dataset-private badge badge-info pull-right">
-        <i class="fa fa-lock"></i>
-        {{ _('Private') }}
-      </span>
-    {%- endif -%}
-  {% endblock %}
-
-  {% block page_heading %}
-    <h1>
-      {{ h.dataset_display_name(pkg) }}
-      {%- if pkg.state.startswith('draft') -%}
-        [{{ _('Draft') }}]
-      {%- endif -%}
-      {%- if pkg.state == 'deleted' -%}
-        [{{ _('Deleted') }}]
-      {%- endif -%}
-    </h1>
-    <div class="package-instrument-meta">
-      {% snippet "snippets/instrument_meta.html", pkg=pkg %}
+      {% if pkg.citation %}
+        <p><strong>{{ _('Citation') }}:</strong><br>
+          {{ h.render_markdown(pkg.citation) }}
+        </p>
+      {% endif %}
     </div>
-  {% endblock %}
 
-  {% block version_alert %}
-    {# Newer version alert (only when viewing an older version) #}
-    {%- if pkg.versions and not pkg.is_latest -%}
-      {# Find latest version (max by version_number) #}
-      {%- set latest = (pkg.versions | sort(attribute='version_number') | last) -%}
+  {# ── Tombstone: duplicate records show only minimal safe metadata ──────── #}
+  {% elif pkg.publication_status == 'duplicate' %}
+    <div class="duplicate-tombstone" style="border-left: 4px solid #e67e22; padding: 1em 1.5em; margin-bottom: 1.5em; background: #fef9f0;">
+      <h1>{{ h.dataset_display_name(pkg) }}</h1>
 
-      <div class="alert alert-warning" role="alert" style="margin-top: 10px;">
-        <strong>{{ _('New version available') }}</strong>
-        — {{ _('You are viewing an older version of this instrument.') }}
-        {{ _('Latest is') }} <strong>v{{ latest.version_number }}</strong>:
-        <a href="{{ latest.url }}">{{ latest.title }}</a>
+      <div class="alert alert-warning" role="alert">
+        <strong>{{ _('This record has been marked as a duplicate.') }}</strong>
+        {% if pkg.duplicate_of %}
+          <p>{{ _('The authoritative record is:') }} <strong>{{ pkg.duplicate_of }}</strong></p>
+        {% endif %}
+      </div>
 
-        <span>
-          <a class="btn btn-sm btn-primary" href="{{ latest.url }}">
-            {{ _('Go to latest') }}
-          </a>
+      <p><strong>{{ _('Publication Status') }}:</strong> {{ pkg.publication_status | capitalize }}</p>
+
+      {% if pkg.doi %}
+        <p><strong>{{ _('DOI') }}:</strong>
+          <a href="https://doi.org/{{ pkg.doi }}">https://doi.org/{{ pkg.doi }}</a>
+        </p>
+      {% endif %}
+
+      {% if pkg.citation %}
+        <p><strong>{{ _('Citation') }}:</strong><br>
+          {{ h.render_markdown(pkg.citation) }}
+        </p>
+      {% endif %}
+    </div>
+
+  {# ── Normal record view ────────────────────────────────────────────────── #}
+  {% else %}
+    {{ super() }}
+
+    {% block package_badges %}
+      {# Version badges: only show if there is more than one version #}
+      {%- set versions = pkg.versions or [] -%}
+      {%- set vcount = versions | length -%}
+
+      {%- if vcount > 1 -%}
+        <span class="badge badge-info" title="{{ _('Instrument version') }}">
+          v{{ pkg.version_number }}
         </span>
+
+        {%- if pkg.is_latest -%}
+          <span class="badge badge-success" title="{{ _('Latest version') }}">
+            {{ _('Latest') }}
+          </span>
+        {%- endif -%}
+      {%- endif -%}
+
+      {%- if pkg.private -%}
+        <span class="dataset-private badge badge-info pull-right">
+          <i class="fa fa-lock"></i>
+          {{ _('Private') }}
+        </span>
+      {%- endif -%}
+    {% endblock %}
+
+    {% block page_heading %}
+      <h1>
+        {{ h.dataset_display_name(pkg) }}
+        {%- if pkg.state.startswith('draft') -%}
+          [{{ _('Draft') }}]
+        {%- endif -%}
+        {%- if pkg.state == 'deleted' -%}
+          [{{ _('Deleted') }}]
+        {%- endif -%}
+      </h1>
+      <div class="package-instrument-meta">
+        {% snippet "snippets/instrument_meta.html", pkg=pkg %}
       </div>
-    {%- endif -%}
-  {% endblock %}
+    {% endblock %}
 
-  {% block version_actions %}
-    {%- if h.check_access('package_create') and not pkg.state == 'deleted' and not pkg.private and pkg.is_latest -%}
-      <div class="module-content">
-        <a href="{{ h.url_for('pidinst_theme.new_version', id=pkg.name) }}"
-           class="btn btn-primary"
-           title="{{ _('Create a new version of this instrument') }}">
-          <i class="fa fa-code-fork"></i> {{ _('Create New Version') }}
-        </a>
-      </div>
-    {%- endif -%}
-  {% endblock %}
+    {% block version_alert %}
+      {# Newer version alert (only when viewing an older version) #}
+      {%- if pkg.versions and not pkg.is_latest -%}
+        {%- set latest = (pkg.versions | sort(attribute='version_number') | last) -%}
 
-  {% block package_notes %}
-    {%- if pkg.description -%}
-      <div class="notes embedded-content">
-        {{ h.render_markdown(h.get_translated(pkg, 'description')) }}
-      </div>
-    {%- endif -%}
-  {% endblock %}
+        <div class="alert alert-warning" role="alert" style="margin-top: 10px;">
+          <strong>{{ _('New version available') }}</strong>
+          — {{ _('You are viewing an older version of this instrument.') }}
+          {{ _('Latest is') }} <strong>v{{ latest.version_number }}</strong>:
+          <a href="{{ latest.url }}">{{ latest.title }}</a>
 
-  {% block package_cover_image %}
-    {%- set cover_url = h.pidinst_cover_image_url(pkg) -%}
-    {%- if cover_url -%}
-      <div class="package-cover-container">
-        <img class="instrument-cover" src="{{ cover_url }}" alt="{{ pkg.title }}">
-      </div>
-    {%- endif -%}
-  {% endblock %}
+          <span>
+            <a class="btn btn-sm btn-primary" href="{{ latest.url }}">
+              {{ _('Go to latest') }}
+            </a>
+          </span>
+        </div>
+      {%- endif -%}
+    {% endblock %}
 
-  {% block package_cite %}
-    {%- if pkg.citation -%}
-      <h2>{{ _('Cite this as') }}</h2>
-      <div class="citation embedded-content">
-        {{ h.render_markdown(h.get_translated(pkg, 'citation')) }}
-      </div>
-    {%- endif -%}
-  {% endblock %}
+    {% block version_actions %}
+      {%- if h.check_access('package_create') and not pkg.state == 'deleted' and not pkg.private and pkg.is_latest -%}
+        <div class="module-content">
+          <a href="{{ h.url_for('pidinst_theme.new_version', id=pkg.name) }}"
+             class="btn btn-primary"
+             title="{{ _('Create a new version of this instrument') }}">
+            <i class="fa fa-code-fork"></i> {{ _('Create New Version') }}
+          </a>
+        </div>
+      {%- endif -%}
+    {% endblock %}
 
-  {% block package_tags %}
-    {% snippet "package/snippets/tags.html", tags=pkg.tags %}
-  {% endblock %}
+    {% block package_notes %}
+      {%- if pkg.description -%}
+        <div class="notes embedded-content">
+          {{ h.render_markdown(h.get_translated(pkg, 'description')) }}
+        </div>
+      {%- endif -%}
+    {% endblock %}
 
-  {% block package_additional_info %}
-    {% snippet "package/snippets/additional_info.html", pkg_dict=pkg %}
-  {% endblock %}
+    {% block package_cover_image %}
+      {%- set cover_url = h.pidinst_cover_image_url(pkg) -%}
+      {%- if cover_url -%}
+        <div class="package-cover-container">
+          <img class="instrument-cover" src="{{ cover_url }}" alt="{{ pkg.title }}">
+        </div>
+      {%- endif -%}
+    {% endblock %}
 
-  {% block package_resources %}
-    {% snippet "package/snippets/resources_list.html", pkg=pkg, resources=pkg.resources,
-      can_edit=h.check_access('package_update', {'id':pkg.id }) %}
-  {% endblock %}
+    {% block package_cite %}
+      {%- if pkg.citation -%}
+        <h2>{{ _('Cite this as') }}</h2>
+        <div class="citation embedded-content">
+          {{ h.render_markdown(h.get_translated(pkg, 'citation')) }}
+        </div>
+      {%- endif -%}
+    {% endblock %}
 
+    {% block package_tags %}
+      {% snippet "package/snippets/tags.html", tags=pkg.tags %}
+    {% endblock %}
+
+    {% block package_additional_info %}
+      {% snippet "package/snippets/additional_info.html", pkg_dict=pkg %}
+    {% endblock %}
+
+    {% block package_resources %}
+      {% snippet "package/snippets/resources_list.html", pkg=pkg, resources=pkg.resources,
+        can_edit=h.check_access('package_update', {'id':pkg.id }) %}
+    {% endblock %}
+
+  {% endif %}
 {% endblock %}

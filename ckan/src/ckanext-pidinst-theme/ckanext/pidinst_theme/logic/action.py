@@ -3,12 +3,10 @@ import ckanext.pidinst_theme.logic.schema as schema
 import ckan.lib.plugins as lib_plugins
 from ckan.logic.validators import owner_org_validator as default_owner_org_validator
 import logging
-from pprint import pformat
 import re
 import json
 from datetime import datetime
 from ckan.logic.auth import get_package_object
-import pandas as pd
 from ckan.common import  _
 from ckan.plugins.toolkit import h
 from ckan.logic import get_action, ValidationError
@@ -16,7 +14,10 @@ from ckanext.pidinst_theme.logic import (
     email_notifications
 )
 import ckan.authz as authz
-from ckanext.pidinst_theme.logic.auth import _is_doi_published
+from ckanext.pidinst_theme.logic.auth import _is_doi_published, _package_extra_value
+from ckanext.doi.lib.api import DataciteClient
+from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
+from ckanext.doi.model.crud import DOIQuery
 
 @tk.side_effect_free
 def pidinst_theme_get_sum(context, data_dict):
@@ -68,22 +69,10 @@ def package_create(next_action, context, data_dict):
     if 'private' in data_dict and data_dict['private'] == 'False':
         data_dict['publication_date'] = datetime.now()
 
-
-    # logger.info("package_create after data_dict: %s", pformat(data_dict))
-
     return next_action(context, data_dict)
 
 def _parse_composite_field(data_dict, field_name):
-    """Try to extract a list of dicts from a composite_repeating field.
-
-    Handles every format that may arrive in data_dict:
-      1. Already a Python list of dicts  (API / after validation)
-      2. A single dict                   (API single-entry shorthand)
-      3. A JSON string                   (ckanext-composite hidden input)
-      4. A dict with integer keys         (after tuplize_dict + unflatten with __ separator)
-      5. Flat indexed keys like  field-1-subfield  (form POST, 1-based from composite-repeating)
-         or field-0-subfield (0-based, older format)
-    """
+    """Extract a list of dicts from a composite_repeating field, handling all input formats."""
     result = []
     raw = data_dict.get(field_name)
 
@@ -177,11 +166,9 @@ def package_update(next_action, context, data_dict):
 
     package = get_package_object(context, {'id': data_dict['id']})
 
-    # DOI lifecycle guard: prevent a public DOI record from being silently made
-    # private. This would break DOI landing-page resolution and bypass the
-    # formal withdrawal workflow (not yet implemented, but reserved).
-    # The 'private' value in data_dict can be a bool or a string ('True'/'False')
-    # depending on whether the call comes from the UI form or the API.
+    # DOI lifecycle guard: prevent a public DOI record from being made private.
+    # 'private' can be a bool or string ('True'/'False') depending on whether the call
+    # comes from the UI form or the API.
     if _is_doi_published(package):
         new_private = data_dict.get('private', package.private)
         if isinstance(new_private, str):
@@ -303,7 +290,6 @@ def organization_member_create(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
     member = None
     try:
-        # logger.info("Adding member to organisation: %s", data_dict)
         member = next_action(context, data_dict)
     except tk.ValidationError as e:
         logger.error(f'Error during member addition: {e.error_dict}')
@@ -321,7 +307,6 @@ def organization_create(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
     organisation = None
     try:
-        # logger.info("Creating organization: %s", pformat(data_dict))
         organisation = next_action(context, data_dict)
     except tk.ValidationError as e:
         logger.error(f'Error during organisation creation: {e.error_dict}')
@@ -346,11 +331,8 @@ def organization_delete(next_action, context, data_dict):
     logger = logging.getLogger(__name__)
     organisation = None
     try:
-        # logger.info("Deleting organisation: %s", pformat(data_dict))
-
         org_id = tk.get_or_bust(data_dict, 'id')
         organization = get_action('organization_show')({}, {'id': org_id})
-        # logger.info(f'Organisation deletion result: %s', pformat(organization))
         if not organization:
             raise tk.ObjectNotFound('Organisation was not found.')
         members=organization.get('users')
@@ -378,6 +360,133 @@ def organization_delete(next_action, context, data_dict):
         tk.h.flash_error(_('The organisation has been deleted but there was an error sending the notification email. Please check the email configuration.'), 'error')
 
 
+def _deactivate_doi_on_datacite(package_id):
+    """Move the package's DOI from Findable to Registered on DataCite. Non-fatal on failure."""
+    doi_record = DOIQuery.read_package(package_id)
+    if doi_record is None or doi_record.published is None:
+        return
+    DataciteClient().deactivate_doi(doi_record.identifier)
+
+
+def _resolve_duplicate_of_to_doi(duplicate_of):
+    """Return a DOI string from a raw DOI or CKAN package id/name. None if unresolvable."""
+    if duplicate_of.startswith('10.'):
+        return duplicate_of
+    try:
+        pkg = tk.get_action('package_show')({'ignore_auth': True}, {'id': duplicate_of})
+        rec = DOIQuery.read_package(pkg['id'])
+        if rec:
+            return rec.identifier
+    except Exception:
+        pass
+    return None
+
+
+def _update_doi_for_duplicate(package_id, duplicate_of):
+    """Update DataCite metadata for a duplicate record, adding an IsIdenticalTo relation. Non-fatal."""
+    logger = logging.getLogger(__name__)
+    doi_record = DOIQuery.read_package(package_id)
+    if doi_record is None or doi_record.published is None:
+        return
+    try:
+        pkg_dict = tk.get_action('package_show')({'ignore_auth': True}, {'id': package_id})
+        metadata_dict = build_metadata_dict(pkg_dict)
+        xml_dict = build_xml_dict(metadata_dict)
+        canonical_doi = _resolve_duplicate_of_to_doi(duplicate_of)
+        if canonical_doi:
+            related = xml_dict.get('relatedIdentifiers', [])
+            related.append({
+                'relatedIdentifier': canonical_doi,
+                'relatedIdentifierType': 'DOI',
+                'relationType': 'IsIdenticalTo',
+            })
+            xml_dict['relatedIdentifiers'] = related
+        else:
+            logger.warning('Could not resolve duplicate_of %r to a DOI; skipping relatedIdentifier', duplicate_of)
+        DataciteClient().set_metadata(doi_record.identifier, xml_dict)
+    except Exception as e:
+        logger.warning('DataCite metadata update failed for duplicate %s: %s', doi_record.identifier, e)
+
+
+def package_mark_duplicate(context, data_dict):
+    """Mark a public DOI-published record as a duplicate."""
+    tk.check_access('package_mark_duplicate', context, data_dict)
+
+    pkg_id = tk.get_or_bust(data_dict, 'id')
+    duplicate_of = data_dict.get('duplicate_of', '').strip()
+    if not duplicate_of:
+        raise ValidationError({'duplicate_of': ['duplicate_of is required.']})
+
+    package = get_package_object(context, {'id': pkg_id})
+
+    if not _is_doi_published(package):
+        raise ValidationError({'id': ['Only public DOI-published records can be marked duplicate.']})
+
+    status = _package_extra_value(package, 'publication_status')
+    if status == 'withdrawn':
+        raise ValidationError({'id': ['A withdrawn record cannot be marked duplicate.']})
+    if status == 'duplicate':
+        raise ValidationError({'id': ['This record is already marked duplicate.']})
+
+    # Resolve and validate the canonical target record.
+    try:
+        target = get_action('package_show')(
+            {'ignore_auth': True}, {'id': duplicate_of}
+        )
+    except tk.ObjectNotFound:
+        raise ValidationError({'duplicate_of': ['No dataset found with that id or name.']})
+
+    if target['id'] == package.id:
+        raise ValidationError({'duplicate_of': ['A record cannot be a duplicate of itself.']})
+
+    target_status = target.get('publication_status') or ''
+    if target_status == 'withdrawn':
+        raise ValidationError({'duplicate_of': ['The target record is withdrawn and cannot be used as canonical.']})
+    if target_status == 'duplicate':
+        raise ValidationError({'duplicate_of': ['The target record is itself a duplicate and cannot be used as canonical.']})
+
+    tk.get_action('package_patch')(context, {
+        'id': pkg_id,
+        'publication_status': 'duplicate',
+        'duplicate_of': duplicate_of,
+    })
+
+    _update_doi_for_duplicate(package.id, duplicate_of)
+
+    return {'success': True, 'id': pkg_id, 'publication_status': 'duplicate', 'duplicate_of': duplicate_of}
+
+
+def package_withdraw(context, data_dict):
+    """Mark a public DOI-published record as withdrawn."""
+    tk.check_access('package_withdraw', context, data_dict)
+
+    pkg_id = tk.get_or_bust(data_dict, 'id')
+    reason = data_dict.get('withdrawal_reason', '').strip()
+    if not reason:
+        raise ValidationError({'withdrawal_reason': ['A withdrawal reason is required.']})
+
+    package = get_package_object(context, {'id': pkg_id})
+
+    if not _is_doi_published(package):
+        raise ValidationError({
+            'id': ['Only public DOI-published records can be withdrawn.']
+        })
+
+    if _package_extra_value(package, 'publication_status') == 'withdrawn':
+        raise ValidationError({'id': ['This record is already withdrawn.']})
+
+    # Update only the two lifecycle extras; leave everything else unchanged.
+    tk.get_action('package_patch')(context, {
+        'id': pkg_id,
+        'publication_status': 'withdrawn',
+        'withdrawal_reason': reason,
+    })
+
+    _deactivate_doi_on_datacite(package.id)
+
+    return {'success': True, 'id': pkg_id, 'publication_status': 'withdrawn'}
+
+
 def get_actions():
     return {
         'pidinst_theme_get_sum': pidinst_theme_get_sum,
@@ -390,4 +499,6 @@ def get_actions():
         'package_search': package_search,
         'organization_create' :organization_create,
         "organization_delete" : organization_delete,
+        'package_withdraw': package_withdraw,
+        'package_mark_duplicate': package_mark_duplicate,
     }
