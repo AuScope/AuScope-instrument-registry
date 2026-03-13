@@ -1,0 +1,216 @@
+{% extends "page.html" %}
+
+{% block subtitle %}{{ _('Taxonomies') }}{% endblock %}
+
+{% block styles %}
+  {{ super() }}
+  <link rel="stylesheet" href="/css/taxonomy-admin.css">
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="/scripts/taxonomy-admin.js"></script>
+{% endblock %}
+
+{% block breadcrumb_content %}
+  <li class="active"><a href="{{ h.url_for('taxonomy.index') }}">{{ _('Taxonomies') }}</a></li>
+{% endblock %}
+
+{% block primary_content %}
+
+{# ── SECTION 1: Taxonomies (Custom) ── #}
+<section class="module">
+  <div class="module-content">
+    <h1 class="page-heading">
+      {{ _('Taxonomies (Custom)') }}
+      {% if is_admin %}
+        <a href="{{ h.url_for('taxonomy.taxonomy_create') }}"
+           class="btn btn-primary btn-sm pull-right">
+          <i class="fa fa-plus"></i> {{ _('New Taxonomy') }}
+        </a>
+      {% endif %}
+    </h1>
+
+    {% if taxonomy_trees %}
+    <div class="taxonomy-filter-bar" style="margin-bottom:12px;">
+      <input type="text" id="taxonomy-filter" class="form-control"
+             placeholder="{{ _('Filter taxonomies and terms…') }}"
+             autocomplete="off">
+    </div>
+    <div class="taxonomy-tree-container">
+      {% for item in taxonomy_trees %}
+        {% set tax = item.taxonomy %}
+        {% set terms = item.terms %}
+        <div class="taxonomy-root" data-taxonomy-id="{{ tax.id }}">
+          <div class="taxonomy-node taxonomy-node--root">
+            <span class="taxonomy-toggle" title="Expand/collapse">
+              {% if terms %}
+                <i class="fa fa-caret-right"></i>
+              {% else %}
+                <i class="fa fa-circle-o fa-xs"></i>
+              {% endif %}
+            </span>
+            <a href="{{ h.url_for('taxonomy.taxonomy_detail', taxonomy_name=tax.name) }}"
+               class="taxonomy-label">{{ tax.title or tax.name }}</a>
+            {% if is_admin %}
+            <span class="taxonomy-actions">
+              <a href="{{ h.url_for('taxonomy.term_create', taxonomy_name=tax.name) }}"
+                 class="btn btn-xs btn-default" title="{{ _('Add child term') }}">
+                <i class="fa fa-plus"></i>
+              </a>
+              <a href="{{ h.url_for('taxonomy.taxonomy_edit', taxonomy_name=tax.name) }}"
+                 class="btn btn-xs btn-default" title="{{ _('Edit') }}">
+                <i class="fa fa-pencil"></i>
+              </a>
+              <a href="{{ h.url_for('taxonomy.taxonomy_delete', taxonomy_name=tax.name) }}"
+                 class="btn btn-xs btn-danger" title="{{ _('Delete') }}">
+                <i class="fa fa-trash"></i>
+              </a>
+            </span>
+            {% endif %}
+          </div>
+          {% if terms %}
+          <ul class="taxonomy-children" style="display:none;">
+            {% for term in terms %}
+              {{ _render_term_node(term, tax, is_admin) }}
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <p class="empty">{{ _('No custom taxonomies have been created yet.') }}</p>
+    {% endif %}
+  </div>
+</section>
+
+{# ── SECTION 2: Taxonomies (GCMD) ── #}
+<section class="module gcmd-taxonomy-section">
+  <div class="module-content">
+    <h1 class="page-heading">{{ _('Taxonomies (GCMD)') }}</h1>
+
+    <div class="gcmd-filter-bar" style="margin-bottom:12px;">
+      <input type="text" id="gcmd-search" class="form-control"
+             placeholder="{{ _('Search GCMD keywords…') }}"
+             autocomplete="off">
+    </div>
+
+    {# Search results container (hidden by default) #}
+    <div id="gcmd-search-results" class="gcmd-search-results" style="display:none;">
+      <h4 id="gcmd-search-results-heading"></h4>
+      <ul id="gcmd-search-results-list" class="list-group"></ul>
+      <div id="gcmd-search-results-more" style="display:none;">
+        <button class="btn btn-default btn-sm" id="gcmd-load-more">{{ _('Load more…') }}</button>
+      </div>
+      <div id="gcmd-search-spinner" style="display:none;">
+        <i class="fa fa-spinner fa-spin"></i> {{ _('Searching…') }}
+      </div>
+    </div>
+
+    {# Tree container (visible by default) #}
+    <div id="gcmd-tree-container" class="taxonomy-tree-container">
+      <div class="taxonomy-root gcmd-root" data-gcmd-scheme="instruments">
+        <div class="taxonomy-node taxonomy-node--root">
+          <span class="taxonomy-toggle gcmd-toggle" title="Expand/collapse">
+            <i class="fa fa-caret-right"></i>
+          </span>
+          <a class="taxonomy-label gcmd-root-label"
+             href="https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-instruments/22-8-2026-02-13/concept"
+             target="_blank" rel="noopener noreferrer">
+            <i class="fa fa-flask"></i> {{ _('Instruments') }}
+          </a>
+        </div>
+        <ul class="taxonomy-children gcmd-children" style="display:none;">
+          <li class="gcmd-loading"><i class="fa fa-spinner fa-spin"></i> {{ _('Loading…') }}</li>
+        </ul>
+      </div>
+
+      <div class="taxonomy-root gcmd-root" data-gcmd-scheme="platforms">
+        <div class="taxonomy-node taxonomy-node--root">
+          <span class="taxonomy-toggle gcmd-toggle" title="Expand/collapse">
+            <i class="fa fa-caret-right"></i>
+          </span>
+          <a class="taxonomy-label gcmd-root-label"
+             href="https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-platforms/21-5-2025-06-17/concept"
+             target="_blank" rel="noopener noreferrer">
+            <i class="fa fa-satellite"></i> {{ _('Platforms') }}
+          </a>
+        </div>
+        <ul class="taxonomy-children gcmd-children" style="display:none;">
+          <li class="gcmd-loading"><i class="fa fa-spinner fa-spin"></i> {{ _('Loading…') }}</li>
+        </ul>
+      </div>
+
+      <div class="taxonomy-root gcmd-root" data-gcmd-scheme="measured_variables">
+        <div class="taxonomy-node taxonomy-node--root">
+          <span class="taxonomy-toggle gcmd-toggle" title="Expand/collapse">
+            <i class="fa fa-caret-right"></i>
+          </span>
+          <a class="taxonomy-label gcmd-root-label"
+             href="https://vocabs.ardc.edu.au/repository/api/lda/ardc-curated/gcmd-measurementname/21-5-2025-06-06/concept"
+             target="_blank" rel="noopener noreferrer">
+            <i class="fa fa-bar-chart"></i> {{ _('Measured Variables') }}
+          </a>
+        </div>
+        <ul class="taxonomy-children gcmd-children" style="display:none;">
+          <li class="gcmd-loading"><i class="fa fa-spinner fa-spin"></i> {{ _('Loading…') }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block secondary_content %}
+  <section class="module module-narrow">
+    <h2 class="module-heading"><i class="fa fa-info-circle"></i> {{ _('About Taxonomies') }}</h2>
+    <div class="module-content">
+      <p>{{ _('Taxonomies are hierarchical vocabularies used to classify datasets. Each taxonomy contains a tree of terms.') }}</p>
+      <p><strong>{{ _('Custom') }}</strong> — {{ _('vocabularies managed locally within this registry.') }}</p>
+      <p><strong>{{ _('GCMD') }}</strong> — {{ _('NASA Global Change Master Directory keywords served from the ARDC vocabulary service.') }}</p>
+    </div>
+  </section>
+{% endblock %}
+
+
+{# ── Macro for custom taxonomy term nodes (unchanged from upstream) ── #}
+{% macro _render_term_node(term, tax, is_admin) %}
+<li class="taxonomy-node">
+  <div class="taxonomy-node-row">
+    <span class="taxonomy-toggle" title="Expand/collapse">
+      {% if term.children %}
+        <i class="fa fa-caret-right"></i>
+      {% else %}
+        <i class="fa fa-circle-o fa-xs"></i>
+      {% endif %}
+    </span>
+    <a href="{{ h.url_for('taxonomy.term_detail', term_id=term.id) }}"
+       class="taxonomy-label">{{ term.label }}</a>
+    {% if is_admin %}
+    <span class="taxonomy-actions">
+      <a href="{{ h.url_for('taxonomy.term_create', taxonomy_name=tax.name, parent_id=term.id) }}"
+         class="btn btn-xs btn-default" title="{{ _('Add child term') }}">
+        <i class="fa fa-plus"></i>
+      </a>
+      <a href="{{ h.url_for('taxonomy.term_edit', term_id=term.id) }}"
+         class="btn btn-xs btn-default" title="{{ _('Edit') }}">
+        <i class="fa fa-pencil"></i>
+      </a>
+      <a href="{{ h.url_for('taxonomy.term_delete', term_id=term.id) }}"
+         class="btn btn-xs btn-danger" title="{{ _('Delete') }}">
+        <i class="fa fa-trash"></i>
+      </a>
+    </span>
+    {% endif %}
+  </div>
+  {% if term.children %}
+  <ul class="taxonomy-children" style="display:none;">
+    {% for child in term.children %}
+      {{ _render_term_node(child, tax, is_admin) }}
+    {% endfor %}
+  </ul>
+  {% endif %}
+</li>
+{% endmacro %}

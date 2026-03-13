@@ -50,6 +50,9 @@
   <li class="{{ 'active' if request.path.startswith('/facility') else '' }}">
     <a href="/facility">{{ _('Facilities') }}</a>
   </li>
+  <li class="{{ 'active' if request.path.startswith('/taxonomies') else '' }}">
+    <a href="/taxonomies">{{ _('Taxonomies') }}</a>
+  </li>
   <li class="{{ 'active' if request.path == '/about' else '' }}">
     <a href="{{ h.url_for('home.about') }}">{{ _('About') }}</a>
   </li>

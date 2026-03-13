@@ -22,6 +22,7 @@ pidinst_theme-js:
     - js/org-visibility-module.js
     - js/analytics-tracking.js
     - js/cover-photo-module.js
+    - js/gcmd-taxonomy-tree-module.js
     - js/pidinst_theme.js
   extra:
     preload:

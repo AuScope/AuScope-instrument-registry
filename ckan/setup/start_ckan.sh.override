@@ -122,8 +122,15 @@ then
     done
 fi
 
-# Delay initializing DB so DOI tables exist
+# Delay initializing DB for DOI
 ckan -c $CKAN_INI doi initdb
+
+# Initialize taxonomy database tables
+echo "Initializing taxonomy tables..."
+ckan -c "$CKAN_INI" taxonomy initdb
+
+echo "Initializing default taxonomies from YAML..."
+ckan -c "$CKAN_INI" taxonomy seed-defaults -f taxonomy_init.yaml
 
 # Add AuScope organization (will throw constraint error if org exists but won't break anything)
 echo "Adding AuScope organization to DB"

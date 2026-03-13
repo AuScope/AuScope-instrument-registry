@@ -255,6 +255,86 @@ def fetch_gcmd():
         return {"error": "Vocabulary service unavailable"}, 503
 
 
+@pidinst_theme.route('/api/proxy/fetch_gcmd_narrower', methods=['GET'])
+def fetch_gcmd_narrower():
+    """Return immediate narrower (child) concepts for a given concept URI.
+
+    Query params:
+        uri    – the canonical concept URI (e.g. a NASA CMR URI)
+        scheme – one of instruments, platforms, measured_variables
+
+    Uses the ARDC ``resource.json?uri=`` endpoint to look up the concept
+    by its canonical URI within the correct ARDC vocabulary.
+    """
+    VOCAB_ENDPOINTS = {
+        'instruments':        'ardc-curated/gcmd-instruments/22-8-2026-02-13',
+        'platforms':          'ardc-curated/gcmd-platforms/21-5-2025-06-17',
+        'measured_variables': 'ardc-curated/gcmd-measurementname/21-5-2025-06-06',
+    }
+
+    concept_uri = request.args.get('uri', '').strip()
+    scheme = request.args.get('scheme', '').strip()
+
+    if not concept_uri:
+        return jsonify({'items': [], 'error': 'Missing uri parameter'}), 400
+    if scheme not in VOCAB_ENDPOINTS:
+        return jsonify({'items': [], 'error': 'Invalid scheme'}), 400
+
+    vocab_path = VOCAB_ENDPOINTS[scheme]
+    base_url = 'https://vocabs.ardc.edu.au/repository/api/lda'
+
+    try:
+        # Use the ARDC resource endpoint to look up the concept by canonical URI
+        resource_url = f'{base_url}/{vocab_path}/resource.json?uri={requests.utils.quote(concept_uri, safe="")}'
+        resp = requests.get(resource_url, timeout=15)
+        if not resp.ok:
+            log.error(f"ARDC resource fetch failed: {resp.status_code} - {resource_url}")
+            return jsonify({'items': [], 'error': 'Upstream error'}), 502
+
+        data = resp.json()
+        primary = data.get('result', {}).get('primaryTopic', {})
+        narrower_list = primary.get('narrower', [])
+
+        items = []
+        for entry in narrower_list:
+            about = entry.get('_about', '')
+            pref = entry.get('prefLabel', {})
+            label = pref.get('_value', '') if isinstance(pref, dict) else str(pref) if pref else ''
+
+            # If the inline entry doesn't have a label, fetch it individually
+            if not label and about:
+                try:
+                    child_url = f'{base_url}/{vocab_path}/resource.json?uri={requests.utils.quote(about, safe="")}'
+                    child_resp = requests.get(child_url, timeout=8)
+                    if child_resp.ok:
+                        child_data = child_resp.json()
+                        child_primary = child_data.get('result', {}).get('primaryTopic', {})
+                        child_pref = child_primary.get('prefLabel', {})
+                        label = child_pref.get('_value', '') if isinstance(child_pref, dict) else str(child_pref) if child_pref else ''
+                        child_narrower = child_primary.get('narrower', [])
+                        items.append({
+                            '_about': about,
+                            'prefLabel': {'_value': label},
+                            'narrower': child_narrower,
+                        })
+                        continue
+                except Exception:
+                    pass
+
+            items.append({
+                '_about': about,
+                'prefLabel': {'_value': label or about.rsplit('/', 1)[-1]},
+                'narrower': entry.get('narrower', []),
+            })
+
+        items.sort(key=lambda x: (x.get('prefLabel', {}).get('_value', '') or '').lower())
+        return jsonify({'items': items})
+
+    except requests.exceptions.RequestException as e:
+        log.error(f"ARDC narrower fetch error: {str(e)}")
+        return jsonify({'items': [], 'error': 'Vocabulary service unavailable'}), 503
+
+
 ALLOWED_FIELD_TERMS = {'user_keywords', 'measured_variable'}
 
 

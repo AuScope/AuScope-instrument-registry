@@ -169,16 +169,16 @@
   .dataset-item .dataset-item-wrapper {
     flex-direction: column;
   }
-  
+
   .dataset-item .dataset-item-image {
     width: 100%;
     min-height: 200px;
   }
-  
+
   .dataset-item .dataset-item-content {
     padding: 16px;
   }
-  
+
   .dataset-item .instrument-cover {
     min-height: 200px;
   }
@@ -189,11 +189,11 @@
   .dataset-item .dataset-item-image {
     min-height: 160px;
   }
-  
+
   .dataset-item .instrument-cover {
     min-height: 160px;
   }
-  
+
   .dataset-item .dataset-heading {
     font-size: 1.1rem;
   }
@@ -281,4 +281,46 @@
   color: #888;
   font-size: 0.9rem;
   margin: 4px 0;
+}
+
+/* =====================================================
+   GCMD Taxonomy Section on /taxonomies
+===================================================== */
+
+.gcmd-taxonomy-section .page-heading {
+  border-bottom: 2px solid #5a8bb8;
+  padding-bottom: 6px;
+}
+
+.gcmd-root-label {
+  font-weight: 600;
+  font-size: 1.05em;
+}
+
+.gcmd-root-label i.fa {
+  color: #5a8bb8;
+  margin-right: 4px;
+}
+
+.gcmd-term-node .taxonomy-label {
+  cursor: default;
+}
+
+.gcmd-scheme-heading {
+  background-color: #f0f4f8 !important;
+  font-size: 0.95em;
+}
+
+.gcmd-search-results .list-group {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.gcmd-search-item .gcmd-search-label {
+  font-weight: 500;
+}
+
+.gcmd-load-more-item {
+  list-style: none;
+  padding: 6px 0;
 }

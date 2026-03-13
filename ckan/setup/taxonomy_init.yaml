@@ -1,0 +1,114 @@
+taxonomies:
+  - name: instrument
+    title: Instrument
+    uri: "https://example.org/taxonomy/instrument"
+    terms:
+      - label: "Spectrometer"
+        description: "Dummy instrument category for testing"
+        uri: "https://example.org/taxonomy/instrument/spectrometer"
+        extras:
+          identifier_type: "URI"
+        terms:
+          - label: "Mass Spectrometer"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/instrument/spectrometer/mass-spectrometer"
+            extras:
+              identifier_type: "URI"
+          - label: "Infrared Spectrometer"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/instrument/spectrometer/infrared-spectrometer"
+            extras:
+              identifier_type: "URI"
+
+      - label: "Microscope"
+        description: "Dummy instrument category for testing"
+        uri: "https://example.org/taxonomy/instrument/microscope"
+        extras:
+          identifier_type: "URI"
+        terms:
+          - label: "Optical Microscope"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/instrument/microscope/optical-microscope"
+            extras:
+              identifier_type: "URI"
+          - label: "Electron Microscope"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/instrument/microscope/electron-microscope"
+            extras:
+              identifier_type: "URI"
+
+  - name: platform
+    title: Platform
+    uri: "https://example.org/taxonomy/platform"
+    terms:
+      - label: "Research Vessel"
+        description: "Dummy platform category for testing"
+        uri: "https://example.org/taxonomy/platform/research-vessel"
+        extras:
+          identifier_type: "URI"
+        terms:
+          - label: "Coastal Research Vessel"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/platform/research-vessel/coastal"
+            extras:
+              identifier_type: "URI"
+          - label: "Oceanographic Vessel"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/platform/research-vessel/oceanographic"
+            extras:
+              identifier_type: "URI"
+
+      - label: "Observing Station"
+        description: "Dummy platform category for testing"
+        uri: "https://example.org/taxonomy/platform/observing-station"
+        extras:
+          identifier_type: "URI"
+        terms:
+          - label: "Weather Station"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/platform/observing-station/weather"
+            extras:
+              identifier_type: "URI"
+          - label: "Seismic Station"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/platform/observing-station/seismic"
+            extras:
+              identifier_type: "URI"
+
+  - name: measured_variable
+    title: Measured Variable
+    uri: "https://example.org/taxonomy/measured-variable"
+    terms:
+      - label: "Temperature"
+        description: "Dummy measured variable category for testing"
+        uri: "https://example.org/taxonomy/measured-variable/temperature"
+        extras:
+          identifier_type: "URI"
+        terms:
+          - label: "Air Temperature"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/measured-variable/temperature/air"
+            extras:
+              identifier_type: "URI"
+          - label: "Water Temperature"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/measured-variable/temperature/water"
+            extras:
+              identifier_type: "URI"
+
+      - label: "Pressure"
+        description: "Dummy measured variable category for testing"
+        uri: "https://example.org/taxonomy/measured-variable/pressure"
+        extras:
+          identifier_type: "URI"
+        terms:
+          - label: "Atmospheric Pressure"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/measured-variable/pressure/atmospheric"
+            extras:
+              identifier_type: "URI"
+          - label: "Water Pressure"
+            description: "Dummy child term"
+            uri: "https://example.org/taxonomy/measured-variable/pressure/water"
+            extras:
+              identifier_type: "URI"

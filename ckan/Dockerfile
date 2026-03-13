@@ -56,7 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     proj-bin proj-data libproj-dev \
     postgresql-client \
     supervisor \
-    procps \    
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip
@@ -97,6 +97,9 @@ RUN pip install -e "git+https://github.com/AuScope/ckanext-zippreview.git@master
 # ### DCAT plugins ###
 RUN pip install -r "https://raw.githubusercontent.com/ckan/ckanext-dcat/master/requirements.txt"
 RUN pip install -e "git+https://github.com/AuScope/ckanext-dcat.git@auscope_customise#egg=ckanext-dcat"
+
+### Taxonomy extension ###
+RUN pip install -e "git+https://github.com/AuScope/ckanext-taxonomy.git#egg=ckanext-taxonomy"
 
 # Clone the extension(s) your are writing for your own project in the `src` folder
 # to get them mounted in this image at runtime
