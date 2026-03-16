@@ -433,6 +433,9 @@ dataset_fields:
 
       - field_name: alternate_identifier_name
         label: Alternate Identifier Name
+        show_if:
+          field: alternate_identifier_type
+          value: Other
         help_text: A supplementary name for the identifier type. This is mostly useful for "Other"
 
       - field_name: alternate_identifier

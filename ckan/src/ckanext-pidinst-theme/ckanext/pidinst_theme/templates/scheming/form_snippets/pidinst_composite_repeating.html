@@ -41,6 +41,11 @@
     {% for subfield in field.subfields %}
       {% set subfield_form_snippet = subfield.get("form_snippet", "default") %}
       {% set subfield_index = loop.index %}
+      {% if subfield.show_if is defined %}
+      <div class="composite-show-if-wrapper"
+           data-show-if-field="{{ subfield.show_if.field }}"
+           data-show-if-value="{{ subfield.show_if.value }}">
+      {% endif %}
       {% if subfield_form_snippet == "default"  %}
         {% set name=field.field_name + '-' + index|string + '-' + subfield.field_name %}
         {% set default_value = subfield.get("default_value", "") %}
@@ -102,6 +107,9 @@
         {% if subfield_form_snippet != None %}
           {%- snippet 'scheming/form_snippets/' + subfield_form_snippet, field=subfield, subfield_index=index|string, parent=field.field_name, field_dict=field_dict, subfields_repeating_label=subfields_repeating_label, errors=errors -%}
         {% endif %}
+      {% endif %}
+      {% if subfield.show_if is defined %}
+      </div>
       {% endif %}
     {% endfor %}
     </div>

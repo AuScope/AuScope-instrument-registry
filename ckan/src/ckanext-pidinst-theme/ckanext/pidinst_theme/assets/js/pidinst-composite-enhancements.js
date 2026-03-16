@@ -3,6 +3,7 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
     initialize: function () {
       var self = this;
       this.hideDependentFields();
+      this.applyConditionalDisplay();
       this.updateCollapsiblePanels();
       this.updateIndexes();
       // Initialize party selects AFTER updateCollapsiblePanels has run
@@ -16,6 +17,7 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
           setTimeout(function () {
             self.updateIndexes();
             self.updateCollapsiblePanels();
+            self.applyConditionalDisplay();
             self.initPartySelects();
             self.initFunderPartySelects();
             self.initManufacturerPartySelects();
@@ -308,6 +310,34 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       if ($identifierTypeField.length) {
         $identifierTypeField.val('ROR');
       }
+    },
+
+    /* ── Conditional show/hide (schema show_if) ────────────────────────
+     *  Reads data-show-if-field / data-show-if-value attributes emitted
+     *  by the pidinst_composite_repeating template and shows/hides the
+     *  wrapper div whenever the controlling select value changes.
+     *  Works per-row so multiple repeating rows are independent.
+     * ─────────────────────────────────────────────────────────────────── */
+    applyConditionalDisplay: function () {
+      this.el.find('.composite-show-if-wrapper').each(function () {
+        var $wrapper    = $(this);
+        var controlName = $wrapper.data('show-if-field');  // subfield name only
+        var controlVal  = String($wrapper.data('show-if-value'));
+        var $row        = $wrapper.closest('.composite-control-repeating');
+        // Find the controlling select/input in the same row by matching name suffix
+        var $control    = $row.find('[name$="-' + controlName + '"]');
+
+        function update() {
+          if (String($control.val()) === controlVal) {
+            $wrapper.show();
+          } else {
+            $wrapper.hide();
+          }
+        }
+
+        update();
+        $control.off('change.showif').on('change.showif', update);
+      });
     },
 
     hideDependentFields: function () {
