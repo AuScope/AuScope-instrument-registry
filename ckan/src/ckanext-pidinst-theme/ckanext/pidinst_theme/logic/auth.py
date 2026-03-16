@@ -1,9 +1,51 @@
 import ckan.plugins.toolkit as tk
 import ckan.authz as authz
-from ckan.lib.plugins import get_permission_labels
+import ckan.model as model
 from ckan.logic.auth import get_package_object, get_resource_object
+from ckanext.doi.model.crud import DOIQuery
+
+
+def get_resource_view_object(context, data_dict=None):
+    """Fetch a ResourceView model object by id, mirroring CKAN's get_*_object helpers."""
+    resource_view = context.get('resource_view')
+    if not resource_view:
+        id_ = (data_dict or {}).get('id') or (data_dict or {}).get('resource_view_id')
+        if id_:
+            resource_view = model.ResourceView.get(id_)
+        if not resource_view:
+            raise tk.ObjectNotFound
+    return resource_view
 
 import logging
+
+
+# ---------------------------------------------------------------------------
+# DOI / Publication lifecycle helpers
+# ---------------------------------------------------------------------------
+
+def _package_extra_value(package, key):
+    """Return the value of a package extra by key.
+
+    Handles both the CKAN association proxy (dict-like mapping of key→value)
+    and the legacy case where extras is a list of PackageExtra ORM objects.
+    """
+    extras = package.extras
+    if not extras:
+        return None
+    if hasattr(extras, 'get'):
+        return extras.get(key)
+    for extra in extras:
+        if extra.key == key:
+            return extra.value
+    return None
+
+
+def _is_doi_published(package):
+    """Return True if the package is public and has a published DOI record."""
+    if package.private:
+        return False
+    doi_record = DOIQuery.read_package(package.id)
+    return doi_record is not None and doi_record.published is not None
 
 
 @tk.auth_allow_anonymous_access
@@ -12,15 +54,7 @@ def pidinst_theme_get_sum(context, data_dict):
 
 
 def user_is_member_of_package_org(user, package):
-    """
-    Return True if the package is in an organization and the user has the member role in
-    that organization.
-
-    :param user: A user object
-    :param package: A package object
-    :returns: True if the user has the 'member' role in the organization that owns the
-              package, False otherwise
-    """
+    """Return True if the user has the 'member' role in the package's organisation."""
     if package.owner_org:
         role_in_org = authz.users_role_for_group_or_org(package.owner_org, user.name)
         if role_in_org == 'member':
@@ -29,15 +63,7 @@ def user_is_member_of_package_org(user, package):
 
 
 def user_owns_package_as_member(user, package):
-    """
-    Checks that the given user created the package, and has the 'member' role in the
-    organization that owns the package.
-
-    :param user: A user object
-    :param package: A package object
-    :returns: True if the user created the package and has the 'member' role in the
-              organization to which package belongs. False otherwise.
-    """
+    """Return True if the user created the package and has the 'member' role in its organisation."""
     if user_is_member_of_package_org(user, package):
         return package.creator_user_id and user.id == package.creator_user_id
 
@@ -116,6 +142,15 @@ def package_update(next_auth, context, data_dict):
     except:
         return {'success': False, 'msg': 'Unable to retrieve package'}
 
+    # Block editing of withdrawn/duplicate records for all roles.
+    # To allow admins later, add: `and not _is_org_admin(user, package)` to the condition.
+    pub_status = _package_extra_value(package, 'publication_status') or ''
+    if pub_status in ('withdrawn', 'duplicate'):
+        return {
+            'success': False,
+            'msg': 'This record cannot be edited because it has been withdrawn or marked as duplicate.',
+        }
+
     if package.owner_org:
         user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
         # Editors and admins can always edit a package
@@ -131,12 +166,6 @@ def package_update(next_auth, context, data_dict):
 
 @tk.chained_auth_function
 def resource_update(next_auth, context, data_dict):
-    '''
-    :param next_auth:
-    :param context:
-    :param data_dict:
-
-    '''
     user = context['auth_user_obj']
     resource = get_resource_object(context, data_dict)
     package = resource.package
@@ -161,12 +190,6 @@ def resource_update(next_auth, context, data_dict):
 
 @tk.chained_auth_function
 def resource_view_update(next_auth, context, data_dict):
-    '''
-    :param next_auth:
-    :param context:
-    :param data_dict:
-
-    '''
     user = context['auth_user_obj']
     resource_view = get_resource_view_object(context, data_dict)
     resource = get_resource_object(context, {'id': resource_view.resource_id})
@@ -193,17 +216,17 @@ def package_delete(next_auth, context, data_dict):
         package = get_package_object(context, data_dict)
     except:
         return {'success': False, 'msg': 'Unable to retrieve package'}
+
+    if not package.private:
+        return {'success': False, 'msg': 'Public records cannot be deleted. Use the withdraw workflow instead.'}
+
     user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
     if user_role == 'admin':
         return {'success': True}
-    elif not package.private:
-        return {'success': False, 'msg': 'You are not authorised to delete a published dataset'}
     elif (user_role == 'member' or user_role == 'editor') and package.creator_user_id and user.id == package.creator_user_id:
         return {'success': True}
     else:
         return {'success': False, 'msg': 'Unauthorized to delete dataset'}
-
-    return next_auth(context, data_dict)
 
 @tk.chained_auth_function
 def resource_delete(next_auth, context, data_dict):
@@ -245,26 +268,13 @@ def resource_view_delete(next_auth, context, data_dict):
 
 @tk.chained_auth_function
 def package_show(next_auth, context, data_dict):
-    """
-    Override package_show authorization to ignore auth if the package is public.
-    """
     package = get_package_object(context, data_dict)
-    package_id = data_dict.get('id')
     user = context.get('auth_user_obj')
 
-    logger = logging.getLogger(__name__)
-    # logger.info('Entering package_show auth override')
-
     if package:
-        # logger.info(f'Package {package_id} found, private: {package.private}')
         if not package.private:
             return {'success': True}
 
-    # if user:
-    #     logger.info(f'User {user.name} with ID {user.id} is attempting to access package {package_id}')
-    # else:
-    #     logger.info(f'Anonymous user is attempting to access package {package_id}')
-        
     if package and package.owner_org:
         user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
         if user_role == 'member' and package.private and hasattr(user, 'id') and package.creator_user_id != user.id:       
@@ -280,6 +290,32 @@ def package_list(next_auth, context, data_dict):
     """
     return {'success': True}
 
+
+def _require_org_admin_or_editor(context, data_dict, action_label):
+    """Shared auth check: allow only org admins/editors."""
+    user = context.get('auth_user_obj')
+    if not user:
+        return {'success': False, 'msg': f'Must be logged in to {action_label}.'}
+    try:
+        package = get_package_object(context, data_dict)
+    except Exception:
+        return {'success': False, 'msg': 'Unable to retrieve package.'}
+    if not package.owner_org:
+        return {'success': False, 'msg': 'Package has no organisation.'}
+    user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
+    if user_role in ('admin', 'editor'):
+        return {'success': True}
+    return {'success': False, 'msg': f'Only org admins or editors can {action_label}.'}
+
+
+def package_mark_duplicate(context, data_dict):
+    return _require_org_admin_or_editor(context, data_dict, 'mark a record as duplicate')
+
+
+def package_withdraw(context, data_dict):
+    return _require_org_admin_or_editor(context, data_dict, 'withdraw a record')
+
+
 def get_auth_functions():
     return {
         "pidinst_theme_get_sum": pidinst_theme_get_sum,
@@ -294,4 +330,6 @@ def get_auth_functions():
         "resource_view_delete": resource_view_delete,
         "package_show": package_show,
         "package_list": package_list,
+        "package_withdraw": package_withdraw,
+        "package_mark_duplicate": package_mark_duplicate,
     }

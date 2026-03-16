@@ -14,6 +14,7 @@ pidinst_theme-js:
     - js/field-terms-autocomplete-module.js
     - js/jstree-view-module.js
     - js/instrument-relation-module.js
+    - js/duplicate-of-module.js
     - js/facet-select-module.js
     - js/party-tree-module.js
     - js/ror-party-lookup-module.js

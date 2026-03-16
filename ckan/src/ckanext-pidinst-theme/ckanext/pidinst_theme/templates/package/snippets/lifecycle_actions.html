@@ -1,0 +1,19 @@
+{# Lifecycle action buttons for protected public DOI records.
+   Shown only when: public + has DOI + not already withdrawn or duplicate. #}
+{% set pub_status = pkg.publication_status or '' %}
+{% set is_doi_active = not pkg.private and pkg.doi and pub_status not in ('withdrawn', 'duplicate') %}
+
+{% if is_doi_active %}
+  {% if h.check_access('package_withdraw', {'id': pkg.id}) %}
+    <a class="btn btn-danger btn-sm btn-block"
+        href="{{ h.url_for('pidinst_theme.withdraw', pkg_name=pkg.name) }}">
+      <i class="fa fa-ban"></i> {{ _('Withdraw') }}
+    </a>
+  {% endif %}
+  {% if h.check_access('package_mark_duplicate', {'id': pkg.id}) %}
+    <a class="btn btn-warning btn-sm btn-block"
+        href="{{ h.url_for('pidinst_theme.mark_duplicate', pkg_name=pkg.name) }}">
+      <i class="fa fa-files-o"></i> {{ _('Mark as duplicate') }}
+    </a>
+  {% endif %}
+{% endif %}

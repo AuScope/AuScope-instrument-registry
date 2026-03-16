@@ -365,6 +365,11 @@ def _apply_composite_rules(field, key, item, index, errors):
     if not rules:
         return
 
+    # IsIdenticalTo entries are system-managed (set by package_mark_duplicate);
+    # will legitimately be absent. Skip composite_rules enforcement for this relation type.
+    if item.get("relation_type") == "IsIdenticalTo":
+        return
+
     def is_present(v):
         return v is not missing and v is not None and str(v).strip() != ""
 

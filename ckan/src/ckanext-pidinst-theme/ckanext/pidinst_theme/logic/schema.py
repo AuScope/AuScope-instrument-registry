@@ -16,9 +16,16 @@ def pidinst_theme_get_sum():
 @tk.chained_action
 def before_dataset_search(search_params):
     """
-    Force private datasets appear in search results
+    Force private datasets appear in search results.
+    Exclude withdrawn records from public discovery.
+    Note: package_show / direct URL access is not blocked here; admins and
+    editors can still reach withdrawn records via direct lookup.
     """
     search_params['include_private'] = 'True'
+    # Append to any existing fq rather than overwriting it.
+    existing_fq = search_params.get('fq', '')
+    exclude_statuses = '-extras_publication_status:withdrawn -extras_publication_status:duplicate'
+    search_params['fq'] = (existing_fq + ' ' + exclude_statuses).strip()
     return search_params
 
 @tk.chained_action

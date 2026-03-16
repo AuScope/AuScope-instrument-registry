@@ -680,6 +680,49 @@ dataset_fields:
     groupBy: About Instrument
 
 
+  # ======================== DOI / PUBLICATION LIFECYCLE (INTERNAL) ========================
+  - field_name: publication_status
+    label: Publication Status
+    form_snippet: hidden_field.html
+    display_snippet: null
+    required: false
+    validators: ignore_missing unicode_safe strip_value
+    choices:
+      - value: published
+        label: Published
+      - value: withdrawn
+        label: Withdrawn
+      - value: duplicate
+        label: Duplicate
+    help_text: >-
+      Internal DOI/publication lifecycle status. Expected future values include
+      "published", "withdrawn", and "duplicate".
+    groupBy: About Instrument
+
+  - field_name: withdrawal_reason
+    label: Withdrawal Reason
+    form_snippet: hidden_field.html
+    display_snippet: null
+    required: false
+    validators: ignore_missing unicode_safe strip_value
+    help_text: >-
+      Internal free-text reason for withdrawal. Reserved for a future controlled
+      workflow; not user-editable via the UI in this step.
+    groupBy: About Instrument
+
+  - field_name: duplicate_of
+    label: Duplicate Of
+    form_snippet: hidden_field.html
+    display_snippet: null
+    required: false
+    validators: ignore_missing unicode_safe strip_value
+    help_text: >-
+      Internal reference to the canonical record when this record is marked as a
+      duplicate (eg a target DOI or dataset id). Reserved for a future controlled
+      workflow; not user-editable via the UI in this step.
+    groupBy: About Instrument
+
+
   - field_name: primary_contact_name
     label: Primary Contact Name
     required: true

@@ -1,0 +1,46 @@
+{% extends "package/base.html" %}
+
+{% block subtitle %}{{ _('Withdraw') }} - {{ h.dataset_display_name(pkg) }}{% endblock %}
+
+{% block primary_content_inner %}
+  <h1>{{ _('Withdraw public access') }}</h1>
+  <p>
+    {{ _('This will permanently mark the record as withdrawn and update DataCite.') }}
+    {{ _('The DOI will resolve to a tombstone page. This action cannot be undone via the UI.') }}
+  </p>
+
+  <div class="dataset-info">
+    <strong>{{ h.dataset_display_name(pkg) }}</strong>
+    {% if pkg.doi %}
+      <br><small>DOI: {{ pkg.doi }}</small>
+    {% endif %}
+  </div>
+
+  {% if errors %}
+    <div class="alert alert-danger">
+      {% for field, msgs in errors.items() %}
+        {% for msg in msgs %}<p>{{ msg }}</p>{% endfor %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" class="dataset-form" style="margin-top: 1.5em;">
+    <div class="form-group{% if errors.withdrawal_reason %} has-error{% endif %}">
+      <label for="withdrawal_reason" class="control-label">
+        {{ _('Reason for withdrawal') }} <span class="control-required">*</span>
+      </label>
+      <textarea id="withdrawal_reason" name="withdrawal_reason"
+                class="form-control" rows="4" required>{{ request.form.get('withdrawal_reason', '') }}</textarea>
+    </div>
+
+    <div class="form-actions">
+      <a class="btn btn-secondary"
+         href="{{ h.url_for(pkg.type ~ '.read', id=pkg.name) }}">
+        {{ _('Cancel') }}
+      </a>
+      <button type="submit" class="btn btn-danger" style="margin-left: 8px;">
+        <i class="fa fa-ban"></i> {{ _('Confirm withdrawal') }}
+      </button>
+    </div>
+  </form>
+{% endblock %}

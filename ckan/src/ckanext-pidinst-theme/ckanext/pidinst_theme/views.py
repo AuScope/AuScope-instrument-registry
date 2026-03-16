@@ -1269,5 +1269,77 @@ def platforms_search():
     return _instrument_platform_search('true', 'platforms/search.html', 'pidinst_theme.platforms_search', display_type='platform')
 
 
+@pidinst_theme.route('/lifecycle/<pkg_name>/withdraw', methods=['GET', 'POST'])
+def withdraw(pkg_name):
+    context = {'user': g.user, 'auth_user_obj': g.userobj}
+    try:
+        pkg = get_action('package_show')(context, {'id': pkg_name})
+    except (NotFound, NotAuthorized):
+        toolkit.abort(404)
+
+    try:
+        check_access('package_withdraw', context, {'id': pkg['id']})
+    except NotAuthorized:
+        toolkit.abort(403, _('Not authorized to withdraw this record.'))
+
+    errors = {}
+    if toolkit.request.method == 'POST':
+        reason = toolkit.request.form.get('withdrawal_reason', '').strip()
+        if not reason:
+            errors = {'withdrawal_reason': [_('A withdrawal reason is required.')]}
+        else:
+            try:
+                get_action('package_withdraw')(context, {
+                    'id': pkg['id'],
+                    'withdrawal_reason': reason,
+                })
+                h.flash_success(_('Record has been withdrawn.'))
+                return toolkit.redirect_to(h.url_for(pkg['type'] + '.read', id=pkg['name']))
+            except ValidationError as e:
+                errors = e.error_dict
+
+    return toolkit.render('package/lifecycle_withdraw.html', {
+        'pkg': pkg,
+        'pkg_dict': pkg,
+        'errors': errors,
+    })
+
+
+@pidinst_theme.route('/lifecycle/<pkg_name>/mark-duplicate', methods=['GET', 'POST'])
+def mark_duplicate(pkg_name):
+    context = {'user': g.user, 'auth_user_obj': g.userobj}
+    try:
+        pkg = get_action('package_show')(context, {'id': pkg_name})
+    except (NotFound, NotAuthorized):
+        toolkit.abort(404)
+
+    try:
+        check_access('package_mark_duplicate', context, {'id': pkg['id']})
+    except NotAuthorized:
+        toolkit.abort(403, _('Not authorized to mark this record as duplicate.'))
+
+    errors = {}
+    if toolkit.request.method == 'POST':
+        duplicate_of = toolkit.request.form.get('duplicate_of', '').strip()
+        if not duplicate_of:
+            errors = {'duplicate_of': [_('duplicate_of is required.')]}
+        else:
+            try:
+                get_action('package_mark_duplicate')(context, {
+                    'id': pkg['id'],
+                    'duplicate_of': duplicate_of,
+                })
+                h.flash_success(_('Record has been marked as a duplicate.'))
+                return toolkit.redirect_to(h.url_for(pkg['type'] + '.read', id=pkg['name']))
+            except ValidationError as e:
+                errors = e.error_dict
+
+    return toolkit.render('package/lifecycle_mark_duplicate.html', {
+        'pkg': pkg,
+        'pkg_dict': pkg,
+        'errors': errors,
+    })
+
+
 def get_blueprints():
     return [pidinst_theme, analytics_views.analytics_bp]

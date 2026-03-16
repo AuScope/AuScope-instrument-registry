@@ -1,5 +1,12 @@
 {% ckan_extends %}
 
+{% block content_action %}
+  {% set pub_status = pkg.publication_status or '' %}
+  {% if h.check_access('package_update', {'id': pkg.id}) and pub_status not in ('withdrawn', 'duplicate') %}
+    {% link_for _('Manage'), named_route=pkg.type ~ '.edit', id=pkg.name, class_='btn btn-default', icon='wrench' %}
+  {% endif %}
+{% endblock %}
+
 {% block content_primary_nav %}
   {{ h.build_nav_icon(dataset_type ~ '.read', _('Dataset'), id=pkg.name, icon='sitemap') }}
 {% endblock %}
@@ -15,6 +22,7 @@
   {% block family_info %}
     {% snippet 'package/snippets/family_info.html', pkg=pkg, am_following=am_following %}
   {% endblock %}
+
 {% endblock %}
 
 {% block structured_data %}

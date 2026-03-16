@@ -1,0 +1,27 @@
+<div class="withdrawn-tombstone" style="border-left: 4px solid #c0392b; padding: 1em 1.5em; margin-bottom: 1.5em; background: #fdf3f2;">
+  <h1>{{ h.dataset_display_name(pkg) }}</h1>
+
+  <div class="alert alert-danger" role="alert">
+    <strong>{{ _('This record has been withdrawn.') }}</strong>
+    {% if pkg.withdrawal_reason %}
+      <p class="withdrawal-reason-inline">
+        <strong>{{ _('Reason for withdrawal') }}:</strong>
+        <span>{{ pkg.withdrawal_reason }}</span>
+      </p>
+    {% endif %}
+  </div>
+
+  <p><strong>{{ _('Publication Status') }}:</strong> {{ pkg.publication_status | capitalize }}</p>
+
+  {% if pkg.doi %}
+    <p><strong>{{ _('DOI') }}:</strong>
+      <a href="https://doi.org/{{ pkg.doi }}">https://doi.org/{{ pkg.doi }}</a>
+    </p>
+  {% endif %}
+
+  {% if pkg.citation %}
+    <p><strong>{{ _('Citation') }}:</strong><br>
+      {{ h.render_markdown(pkg.citation) }}
+    </p>
+  {% endif %}
+</div>
