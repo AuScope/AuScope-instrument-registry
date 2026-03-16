@@ -1,61 +1,12 @@
 {% extends "package/read_base.html" %}
 
 {% block primary_content_inner %}
-  {# ── Tombstone: withdrawn records show only minimal safe metadata ─────── #}
   {% if pkg.publication_status == 'withdrawn' %}
-    <div class="withdrawn-tombstone" style="border-left: 4px solid #c0392b; padding: 1em 1.5em; margin-bottom: 1.5em; background: #fdf3f2;">
-      <h1>{{ h.dataset_display_name(pkg) }}</h1>
+    {% snippet "package/snippets/tombstone_withdrawn.html", pkg=pkg %}
 
-      <div class="alert alert-danger" role="alert">
-        <strong>{{ _('This record has been withdrawn.') }}</strong>
-        {% if pkg.withdrawal_reason %}
-          <p>{{ pkg.withdrawal_reason }}</p>
-        {% endif %}
-      </div>
-
-      <p><strong>{{ _('Publication Status') }}:</strong> {{ pkg.publication_status | capitalize }}</p>
-
-      {% if pkg.doi %}
-        <p><strong>{{ _('DOI') }}:</strong>
-          <a href="https://doi.org/{{ pkg.doi }}">https://doi.org/{{ pkg.doi }}</a>
-        </p>
-      {% endif %}
-
-      {% if pkg.citation %}
-        <p><strong>{{ _('Citation') }}:</strong><br>
-          {{ h.render_markdown(pkg.citation) }}
-        </p>
-      {% endif %}
-    </div>
-
-  {# ── Tombstone: duplicate records show only minimal safe metadata ──────── #}
   {% elif pkg.publication_status == 'duplicate' %}
-    <div class="duplicate-tombstone" style="border-left: 4px solid #e67e22; padding: 1em 1.5em; margin-bottom: 1.5em; background: #fef9f0;">
-      <h1>{{ h.dataset_display_name(pkg) }}</h1>
+    {% snippet "package/snippets/tombstone_duplicate.html", pkg=pkg %}
 
-      <div class="alert alert-warning" role="alert">
-        <strong>{{ _('This record has been marked as a duplicate.') }}</strong>
-        {% if pkg.duplicate_of %}
-          <p>{{ _('The authoritative record is:') }} <strong>{{ pkg.duplicate_of }}</strong></p>
-        {% endif %}
-      </div>
-
-      <p><strong>{{ _('Publication Status') }}:</strong> {{ pkg.publication_status | capitalize }}</p>
-
-      {% if pkg.doi %}
-        <p><strong>{{ _('DOI') }}:</strong>
-          <a href="https://doi.org/{{ pkg.doi }}">https://doi.org/{{ pkg.doi }}</a>
-        </p>
-      {% endif %}
-
-      {% if pkg.citation %}
-        <p><strong>{{ _('Citation') }}:</strong><br>
-          {{ h.render_markdown(pkg.citation) }}
-        </p>
-      {% endif %}
-    </div>
-
-  {# ── Normal record view ────────────────────────────────────────────────── #}
   {% else %}
     {{ super() }}
 

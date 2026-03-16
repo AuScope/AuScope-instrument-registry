@@ -1,0 +1,33 @@
+{%- set duplicate_target = h.get_package(pkg.duplicate_of) if pkg.duplicate_of else none -%}
+
+<div class="duplicate-tombstone" style="border-left: 4px solid #e67e22; padding: 1em 1.5em; margin-bottom: 1.5em; background: #fef9f0;">
+  <h1>{{ h.dataset_display_name(pkg) }}</h1>
+
+  <div class="alert alert-warning" role="alert">
+    <strong>{{ _('This record has been marked as a duplicate.') }}</strong>
+    {% if duplicate_target %}
+      <p>{{ _('The authoritative record is:') }}
+        <a href="{{ h.url_for(duplicate_target.type ~ '.read', id=duplicate_target.name) }}">{{ duplicate_target.title or duplicate_target.name }}</a>
+        {% if duplicate_target.doi %}
+          (DOI: <a href="https://doi.org/{{ duplicate_target.doi }}">{{ duplicate_target.doi }}</a>)
+        {% endif %}
+      </p>
+    {% elif pkg.duplicate_of %}
+      <p>{{ _('The authoritative record is:') }} <strong>{{ pkg.duplicate_of }}</strong></p>
+    {% endif %}
+  </div>
+
+  <p><strong>{{ _('Publication Status') }}:</strong> {{ pkg.publication_status | capitalize }}</p>
+
+  {% if pkg.doi %}
+    <p><strong>{{ _('DOI') }}:</strong>
+      <a href="https://doi.org/{{ pkg.doi }}">https://doi.org/{{ pkg.doi }}</a>
+    </p>
+  {% endif %}
+
+  {% if pkg.citation %}
+    <p><strong>{{ _('Citation') }}:</strong><br>
+      {{ h.render_markdown(pkg.citation) }}
+    </p>
+  {% endif %}
+</div>

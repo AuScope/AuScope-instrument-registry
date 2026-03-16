@@ -452,6 +452,7 @@ def package_mark_duplicate(context, data_dict):
     })
 
     _update_doi_for_duplicate(package.id, duplicate_of)
+    _deactivate_doi_on_datacite(package.id)
 
     return {'success': True, 'id': pkg_id, 'publication_status': 'duplicate', 'duplicate_of': duplicate_of}
 
