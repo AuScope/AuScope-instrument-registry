@@ -102,6 +102,30 @@ ckan.module('instrument-relation-module', function ($, _) {
     return label;
   }
 
+  /* ── Package-type helpers ────────────────────────── */
+
+  /** Returns the type of the package currently being edited ("platform" or "instrument"). */
+  function isTruthyPlatformValue(value) {
+    var v = (value === undefined || value === null) ? '' : String(value).toLowerCase();
+    return v === 'true' || v === '1' || v === 'yes' || v === 'on';
+  }
+
+  function getCurrentPackageType() {
+    return isTruthyPlatformValue($('#field-is_platform').val()) ? 'platform' : 'instrument';
+  }
+  /**
+   * Sort results so records whose type matches currentType come first,
+   * followed by records of any other type.
+   */
+  function sortRelatedPackageResults(results, currentType) {
+    if (!currentType) return results;
+    return results.slice().sort(function (a, b) {
+      var aMatch = (a.pkgType === currentType) ? 0 : 1;
+      var bMatch = (b.pkgType === currentType) ? 0 : 1;
+      return aMatch - bMatch;
+    });
+  }
+
   /* ── Module ──────────────────────────────────────── */
 
   return {
@@ -348,6 +372,7 @@ ckan.module('instrument-relation-module', function ($, _) {
             }
             return { 
               q: query, 
+              fq: 'type:instrument AND private:false AND state:active',
               rows: 20
             };
           },
@@ -357,24 +382,26 @@ ckan.module('instrument-relation-module', function ($, _) {
             try { currentName = $input.closest('form').find('input[name="name"]').val() || ''; }
             catch (e) { /* ignore */ }
 
-            return {
-              results: (data.result.results || [])
-                .filter(function (p) { return p.name !== currentName && p.id !== currentName; })
-                .map(function (p) {
-                  var meta = extractInstrumentMeta(p);
-                  var label = buildInstrumentLabel(p, meta);
-                  
-                  return { 
-                    id: p.id, 
-                    text: label, 
-                    doi: (p.doi || '').trim(),
-                    title: p.title || p.name, 
-                    name: p.name,
-                    modelName: meta.modelName,
-                    serialNumber: meta.serialNumber
-                  };
-                })
-            };
+            var currentType = getCurrentPackageType();
+            var mapped = (data.result.results || [])
+              .filter(function (p) { return p.name !== currentName && p.id !== currentName; })
+              .map(function (p) {
+                var meta = extractInstrumentMeta(p);
+                var label = buildInstrumentLabel(p, meta);
+                
+                return { 
+                  id: p.id, 
+                  text: label, 
+                  doi: (p.doi || '').trim(),
+                  title: p.title || p.name, 
+                  name: p.name,
+                  pkgType: String(p.is_platform) === 'true' ? 'platform' : 'instrument',
+                  modelName: meta.modelName,
+                  serialNumber: meta.serialNumber
+                };
+              });
+
+            return { results: sortRelatedPackageResults(mapped, currentType) };
           },
           cache: true
         },
