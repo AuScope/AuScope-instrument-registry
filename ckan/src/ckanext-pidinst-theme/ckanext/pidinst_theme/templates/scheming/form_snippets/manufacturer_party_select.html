@@ -1,0 +1,60 @@
+{#
+  Composite subfield form snippet for manufacturer_party_id within the
+  manufacturer composite_repeating field.
+
+  Renders a <select> dropdown populated with party groups that have
+  the "Manufacturer" role.  When a party is selected, JavaScript fills
+  the sibling manufacturer_name, manufacturer_identifier, and
+  manufacturer_identifier_type hidden fields.
+
+  Called by composite_repeating_field.html with:
+    field          – the subfield definition (field_name: manufacturer_party_id)
+    subfield_index – current row number (1-based string)
+    parent         – parent field name, "manufacturer"
+    field_dict     – data dict for this row
+#}
+
+{% set field_prefix = parent ~ '-' ~ subfield_index ~ '-' %}
+{% set sel_name     = field_prefix ~ field.field_name %}
+{% set sel_id       = 'field-' ~ sel_name %}
+{% set value        = field_dict.get(field.field_name, '') %}
+
+<div class="form-group manufacturer-party-select-block"
+     data-field-prefix="{{ field_prefix }}">
+
+  <label class="control-label" for="{{ sel_id }}">
+    {{ h.scheming_language_text(field.label) }}
+  </label>
+
+  <div class="controls">
+    <select id="{{ sel_id }}"
+            name="{{ sel_name }}"
+            class="form-control manufacturer-party-dropdown"
+            data-field-prefix="{{ field_prefix }}"
+            style="width:100%">
+      <option value="">-- Select a manufacturer --</option>
+      {% set parties = h.get_party_list() %}
+      {% for party in parties %}
+        {% set roles = party.party_role %}
+        {% if roles is string %}{% set roles = h.json_loads(roles) %}{% endif %}
+        {% if roles is not iterable %}{% set roles = [] %}{% endif %}
+        {% if 'Manufacturer' in roles %}
+        {# Resolve identifier: prefer ROR, fall back to free-text #}
+        {% set party_id = party.party_identifier_ror or party.party_identifier or '' %}
+        {% set party_id_type = party.party_identifier_type or '' %}
+        <option value="{{ party.name }}"
+                data-party-title="{{ party.title or party.name }}"
+                data-party-identifier="{{ party_id }}"
+                data-party-identifier-type="{{ party_id_type }}"
+                {% if party.name == value %}selected{% endif %}>
+          {{ party.title or party.name }}
+        </option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+
+  {% if field.help_text %}
+    <p class="help-block">{{ h.scheming_language_text(field.help_text) }}</p>
+  {% endif %}
+</div>

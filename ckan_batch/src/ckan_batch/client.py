@@ -40,7 +40,7 @@ class CKANClient(RemoteCKAN):
     Inherits from RemoteCKAN and provides convenient methods for batch operations.
     """
 
-    def _normalize_facility_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_party_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         out = dict(payload)
 
         if out.get("website") in ("", None):
@@ -49,7 +49,7 @@ class CKANClient(RemoteCKAN):
         if out.get("is_part_of") in ("", None):
             out.pop("is_part_of", None)
 
-        out["type"] = "facility"
+        out["type"] = "party"
         return out
 
 
@@ -440,28 +440,28 @@ class CKANClient(RemoteCKAN):
         return out
 
 
-    def create_facilities(
+    def create_parties(
         self,
-        facilities: List[Dict[str, Any]],
+        parties: List[Dict[str, Any]],
         *,
         dry_run: bool = False,
         allow_update_if_exists: bool = False,
     ) -> CreateResult:
         """
-        Create CKAN facilities using group_create (or group_update if enabled and exists).
+        Create CKAN parties using group_create (or group_update if enabled and exists).
 
         Assumptions:
-        - Each payload matches the facility scheming group schema.
-        - Facility objects are CKAN groups with type='facility'.
-        - Parent relationship, if present, is stored in `is_part_of` as the parent facility name.
+        - Each payload matches the party scheming group schema.
+        - party objects are CKAN groups with type='party'.
+        - Parent relationship, if present, is stored in `is_part_of` as the parent party name.
         """
         created: List[Dict[str, Any]] = []
         failed: List[Dict[str, Any]] = []
 
-        for i, payload in enumerate(facilities, start=1):
+        for i, payload in enumerate(parties, start=1):
             payload_to_send = dict(payload)
-            payload_to_send["type"] = "facility"
-            payload_to_send = self._normalize_facility_payload(payload_to_send)  # optional pre-processing if needed
+            payload_to_send["type"] = "party"
+            payload_to_send = self._normalize_party_payload(payload_to_send)  # optional pre-processing if needed
 
             if dry_run:
                 created.append(
@@ -495,7 +495,7 @@ class CKANClient(RemoteCKAN):
                     try:
                         existing = self.action.group_show(
                             id=payload_to_send["name"],
-                            type="facility",
+                            type="party",
                         )
                         payload_to_send["id"] = existing["id"]
                         resp2 = self.action.group_update(**payload_to_send)
@@ -547,7 +547,7 @@ class CKANClient(RemoteCKAN):
 
         return CreateResult(created=created, failed=failed, resource_results=[])
 
-    def delete_all_facilities(
+    def delete_all_parties(
         self,
         *,
         dry_run: bool = True,
@@ -555,24 +555,24 @@ class CKANClient(RemoteCKAN):
         hard_delete: bool = False,
     ) -> List[Dict[str, Any]]:
         """
-        Delete all CKAN groups of type 'facility'.
+        Delete all CKAN groups of type 'party'.
 
         Args:
-            dry_run: If True, only list facilities without deleting.
-            include_only_names: Optional whitelist of facility names to delete.
+            dry_run: If True, only list parties without deleting.
+            include_only_names: Optional whitelist of party names to delete.
             hard_delete: If True, permanently remove groups using group_purge.
                 If False, perform soft delete using group_delete.
 
         Returns:
-            List of facilities that were (or would be) deleted.
+            List of parties that were (or would be) deleted.
         """
-        facilities = self.action.group_list(
+        parties = self.action.group_list(
             all_fields=True,
-            type="facility",
+            type="party",
         )
 
         to_delete: List[Dict[str, Any]] = []
-        for grp in facilities:
+        for grp in parties:
             name = grp.get("name")
             if include_only_names and name not in include_only_names:
                 continue
@@ -588,7 +588,7 @@ class CKANClient(RemoteCKAN):
             )
 
         mode = "HARD DELETE" if hard_delete else "SOFT DELETE"
-        print(f"Found {len(to_delete)} facility group(s) for {mode}")
+        print(f"Found {len(to_delete)} party group(s) for {mode}")
         for g in to_delete[:20]:
             print(
                 f" - {g['name']} ({g.get('id')}) | "
@@ -635,18 +635,18 @@ class CKANClient(RemoteCKAN):
         return to_delete
 
 
-    def get_all_facilities(
+    def get_all_parties(
         self,
         *,
         verbose: bool = False,
     ) -> List[Dict[str, Any]]:
         """
-        Return all facility groups.
+        Return all party groups.
         """
         results = self.action.group_list(
             all_fields=True,
             include_extras=True,
-            type="facility",
+            type="party",
         )
 
         if verbose:
@@ -658,7 +658,7 @@ class CKANClient(RemoteCKAN):
                 "name": g.get("name"),
                 "title": g.get("title"),
                 "type": g.get("type"),
-                "facility_identifier": g.get("facility_identifier"),
+                "party_identifier": g.get("party_identifier"),
                 "is_part_of": g.get("is_part_of"),
             }
             for g in results

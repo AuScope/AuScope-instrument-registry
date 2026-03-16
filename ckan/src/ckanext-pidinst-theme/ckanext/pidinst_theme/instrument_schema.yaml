@@ -80,10 +80,10 @@ dataset_fields:
     validators: visibility_validator
     groupBy: About Instrument
 
-  # ======================== OWNER (FACILITY) ========================
-  # Owners are selected from the Facility registry (CKAN groups of type
-  # "facility").  Users pick one or more facilities from a dropdown and
-  # provide a contact email for each.  If the facility already has a
+  # ======================== OWNER (PARTY) ========================
+  # Owners are selected from the Party registry (CKAN groups of type
+  # "party").  Users pick one or more parties from a dropdown and
+  # provide a contact email for each.  If the party already has a
   # contact recorded, it is used as the default but can be overridden.
 
   - field_name: owner
@@ -94,12 +94,12 @@ dataset_fields:
     form_blanks: 1
     groupBy: About Instrument
     required: true
-    help_text: "Select one or more facilities as owners. A contact email is required for each selected owner."
+    help_text: "Select one or more parties as owners. A contact email is required for each selected owner."
     subfields:
-      - field_name: owner_facility_id
-        label: Facility
-        form_snippet: owner_facility_select.html
-        help_text: "Select a facility from the registry"
+      - field_name: owner_party_id
+        label: Party
+        form_snippet: owner_party_select.html
+        help_text: "Select a party from the registry"
         validators: ignore_missing unicode_safe
         required: true
 
@@ -108,28 +108,28 @@ dataset_fields:
         form_snippet: composite_hidden_field.html
         display_snippet: null
         validators: ignore_missing unicode_safe
-        help_text: "Resolved facility title — used by DOI minting as the contributor name."
+        help_text: "Resolved party title — used by DOI minting as the contributor name."
 
       - field_name: owner_identifier
         label: Owner Identifier
         form_snippet: composite_hidden_field.html
         display_snippet: null
         validators: ignore_missing unicode_safe
-        help_text: "Facility identifier (ROR or other) — used by DOI minting."
+        help_text: "Party identifier (ROR or other) — used by DOI minting."
 
       - field_name: owner_identifier_type
         label: Owner Identifier Type
         form_snippet: composite_hidden_field.html
         display_snippet: null
         validators: ignore_missing unicode_safe
-        help_text: "Type of the facility identifier — used by DOI minting."
+        help_text: "Type of the party identifier — used by DOI minting."
 
       - field_name: owner_contact
         label: Owner Contact
         form_attrs:
           type: email
           placeholder: contact@example.edu.au
-        help_text: "Contact email for this owner. Pre-filled from facility if available."
+        help_text: "Contact email for this owner. Pre-filled from party if available."
         validators: ignore_missing unicode_safe strip_value email_validator
 
 
@@ -193,22 +193,34 @@ dataset_fields:
     required: true
     form_blanks: 1
     groupBy: About Instrument
-    composite_rules:
-      - when_present: manufacturer_identifier
-        require: [manufacturer_identifier_type]
     subfields:
+      - field_name: manufacturer_party_id
+        label: Manufacturer
+        form_snippet: manufacturer_party_select.html
+        help_text: "Select a manufacturer from the party registry"
+        validators: ignore_missing unicode_safe
+        required: true
+
       - field_name: manufacturer_name
         label: Manufacturer Name
-        required: true
-        help_text: Full name of the manufacturer
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+        help_text: "Resolved party title — auto-populated from selected party."
 
       - field_name: manufacturer_identifier
         label: Manufacturer Identifier
-        help_text: Identifier used to identify the manufacturer
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+        help_text: "Party identifier — auto-populated from selected party."
 
       - field_name: manufacturer_identifier_type
         label: Manufacturer Identifier Type
-        help_text: "Type of the identifier"
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+        help_text: "Type of the party identifier — auto-populated from selected party."
 
   - field_name: model
     label: Model
@@ -342,12 +354,12 @@ dataset_fields:
     validators: composite_repeating_validator
     form_blanks: 0
     groupBy: About Instrument
-    help_text: "Select a facility as the funder and provide award details."
+    help_text: "Select a party as the funder and provide award details."
     subfields:
-      - field_name: funder_facility_id
+      - field_name: funder_party_id
         label: Funder
-        form_snippet: funder_facility_select.html
-        help_text: "Select a facility from the registry as the funder."
+        form_snippet: funder_party_select.html
+        help_text: "Select a party from the registry as the funder."
         validators: ignore_missing unicode_safe
 
       - field_name: funder_name
@@ -355,21 +367,21 @@ dataset_fields:
         form_snippet: composite_hidden_field.html
         display_snippet: null
         validators: ignore_missing unicode_safe
-        help_text: "Resolved facility title — auto-populated from selected facility."
+        help_text: "Resolved party title — auto-populated from selected party."
 
       - field_name: funder_identifier
         label: Funder Identifier
         form_snippet: composite_hidden_field.html
         display_snippet: null
         validators: ignore_missing unicode_safe
-        help_text: "Facility identifier (ROR or other) — auto-populated from selected facility."
+        help_text: "Party identifier (ROR or other) — auto-populated from selected party."
 
       - field_name: funder_identifier_type
         label: Funder Identifier Type
         form_snippet: composite_hidden_field.html
         display_snippet: null
         validators: ignore_missing unicode_safe
-        help_text: "Type of the facility identifier — auto-populated from selected facility."
+        help_text: "Type of the party identifier — auto-populated from selected party."
 
       - field_name: award_number
         label: Award Number
@@ -405,14 +417,6 @@ dataset_fields:
           value: Other
         require: [alternate_identifier_name]
     subfields:
-      - field_name: alternate_identifier
-        label: Alternate Identifier
-        help_text: Identifiers other than the PIDINST pertaining to the same instrument instance. This should be used if the instrument has a serial number. Other possible uses include an owner's inventory number or an entry in some instrument data base.
-
-      - field_name: alternate_identifier_name
-        label: Alternate Identifier Name
-        help_text: A supplementary name for the identifier type. This is mostly useful for "Other"
-
       - field_name: alternate_identifier_type
         label: Alternate Identifier Type
         # Conditionally Required
@@ -426,6 +430,17 @@ dataset_fields:
           - value: Other
             label: Other
         help_text: Type of the identifier
+
+      - field_name: alternate_identifier_name
+        label: Alternate Identifier Name
+        help_text: A supplementary name for the identifier type. This is mostly useful for "Other"
+
+      - field_name: alternate_identifier
+        label: Alternate Identifier
+        help_text: Identifiers other than the PIDINST pertaining to the same instrument instance. This should be used if the instrument has a serial number. Other possible uses include an owner's inventory number or an entry in some instrument data base.
+
+
+
 
   # ======================== RELATED RESOURCES ========================
   - field_name: related_identifier_obj

@@ -527,24 +527,24 @@ def json_loads(value):
         return []
 
 
-def get_facility_list():
-    """Return all Facility groups with flattened extras for template use.
+def get_party_list():
+    """Return all Party groups with flattened extras for template use.
 
     Each item in the returned list is a dict with at minimum:
         name   – CKAN group name (slug)
         title  – display title
-    Plus any extras stored on the group (e.g. facility_contact, ror_id …).
+    Plus any extras stored on the group (e.g. party_contact, ror_id …).
     The list is sorted alphabetically by title.
 
-    Uses group_show per facility (not group_list) because group_list's
+    Uses group_show per party (not group_list) because group_list's
     include_extras parameter is unreliable across CKAN versions — it may
     return an empty extras list even when extras exist.
     """
     try:
         context = {'ignore_auth': True}
-        # Get the list of facility slugs first
+        # Get the list of party slugs first
         names = toolkit.get_action('group_list')(context, {
-            'type': 'facility',
+            'type': 'party',
         })
         result = []
         for name in names:
@@ -554,7 +554,7 @@ def get_facility_list():
                     'include_extras': True,
                 })
                 # Start with ALL top-level keys — ckanext-scheming returns
-                # custom fields (e.g. facility_contact) as top-level keys on
+                # custom fields (e.g. party_contact) as top-level keys on
                 # group_show, not inside the extras list.
                 item = dict(g)
                 # Also flatten extras list in case any extras weren't promoted
@@ -568,23 +568,23 @@ def get_facility_list():
         return []
 
 
-_FACILITY_LABELS = {
-    'default label': 'Facility',
-    'default label plural': 'Facilities',
-    'create label': 'Add Facility',
-    'update label': 'Update Facility',
-    'breadcrumb': 'Facilities',
-    'main nav': 'Facilities',
-    'no label found': 'Facility',
+_PARTY_LABELS = {
+    'default label': 'Party',
+    'default label plural': 'Parties',
+    'create label': 'Add Party',
+    'update label': 'Update Party',
+    'breadcrumb': 'Parties',
+    'main nav': 'Parties',
+    'no label found': 'Party',
 }
 
 
 def humanize_entity_type(entity_type, object_type, purpose):
     """Override CKAN's core humanize_entity_type to return proper labels for
-    the 'facility' group type (avoiding the naive 'facilitys' pluralization).
+    the 'party' group type (avoiding the naive 'partys' pluralization).
     Falls through to CKAN's own implementation for all other types."""
-    if object_type == 'facility':
-        return _FACILITY_LABELS.get(purpose, 'Facility')
+    if object_type == 'party':
+        return _PARTY_LABELS.get(purpose, 'Party')
     # Let CKAN's built-in helper handle everything else
     from ckan.lib.helpers import humanize_entity_type as _core
     return _core(entity_type, object_type, purpose)
@@ -613,5 +613,5 @@ def get_helpers():
         "pidinst_instrument_meta": pidinst_instrument_meta,
         "json_loads": json_loads,
         "humanize_entity_type": humanize_entity_type,
-        "get_facility_list": get_facility_list,
+        "get_party_list": get_party_list,
     }

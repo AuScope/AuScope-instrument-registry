@@ -872,6 +872,11 @@ body {
     left: 0px !important;
 }
 
+/* ROR dropdown: make secondary text readable on highlighted (blue) rows */
+.select2-results .select2-highlighted .text-muted {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
 /* pidinst loader */
 .pidinst-loader {
   border: 16px solid #f3f3f3;
@@ -893,10 +898,10 @@ body {
 .pidinst-loader.is-visible { display: block; }
 
 /* =====================================================
-   Facility Tree Facet (search page sidebar)
+   Party Tree Facet (search page sidebar)
    ===================================================== */
 
-.facility-tree-facet .module-heading {
+.party-tree-facet .module-heading {
   font-size: var(--bs-body-font-size);
   padding: 8px 15px;
   background-color: var(--bs-gray-200);
@@ -906,7 +911,7 @@ body {
 }
 
 /* "Select All" row */
-.facility-tree-select-all {
+.party-tree-select-all {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -914,7 +919,7 @@ body {
   border-bottom: 1px solid var(--bs-gray-300);
   margin-bottom: 4px;
 }
-.facility-tree-select-all label {
+.party-tree-select-all label {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-aus-royal-blue);
@@ -923,10 +928,10 @@ body {
 }
 
 /* Individual node rows */
-.facility-tree-node {
+.party-tree-node {
   margin: 1px 0;
 }
-.facility-tree-row {
+.party-tree-row {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -934,12 +939,12 @@ body {
   border-radius: 3px;
   transition: background-color 0.12s;
 }
-.facility-tree-row:hover {
+.party-tree-row:hover {
   background-color: rgba(40, 37, 114, 0.06);
 }
 
 /* Expand / collapse arrow */
-.facility-tree-toggle {
+.party-tree-toggle {
   display: inline-block;
   width: 14px;
   font-size: 10px;
@@ -949,13 +954,13 @@ body {
   cursor: default;
   user-select: none;
 }
-.facility-tree-toggle.has-children {
+.party-tree-toggle.has-children {
   cursor: pointer;
   color: var(--color-aus-royal-blue);
 }
 
 /* Checkbox */
-.facility-tree-row input[type="checkbox"] {
+.party-tree-row input[type="checkbox"] {
   flex-shrink: 0;
   cursor: pointer;
   accent-color: var(--color-aus-royal-blue);
@@ -964,7 +969,7 @@ body {
 }
 
 /* Label */
-.facility-tree-row label {
+.party-tree-row label {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -977,14 +982,14 @@ body {
 }
 
 /* Node name — allow wrapping */
-.facility-tree-name {
+.party-tree-name {
   flex: 1 1 0;
   min-width: 0;
   word-break: break-word;
 }
 
 /* Count badge */
-.facility-tree-count {
+.party-tree-count {
   font-size: 11px;
   color: var(--bs-gray-500);
   white-space: nowrap;
@@ -993,17 +998,17 @@ body {
 }
 
 /* Children indented container */
-.facility-tree-children {
+.party-tree-children {
   padding-left: 18px;
   border-left: 2px solid var(--bs-gray-300);
   margin-left: 6px;
 }
 
 /* Highlight checked nodes */
-.facility-tree-node.checked > .facility-tree-row {
+.party-tree-node.checked > .party-tree-row {
   background-color: rgba(40, 37, 114, 0.08);
 }
-.facility-tree-node.checked > .facility-tree-row .facility-tree-name {
+.party-tree-node.checked > .party-tree-row .party-tree-name {
   font-weight: 600;
   color: var(--color-aus-royal-blue);
 }

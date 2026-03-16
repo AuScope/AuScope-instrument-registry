@@ -407,32 +407,56 @@ def ror_search():
     """Search the ROR API and return simplified results for Select2.
 
     Query params:
-        q       – search term (required, min 2 chars)
+        q            – search term (required, min 2 chars)
+        manufacturer – 'true' to search globally (no country / type filter)
 
-    The endpoint filters to Australian orgs of type education / government /
-    facility.  It also resolves the parent hierarchy for each result so the
-    frontend can cache it.
+    When manufacturer is falsy the search is scoped to Australian orgs of
+    type education / government / facility.  When manufacturer is truthy
+    the search is global with no type filter, since manufacturers can be
+    anywhere in the world.
+
+    If q looks like a ROR ID (starts with https://ror.org/) the endpoint
+    fetches that single record directly instead of doing a keyword search.
     """
     query_term = request.args.get('q', '').strip()
     if len(query_term) < 2:
         return jsonify({'results': []})
 
-    try:
-        # ROR v2 API: filter by country code AU and allowed types
-        # The types filter uses pipe-delimited values for OR logic
-        type_filter = ','.join(f'types:{t}' for t in sorted(ROR_ALLOWED_TYPES))
-        params = {
-            'query': query_term,
-            'filter': f'country.country_code:AU,{type_filter}',
-            'page': 1,
-        }
-        resp = requests.get(ROR_API_BASE, params=params, timeout=10)
-        if not resp.ok:
-            log.error('ROR search failed: %s %s', resp.status_code, resp.text[:200])
-            return jsonify({'results': [], 'error': 'ROR API error'}), 502
+    is_manufacturer = request.args.get('manufacturer', '').lower() == 'true'
 
-        data = resp.json()
-        items = data.get('items', [])
+    try:
+        items = []
+
+        # --- Direct ROR ID lookup ---
+        if query_term.startswith('https://ror.org/'):
+            ror_url = f'{ROR_API_BASE}/{query_term}'
+            resp = requests.get(ror_url, timeout=10)
+            if resp.ok:
+                items = [resp.json()]
+            else:
+                log.warning('ROR direct lookup failed for %s: %s',
+                            query_term, resp.status_code)
+        else:
+            # --- Keyword search ---
+            params = {
+                'query': query_term,
+                'page': 1,
+            }
+            if not is_manufacturer:
+                type_filter = ','.join(
+                    f'types:{t}' for t in sorted(ROR_ALLOWED_TYPES)
+                )
+                params['filter'] = f'country.country_code:AU,{type_filter}'
+            # else: no filter → global search
+
+            resp = requests.get(ROR_API_BASE, params=params, timeout=10)
+            if not resp.ok:
+                log.error('ROR search failed: %s %s',
+                          resp.status_code, resp.text[:200])
+                return jsonify({'results': [], 'error': 'ROR API error'}), 502
+
+            data = resp.json()
+            items = data.get('items', [])
 
         results = []
         for item in items:
@@ -446,7 +470,7 @@ def ror_search():
                 'name': fields['name'],
                 'types': fields['types'],
                 'country': fields['country'],
-                'facility_state': fields['facility_state'],
+                'party_state': fields['party_state'],
                 'website': fields['website'],
                 'parents_json': parents_json,
                 'hierarchy_display': hierarchy_display,
@@ -462,16 +486,16 @@ def ror_search():
         return jsonify({'results': [], 'error': 'Internal error'}), 500
 
 
-@pidinst_theme.route('/api/instrument_facilities')
-def instrument_facilities():
-    """Return a flat list of facility nodes for the Facilities tree widget.
+@pidinst_theme.route('/api/instrument_parties')
+def instrument_parties():
+    """Return a flat list of party nodes for the parties tree widget.
 
     Each node: {id, name, title, parent_id, contact, count}
       - id/name   = CKAN group name (URL slug)
       - title     = human-readable name
-      - parent_id = name of the parent facility group, or null
-      - contact   = facility_contact value
-      - count     = number of instruments/platforms that list this facility as owner
+      - parent_id = name of the parent party group, or null
+      - contact   = party_contact value
+      - count     = number of instruments/platforms that list this party as owner
 
     Query params:
         is_platform – 'true' or 'false' (default 'false')
@@ -483,16 +507,16 @@ def instrument_facilities():
             'auth_user_obj': toolkit.c.userobj,
         }
 
-        # 1) Fetch all facilities (CKAN groups of type "facility")
-        # Use group_show per facility — group_list with include_extras is
+        # 1) Fetch all parties (CKAN groups of type "party")
+        # Use group_show per party — group_list with include_extras is
         # unreliable in some CKAN versions, and ckanext-scheming promotes
         # custom fields to top-level keys on group_show anyway.
         group_names = toolkit.get_action('group_list')(context, {
-            'type': 'facility',
+            'type': 'party',
         })
 
-        # Build a quick lookup  name -> facility dict
-        facility_map = {}
+        # Build a quick lookup  name -> party dict
+        party_map = {}
         for gname in group_names:
             try:
                 g = toolkit.get_action('group_show')(context, {
@@ -505,15 +529,15 @@ def instrument_facilities():
             merged = dict(g)
             for e in g.get('extras', []):
                 merged.setdefault(e['key'], e['value'])
-            facility_map[g['name']] = {
+            party_map[g['name']] = {
                 'id':       g['name'],
                 'title':    g.get('title') or g['name'],
-                'parent_id': merged.get('parent_facility') or None,
-                'contact':  merged.get('facility_contact', ''),
+                'parent_id': merged.get('parent_party') or None,
+                'contact':  merged.get('party_contact', ''),
                 'count':    0,
             }
 
-        # 2) Count instruments per facility via owner field
+        # 2) Count instruments per party via owner field
         fq = f'dataset_type:instrument AND extras_is_platform:{is_platform}'
         result = toolkit.get_action('package_search')(context, {
             'q': '*:*',
@@ -537,26 +561,28 @@ def instrument_facilities():
                 continue
 
             for entry in owner_list:
-                fac_id = (entry.get('owner_facility_id') or '').strip()
-                if fac_id and fac_id in facility_map:
-                    facility_map[fac_id]['count'] += 1
+                fac_id = (entry.get('owner_party_id') or '').strip()
+                if fac_id and fac_id in party_map:
+                    party_map[fac_id]['count'] += 1
 
-        return jsonify({'nodes': list(facility_map.values())})
+        return jsonify({'nodes': list(party_map.values())})
 
     except Exception as e:
-        log.error('instrument_facilities error: %s', e)
+        log.error('instrument_parties error: %s', e)
         return jsonify({'nodes': [], 'error': str(e)}), 500
 
 
-@pidinst_theme.route('/api/facility/create_from_ror', methods=['POST'])
-def create_facility_from_ror():
-    """Create a Facility group from a ROR record, including parent facilities.
+@pidinst_theme.route('/api/party/create_from_ror', methods=['POST'])
+def create_party_from_ror():
+    """Create a Party group from a ROR record, including parent parties.
 
     Expects JSON body:
-        {ror_id, name, types, country, facility_state, website, parents_json, hierarchy_display}
+        {ror_id, name, types, country, party_state, website, parents_json, hierarchy_display,
+         party_role (optional list, e.g. ["Owner", "Funder"])}
 
-    Automatically creates parent facilities that don't yet exist.
-    Returns the created (or already existing) facility.
+    Automatically creates parent parties that don't yet exist.
+    Propagates party_role to parents and the leaf party.
+    Returns the created (or already existing) party.
     """
     if not toolkit.c.user:
         return jsonify({'error': 'Authentication required'}), 403
@@ -566,6 +592,14 @@ def create_facility_from_ror():
     ror_name = (data.get('name') or '').strip()
     if not ror_id or not ror_name:
         return jsonify({'error': 'ror_id and name are required'}), 400
+
+    # Optional roles to propagate to parents and the leaf party
+    child_roles = data.get('party_role') or []
+    if isinstance(child_roles, str):
+        try:
+            child_roles = json.loads(child_roles)
+        except (json.JSONDecodeError, ValueError):
+            child_roles = []
 
     context = {
         'user': toolkit.c.user,
@@ -577,8 +611,8 @@ def create_facility_from_ror():
         parents = json.loads(parents_json_str) if isinstance(parents_json_str, str) else (parents_json_str or [])
 
         # Parents are root-first.  We need to ensure each exists before creating
-        # children so parent_facility references are valid.
-        created_facilities = []
+        # children so parent_party references are valid.
+        created_parties = []
         previous_name = None
 
         for parent in parents:
@@ -587,83 +621,89 @@ def create_facility_from_ror():
             if not pid or not pname:
                 continue
             slug = _ror_name_to_slug(pname)
-            existing = _get_facility_by_name(context, slug)
+            existing = _get_party_by_name(context, slug)
             if existing:
                 _reactivate_if_deleted(context, existing)
+                if child_roles:
+                    _merge_party_roles(context, existing, child_roles)
             else:
                 fac_data = {
                     'name': slug,
                     'title': pname,
-                    'type': 'facility',
-                    'facility_identifier_type': 'ROR',
-                    'facility_identifier_ror': pid,
+                    'type': 'party',
+                    'party_identifier_type': 'ROR',
+                    'party_identifier_ror': pid,
                     'ror_hierarchy_display': '',
                     'ror_parents_json': '[]',
                     'ror_types': parent.get('types', ''),
                     'ror_country': parent.get('country', ''),
-                    'facility_state': parent.get('facility_state', ''),
+                    'party_state': parent.get('party_state', ''),
                     'website': parent.get('website', ''),
-                    'parent_facility': previous_name or '',
+                    'parent_party': previous_name or '',
+                    'party_role': child_roles,
                 }
                 toolkit.get_action('group_create')(context, fac_data)
-                created_facilities.append(slug)
+                created_parties.append(slug)
             previous_name = slug
 
-        # Now create the leaf facility itself
+        # Now create the leaf party itself
         slug = _ror_name_to_slug(ror_name)
-        existing = _get_facility_by_name(context, slug)
+        existing = _get_party_by_name(context, slug)
         if existing:
             # Reactivate if soft-deleted and return
             _reactivate_if_deleted(context, existing)
+            if child_roles:
+                _merge_party_roles(context, existing, child_roles)
             return jsonify({
                 'status': 'exists',
-                'facility': {
+                'party': {
                     'name': existing['name'],
                     'title': existing.get('title', ''),
-                    'contact': _get_extra(existing, 'facility_contact', ''),
+                    'contact': _get_extra(existing, 'party_contact', ''),
                 },
             })
 
         fac_data = {
             'name': slug,
             'title': ror_name,
-            'type': 'facility',
-            'facility_identifier_type': 'ROR',
-            'facility_identifier_ror': ror_id,
+            'type': 'party',
+            'party_identifier_type': 'ROR',
+            'party_identifier_ror': ror_id,
             'ror_hierarchy_display': data.get('hierarchy_display', ''),
             'ror_parents_json': parents_json_str,
             'ror_types': data.get('types', ''),
             'ror_country': data.get('country', ''),
-            'facility_state': data.get('facility_state', ''),
+            'party_state': data.get('party_state', ''),
             'website': data.get('website', ''),
-            'parent_facility': previous_name or '',
+            'parent_party': previous_name or '',
+            'party_role': child_roles,
         }
         new_fac = toolkit.get_action('group_create')(context, fac_data)
-        created_facilities.append(slug)
+        created_parties.append(slug)
 
         return jsonify({
             'status': 'created',
-            'facility': {
+            'party': {
                 'name': new_fac['name'],
                 'title': new_fac.get('title', ''),
                 'contact': '',
             },
-            'also_created': created_facilities,
+            'also_created': created_parties,
         })
 
     except toolkit.NotAuthorized:
-        return jsonify({'error': 'Not authorized to create facilities'}), 403
+        return jsonify({'error': 'Not authorized to create parties'}), 403
     except Exception as e:
-        log.error('create_facility_from_ror error: %s', e)
+        log.error('create_party_from_ror error: %s', e)
         return jsonify({'error': str(e)}), 500
 
 
-@pidinst_theme.route('/api/facility/ensure_ror_parents', methods=['POST'])
+@pidinst_theme.route('/api/party/ensure_ror_parents', methods=['POST'])
 def ensure_ror_parents():
-    """Ensure that all ROR parent facilities in a parents_json chain exist.
+    """Ensure that all ROR parent parties in a parents_json chain exist.
 
-    Called by the facility form's JS before submit so that the new
-    facility's parent_facility reference is valid.
+    Called by the party form's JS before submit so that the new
+    party's parent_party reference is valid.
 
     Expects JSON body:   { parents_json: '<JSON string>' }
     parents_json is a root-first array of {id, name} dicts.
@@ -677,6 +717,14 @@ def ensure_ror_parents():
         parents = json.loads(parents_json_str) if isinstance(parents_json_str, str) else (parents_json_str or [])
     except (json.JSONDecodeError, ValueError):
         parents = []
+
+    # Roles to propagate from the child being created to its parents
+    child_roles = data.get('party_role') or []
+    if isinstance(child_roles, str):
+        try:
+            child_roles = json.loads(child_roles)
+        except (json.JSONDecodeError, ValueError):
+            child_roles = []
 
     if not parents:
         return jsonify({'status': 'ok', 'created': []})
@@ -696,24 +744,28 @@ def ensure_ror_parents():
             if not pid or not pname:
                 continue
             slug = _ror_name_to_slug(pname)
-            existing = _get_facility_by_name(context, slug)
+            existing = _get_party_by_name(context, slug)
             if existing:
                 # Reactivate if it was soft-deleted
                 _reactivate_if_deleted(context, existing)
+                # Merge child roles into existing parent
+                if child_roles:
+                    _merge_party_roles(context, existing, child_roles)
             else:
                 fac_data = {
                     'name': slug,
                     'title': pname,
-                    'type': 'facility',
-                    'facility_identifier_type': 'ROR',
-                    'facility_identifier_ror': pid,
+                    'type': 'party',
+                    'party_identifier_type': 'ROR',
+                    'party_identifier_ror': pid,
                     'ror_hierarchy_display': '',
                     'ror_parents_json': '[]',
                     'ror_types': parent.get('types', ''),
                     'ror_country': parent.get('country', ''),
-                    'facility_state': parent.get('facility_state', ''),
+                    'party_state': parent.get('party_state', ''),
                     'website': parent.get('website', ''),
-                    'parent_facility': previous_name or '',
+                    'parent_party': previous_name or '',
+                    'party_role': child_roles,
                 }
                 toolkit.get_action('group_create')(context, fac_data)
                 created.append(slug)
@@ -722,9 +774,49 @@ def ensure_ror_parents():
         return jsonify({'status': 'ok', 'created': created})
 
     except toolkit.NotAuthorized:
-        return jsonify({'error': 'Not authorized to create facilities'}), 403
+        return jsonify({'error': 'Not authorized to create parties'}), 403
     except Exception as e:
         log.error('ensure_ror_parents error: %s', e)
+        return jsonify({'error': str(e)}), 500
+
+
+@pidinst_theme.route('/api/party/sync_parent_roles', methods=['POST'])
+def sync_parent_roles():
+    """Merge the child party's roles into its parent party.
+
+    Called by the party form JS before/after submit so that the
+    parent party inherits the child's roles and appears in the
+    correct role-filtered dropdowns.
+
+    Expects JSON body:  { parent_name: '<slug>', roles: ['Owner', ...] }
+    """
+    if not toolkit.c.user:
+        return jsonify({'error': 'Authentication required'}), 403
+
+    data = request.get_json(silent=True) or {}
+    parent_name = (data.get('parent_name') or '').strip()
+    roles = data.get('roles') or []
+
+    if not parent_name or not roles:
+        return jsonify({'status': 'ok', 'updated': False})
+
+    context = {
+        'user': toolkit.c.user,
+        'auth_user_obj': toolkit.c.userobj,
+    }
+
+    try:
+        parent_dict = toolkit.get_action('group_show')(
+            context, {'id': parent_name, 'type': 'party', 'include_extras': True}
+        )
+        _merge_party_roles(context, parent_dict, roles)
+        return jsonify({'status': 'ok', 'updated': True})
+    except toolkit.ObjectNotFound:
+        return jsonify({'error': 'Parent party not found'}), 404
+    except toolkit.NotAuthorized:
+        return jsonify({'error': 'Not authorized'}), 403
+    except Exception as e:
+        log.error('sync_parent_roles error: %s', e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -733,12 +825,12 @@ def _ror_name_to_slug(name):
     slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
     # CKAN requires min 2 chars and max 100 chars
     if len(slug) < 2:
-        slug = slug + '-facility'
+        slug = slug + '-party'
     return slug[:100]
 
 
-def _get_facility_by_name(context, name):
-    """Try to fetch a facility group by name.  Returns None if not found.
+def _get_party_by_name(context, name):
+    """Try to fetch a party group by name.  Returns None if not found.
 
     Also finds soft-deleted groups (state='deleted') so callers can
     decide whether to reactivate them.
@@ -762,10 +854,34 @@ def _reactivate_if_deleted(context, group_dict):
     if not group_dict:
         return group_dict
     if group_dict.get('state') == 'deleted':
-        log.info('Reactivating soft-deleted facility group: %s', group_dict['name'])
+        log.info('Reactivating soft-deleted party group: %s', group_dict['name'])
         group_dict['state'] = 'active'
         return toolkit.get_action('group_update')(context, group_dict)
     return group_dict
+
+
+def _merge_party_roles(context, group_dict, new_roles):
+    """Merge *new_roles* into an existing party's ``party_role`` field.
+
+    Only performs an update when there are genuinely new roles to add.
+    """
+    if not new_roles:
+        return
+
+    existing_raw = group_dict.get('party_role', '[]')
+    try:
+        existing_roles = json.loads(existing_raw) if isinstance(existing_raw, str) else (existing_raw or [])
+    except (json.JSONDecodeError, ValueError):
+        existing_roles = []
+
+    merged = list(set(existing_roles) | set(new_roles))
+    if set(merged) == set(existing_roles):
+        return  # nothing new
+
+    toolkit.get_action('group_patch')(context, {
+        'id': group_dict['id'],
+        'party_role': merged,
+    })
 
 
 def _get_extra(group_dict, key, default=''):
@@ -789,7 +905,7 @@ def _extract_ror_fields(ror_item):
     """Extract all display-relevant fields from a ROR v2 API item dict.
 
     Returns a plain dict with keys:
-        id, name, types, country, facility_state, website
+        id, name, types, country, party_state, website
     """
     ror_id = ror_item.get('id', '')
     name = _get_ror_display_name(ror_item)
@@ -798,11 +914,11 @@ def _extract_ror_fields(ror_item):
 
     locations = ror_item.get('locations', [])
     country = ''
-    facility_state = ''
+    party_state = ''
     if locations:
         geonames = locations[0].get('geonames_details', {})
         country = geonames.get('country_name', '')
-        facility_state = geonames.get('country_subdivision_name', '')
+        party_state = geonames.get('country_subdivision_name', '')
 
     links = ror_item.get('links', [])
     website = ''
@@ -819,7 +935,7 @@ def _extract_ror_fields(ror_item):
         'name': name,
         'types': org_types,
         'country': country,
-        'facility_state': facility_state,
+        'party_state': party_state,
         'website': website,
     }
 
@@ -865,7 +981,7 @@ def _resolve_ror_hierarchy(item):
                 log.warning('Could not fetch ROR parent %s: %s', parent_id, resp.status_code)
                 parent_name = parent_rel.get('label', parent_id)
                 parents.append({'id': parent_id, 'name': parent_name,
-                                'types': '', 'country': '', 'facility_state': '', 'website': ''})
+                                'types': '', 'country': '', 'party_state': '', 'website': ''})
                 break
 
             parent_data = resp.json()
@@ -875,7 +991,7 @@ def _resolve_ror_hierarchy(item):
             log.warning('ROR parent resolution failed for %s: %s', parent_id, e)
             parent_name = parent_rel.get('label', parent_id)
             parents.append({'id': parent_id, 'name': parent_name,
-                            'types': '', 'country': '', 'facility_state': '', 'website': ''})
+                            'types': '', 'country': '', 'party_state': '', 'website': ''})
             break
 
     # parents is ordered child->root; reverse for display root->child
@@ -1038,20 +1154,20 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     is_logged_in = bool(toolkit.c.user)
 
     # Collect facet field filters and search extras from request args
-    # owner_facility is handled specially – maps to CKAN group membership
-    reserved = {'q', 'page', 'sort', 'owner_facility'}
+    # owner_party is handled specially – maps to CKAN group membership
+    reserved = {'q', 'page', 'sort', 'owner_party'}
     fields = []
     fields_grouped = {}
     extra_fq_parts = []
     search_extras = {}
 
-    # --- Facility owner filter: OR logic across CKAN group membership ---
-    owner_facilities = toolkit.request.args.getlist('owner_facility')
-    if owner_facilities:
-        for fac in owner_facilities:
-            fields.append(('owner_facility', fac))
-            fields_grouped.setdefault('owner_facility', []).append(fac)
-        or_clauses = ['groups:"{}"'.format(f) for f in owner_facilities]
+    # --- party owner filter: OR logic across CKAN group membership ---
+    owner_parties = toolkit.request.args.getlist('owner_party')
+    if owner_parties:
+        for fac in owner_parties:
+            fields.append(('owner_party', fac))
+            fields_grouped.setdefault('owner_party', []).append(fac)
+        or_clauses = ['groups:"{}"'.format(f) for f in owner_parties]
         if len(or_clauses) == 1:
             extra_fq_parts.append('+' + or_clauses[0])
         else:
@@ -1071,7 +1187,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     if extra_fq_parts:
         fq += ' ' + ' '.join(extra_fq_parts)
 
-    # organization removed – replaced by Facilities tree widget
+    # organization removed – replaced by parties tree widget
     facet_fields = ['tags', 'instrument_type', 'locality']
 
     data_dict = {
@@ -1137,7 +1253,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'page': pager,
         'query_error': query_error,
         'is_platform': is_platform_value,
-        'active_facility_filters': owner_facilities,
+        'active_party_filters': owner_parties,
     }
 
     return base.render(template, extra_vars=extra_vars)

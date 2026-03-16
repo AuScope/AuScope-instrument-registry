@@ -15,9 +15,9 @@ pidinst_theme-js:
     - js/jstree-view-module.js
     - js/instrument-relation-module.js
     - js/facet-select-module.js
-    - js/facility-tree-module.js
-    - js/ror-facility-lookup-module.js
-    - js/owner-facility-select-module.js
+    - js/party-tree-module.js
+    - js/ror-party-lookup-module.js
+    - js/owner-party-select-module.js
     - js/ror-owner-module.js
     - js/org-visibility-module.js
     - js/analytics-tracking.js

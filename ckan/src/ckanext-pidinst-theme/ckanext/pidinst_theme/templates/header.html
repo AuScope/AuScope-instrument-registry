@@ -47,8 +47,8 @@
     <a href="{{ h.url_for('pidinst_theme.platforms_search') }}">{{ _('Platforms') }}</a>
   </li>
 
-  <li class="{{ 'active' if request.path.startswith('/facility') else '' }}">
-    <a href="/facility">{{ _('Facilities') }}</a>
+  <li class="{{ 'active' if request.path.startswith('/party') else '' }}">
+    <a href="/party">{{ _('Parties') }}</a>
   </li>
   <li class="{{ 'active' if request.path.startswith('/taxonomies') else '' }}">
     <a href="/taxonomies">{{ _('Taxonomies') }}</a>

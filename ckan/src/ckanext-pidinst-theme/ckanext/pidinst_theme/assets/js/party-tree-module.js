@@ -1,14 +1,14 @@
 /**
- * Facility Tree Module
+ * Party Tree Module
  *
- * Renders a hierarchical checkbox tree of facilities (CKAN groups of type
- * "facility") in the search page sidebar.  Checking items filters the
- * result set via the `owner_facility` URL parameter (multi-value, OR logic).
+ * Renders a hierarchical checkbox tree of parties (CKAN groups of type
+ * "party") in the search page sidebar.  Checking items filters the
+ * result set via the `owner_party` URL parameter (multi-value, OR logic).
  *
- * Nodes are fetched from /api/instrument_facilities which now reads from
+ * Nodes are fetched from /api/instrument_parties which now reads from
  * CKAN groups, returning {id, title, parent_id, contact, count}.
  */
-this.ckan.module('facility-tree-module', function ($, _) {
+this.ckan.module('party-tree-module', function ($, _) {
   'use strict';
 
   return {
@@ -29,19 +29,19 @@ this.ckan.module('facility-tree-module', function ($, _) {
 
       // Also read directly from the current URL in case of client navigation
       var urlParams = new URLSearchParams(window.location.search);
-      var urlFilters = urlParams.getAll('owner_facility');
+      var urlFilters = urlParams.getAll('owner_party');
       if (urlFilters.length > 0) {
         self._activeFilters = urlFilters;
       }
 
-      var apiUrl = '/api/instrument_facilities?is_platform=' + encodeURIComponent(self._isPlatform);
+      var apiUrl = '/api/instrument_parties?is_platform=' + encodeURIComponent(self._isPlatform);
 
       $.getJSON(apiUrl)
         .done(function (data) {
           self._render(data.nodes || []);
         })
         .fail(function () {
-          self.el.find('.facility-tree-loading').text('Could not load facilities.');
+          self.el.find('.party-tree-loading').text('Could not load parties.');
         });
     },
 
@@ -51,7 +51,7 @@ this.ckan.module('facility-tree-module', function ($, _) {
     _render: function (nodes) {
       var self = this;
       if (!nodes || nodes.length === 0) {
-        self.el.find('.facility-tree-loading').text('No facilities found.');
+        self.el.find('.party-tree-loading').text('No parties found.');
         return;
       }
 
@@ -74,14 +74,14 @@ this.ckan.module('facility-tree-module', function ($, _) {
         });
       });
 
-      var $container = self.el.find('.facility-tree-container');
+      var $container = self.el.find('.party-tree-container');
 
       // ---- "Select All" root checkbox --------------------------------- //
       var allChecked = self._activeFilters.length === 0;
-      var $selectAllRow = $('<div class="facility-tree-select-all"></div>');
-      var $selectAllCb  = $('<input type="checkbox" id="facility-tree-select-all">');
+      var $selectAllRow = $('<div class="party-tree-select-all"></div>');
+      var $selectAllCb  = $('<input type="checkbox" id="party-tree-select-all">');
       $selectAllCb.prop('checked', allChecked);
-      var $selectAllLbl = $('<label for="facility-tree-select-all">All Facilities</label>');
+      var $selectAllLbl = $('<label for="party-tree-select-all">All Parties</label>');
       $selectAllRow.append($selectAllCb).append($selectAllLbl);
       $container.append($selectAllRow);
 
@@ -92,7 +92,7 @@ this.ckan.module('facility-tree-module', function ($, _) {
       });
 
       // Show container, hide loader
-      self.el.find('.facility-tree-loading').hide();
+      self.el.find('.party-tree-loading').hide();
       $container.show();
 
       // ---- Wire up events --------------------------------------------- //
@@ -110,14 +110,14 @@ this.ckan.module('facility-tree-module', function ($, _) {
       var cbId        = 'fac-' + node.id.replace(/[^a-zA-Z0-9_-]/g, '_');
       var isChecked   = self._activeFilters.indexOf(node.id) !== -1;
 
-      var $wrapper = $('<div class="facility-tree-node"></div>').attr('data-node-id', node.id);
+      var $wrapper = $('<div class="party-tree-node"></div>').attr('data-node-id', node.id);
       if (isChecked) { $wrapper.addClass('checked'); }
 
       // Row: toggle + checkbox + label + count
-      var $row = $('<div class="facility-tree-row"></div>');
+      var $row = $('<div class="party-tree-row"></div>');
 
       // Expand/collapse toggle
-      var $toggle = $('<span class="facility-tree-toggle"></span>');
+      var $toggle = $('<span class="party-tree-toggle"></span>');
       if (hasChildren) {
         $toggle.html('&#9658;'); // ▶
         $toggle.addClass('has-children');
@@ -130,9 +130,9 @@ this.ckan.module('facility-tree-module', function ($, _) {
         .prop('checked', isChecked);
 
       var $lbl = $('<label></label>').attr('for', cbId);
-      $lbl.append($('<span class="facility-tree-name"></span>').text(node.title || node.id));
+      $lbl.append($('<span class="party-tree-name"></span>').text(node.title || node.id));
       if (total > 0) {
-        $lbl.append($('<span class="facility-tree-count"></span>').text('(' + total + ')'));
+        $lbl.append($('<span class="party-tree-count"></span>').text('(' + total + ')'));
       }
 
       $row.append($cb).append($lbl);
@@ -140,7 +140,7 @@ this.ckan.module('facility-tree-module', function ($, _) {
 
       // Children container (collapsed by default unless a child is active)
       if (hasChildren) {
-        var $childContainer = $('<div class="facility-tree-children" style="display:none;"></div>');
+        var $childContainer = $('<div class="party-tree-children" style="display:none;"></div>');
         children.forEach(function (child) {
           $childContainer.append(self._buildNode(child, childrenMap, depth + 1));
         });
@@ -192,9 +192,9 @@ this.ckan.module('facility-tree-module', function ($, _) {
       var self = this;
 
       // ---- Toggle expand/collapse for nodes with children ------------- //
-      $container.on('click', '.facility-tree-toggle.has-children', function () {
+      $container.on('click', '.party-tree-toggle.has-children', function () {
         var $toggle     = $(this);
-        var $childCont  = $toggle.closest('.facility-tree-node').children('.facility-tree-children');
+        var $childCont  = $toggle.closest('.party-tree-node').children('.party-tree-children');
         var isOpen      = $childCont.is(':visible');
         $childCont.toggle(!isOpen);
         $toggle.html(isOpen ? '&#9658;' : '&#9660;');
@@ -205,15 +205,15 @@ this.ckan.module('facility-tree-module', function ($, _) {
         var $cb       = $(this);
         var nodeId    = $cb.attr('data-node-id');
         var checked   = $cb.prop('checked');
-        var $nodeDiv  = $cb.closest('.facility-tree-node');
+        var $nodeDiv  = $cb.closest('.party-tree-node');
 
         // Cascade to all descendants
-        var $childCbs = $nodeDiv.find('.facility-tree-children input[type="checkbox"][data-node-id]');
+        var $childCbs = $nodeDiv.find('.party-tree-children input[type="checkbox"][data-node-id]');
         $childCbs.prop('checked', checked);
 
         // Update .checked class
         $nodeDiv.toggleClass('checked', checked);
-        $childCbs.closest('.facility-tree-node').toggleClass('checked', checked);
+        $childCbs.closest('.party-tree-node').toggleClass('checked', checked);
 
         // Uncheck "Select All" if anything is individually checked
         $selectAllCb.prop('checked', false);
@@ -226,7 +226,7 @@ this.ckan.module('facility-tree-module', function ($, _) {
         if ($selectAllCb.prop('checked')) {
           // Uncheck everything and remove filter
           $container.find('input[type="checkbox"][data-node-id]').prop('checked', false);
-          $container.find('.facility-tree-node.checked').removeClass('checked');
+          $container.find('.party-tree-node.checked').removeClass('checked');
           self._navigateTo([]);
         }
       });
@@ -252,9 +252,9 @@ this.ckan.module('facility-tree-module', function ($, _) {
     /* ------------------------------------------------------------------ */
     _navigateTo: function (ids) {
       var params = new URLSearchParams(window.location.search);
-      params.delete('owner_facility');
+      params.delete('owner_party');
       params.delete('page'); // reset pagination when filter changes
-      ids.forEach(function (id) { params.append('owner_facility', id); });
+      ids.forEach(function (id) { params.append('owner_party', id); });
       window.location.search = params.toString();
     }
   };

@@ -1,24 +1,24 @@
 {#
-  Form snippet for the facility_identifier_ror field on the Facility group form.
+  Form snippet for the party_identifier_ror field on the party group form.
 
   Renders a Select2 search box that queries /api/proxy/ror_search.
-  Visible only when facility_identifier_type == "ROR"; hidden otherwise.
+  Visible only when party_identifier_type == "ROR"; hidden otherwise.
 
-  The attached JS module (ror-facility-lookup-module) also orchestrates:
-    - Toggling visibility of this field vs facility_identifier (free text)
-    - Toggling visibility of ROR-specific fields and parent_facility
+  The attached JS module (ror-party-lookup-module) also orchestrates:
+    - Toggling visibility of this field vs party_identifier (free text)
+    - Toggling visibility of ROR-specific fields and parent_party
     - Auto-populating title, name, hierarchy, country, state, etc.
-    - On form submit with ROR: calls /api/facility/ensure_ror_parents first
+    - On form submit with ROR: calls /api/party/ensure_ror_parents first
 #}
 
 {% set field_id   = 'field-' ~ field.field_name %}
 {% set field_name = field.field_name %}
 {% set value      = data.get(field_name, '') %}
 {% set display_name = data.get('title', '') %}
-{% set id_type    = data.get('facility_identifier_type', 'ROR') %}
+{% set id_type    = data.get('party_identifier_type', 'ROR') %}
 
-<div class="form-group ror-facility-lookup-block"
-     data-module="ror-facility-lookup-module"
+<div class="form-group ror-party-lookup-block"
+     data-module="ror-party-lookup-module"
      data-field-id="{{ field_id }}"
      data-current-ror-id="{{ value }}"
      data-current-display-name="{{ display_name }}"
@@ -29,7 +29,7 @@
   </label>
 
   <div class="controls">
-    <input class="form-control ror-facility-search"
+    <input class="form-control ror-party-search"
            id="{{ field_id }}"
            name="{{ field_name }}"
            type="text"

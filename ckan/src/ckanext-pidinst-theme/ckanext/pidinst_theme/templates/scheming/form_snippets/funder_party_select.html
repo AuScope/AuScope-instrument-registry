@@ -1,13 +1,13 @@
 {#
-  Composite subfield form snippet for funder_facility_id within the
+  Composite subfield form snippet for funder_party_id within the
   funder composite_repeating field.
 
-  Renders a <select> dropdown populated with all Facility groups.
-  When a facility is selected, JavaScript fills the sibling
+  Renders a <select> dropdown populated with all party groups.
+  When a party is selected, JavaScript fills the sibling
   funder_name, funder_identifier, funder_identifier_type and schema_uri.
 
   Called by composite_repeating_field.html with:
-    field          – the subfield definition (field_name: funder_facility_id)
+    field          – the subfield definition (field_name: funder_party_id)
     subfield_index – current row number (1-based string)
     parent         – parent field name, "funder"
     field_dict     – data dict for this row
@@ -26,7 +26,7 @@
   'ISNI': 'https://isni.org/',
 } %}
 
-<div class="form-group funder-facility-select-block"
+<div class="form-group funder-party-select-block"
      data-field-prefix="{{ field_prefix }}">
 
   <label class="control-label" for="{{ sel_id }}">
@@ -36,24 +36,29 @@
   <div class="controls">
     <select id="{{ sel_id }}"
             name="{{ sel_name }}"
-            class="form-control funder-facility-dropdown"
+            class="form-control funder-party-dropdown"
             data-field-prefix="{{ field_prefix }}"
             style="width:100%">
       <option value="">-- Select a funder --</option>
-      {% set facilities = h.get_facility_list() %}
-      {% for fac in facilities %}
+      {% set parties = h.get_party_list() %}
+      {% for party in parties %}
+        {% set roles = party.party_role %}
+        {% if roles is string %}{% set roles = h.json_loads(roles) %}{% endif %}
+        {% if roles is not iterable %}{% set roles = [] %}{% endif %}
+        {% if 'Funder' in roles %}
         {# Resolve identifier: prefer ROR, fall back to free-text #}
-        {% set fac_id = fac.facility_identifier_ror or fac.facility_identifier or '' %}
-        {% set fac_id_type = fac.facility_identifier_type or '' %}
-        {% set fac_schema_uri = schema_uri_map.get(fac_id_type, '') %}
-        <option value="{{ fac.name }}"
-                data-facility-title="{{ fac.title or fac.name }}"
-                data-facility-identifier="{{ fac_id }}"
-                data-facility-identifier-type="{{ fac_id_type }}"
-                data-facility-schema-uri="{{ fac_schema_uri }}"
-                {% if fac.name == value %}selected{% endif %}>
-          {{ fac.title or fac.name }}
+        {% set party_id = party.party_identifier_ror or party.party_identifier or '' %}
+        {% set party_id_type = party.party_identifier_type or '' %}
+        {% set party_schema_uri = schema_uri_map.get(party_id_type, '') %}
+        <option value="{{ party.name }}"
+                data-party-title="{{ party.title or party.name }}"
+                data-party-identifier="{{ party_id }}"
+                data-party-identifier-type="{{ party_id_type }}"
+                data-party-schema-uri="{{ party_schema_uri }}"
+                {% if party.name == value %}selected{% endif %}>
+          {{ party.title or party.name }}
         </option>
+        {% endif %}
       {% endfor %}
     </select>
   </div>

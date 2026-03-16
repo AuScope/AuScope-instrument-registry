@@ -123,8 +123,8 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
             except Exception as e:
                 logging.error(f"Failed to track dataset creation: {e}")
 
-        # Sync facility group membership
-        self._sync_facility_groups(context, pkg_dict)
+        # Sync party group membership
+        self._sync_party_groups(context, pkg_dict)
 
     def after_dataset_update(self, context, pkg_dict):
         # Track analytics event
@@ -139,63 +139,69 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
             except Exception as e:
                 logging.error(f"Failed to track dataset update: {e}")
 
-        # Sync facility group membership
-        self._sync_facility_groups(context, pkg_dict)
+        # Sync party group membership
+        self._sync_party_groups(context, pkg_dict)
 
         # self.process_doi_metadata(pkg_dict)
 
-    def _sync_facility_groups(self, context, pkg_dict):
-        """Add/remove this package from facility CKAN groups so that
-        group-based faceting (``fq=groups:name``) and facility-page
+    def _sync_party_groups(self, context, pkg_dict):
+        """Add/remove this package from party CKAN groups so that
+        group-based faceting (``fq=groups:name``) and party-page
         dataset counts work automatically.
 
-        Reads ``owner_facility_id`` values from the ``owner`` composite
-        field and ensures the package is a member of exactly those
-        facility groups.
+        Reads party IDs from the ``owner``, ``funder``, and
+        ``manufacturer`` composite fields and ensures the package is a
+        member of exactly those party groups.
         """
         try:
             pkg_id = pkg_dict.get('id')
             if not pkg_id:
                 return
 
-            # ---- Desired facility IDs from the owner field -------------- #
-            owner_raw = pkg_dict.get('owner')
+            # ---- Desired party IDs from composite fields ------------- #
             desired = set()
 
-            if owner_raw:
-                if isinstance(owner_raw, str):
+            # Helper to extract party IDs from a composite repeating field
+            def _collect_party_ids(field_name, id_key):
+                raw = pkg_dict.get(field_name)
+                if not raw:
+                    return
+                if isinstance(raw, str):
                     try:
-                        owner_list = json.loads(owner_raw)
+                        entries = json.loads(raw)
                     except (json.JSONDecodeError, ValueError):
-                        owner_list = []
-                elif isinstance(owner_raw, list):
-                    owner_list = owner_raw
+                        entries = []
+                elif isinstance(raw, list):
+                    entries = raw
                 else:
-                    owner_list = []
+                    entries = []
+                for entry in entries:
+                    party_id = (entry.get(id_key) or '').strip()
+                    if party_id:
+                        desired.add(party_id)
 
-                for entry in owner_list:
-                    fac_id = (entry.get('owner_facility_id') or '').strip()
-                    if fac_id:
-                        desired.add(fac_id)
+            _collect_party_ids('owner', 'owner_party_id')
+            _collect_party_ids('funder', 'funder_party_id')
+            _collect_party_ids('manufacturer', 'manufacturer_party_id')
 
-            # ---- Current facility group memberships --------------------- #
+            # ---- Current party group memberships --------------------- #
             ctx = {'ignore_auth': True}
 
-            # All facility group names in the system
-            all_facility_names = set(
-                toolkit.get_action('group_list')(ctx, {'type': 'facility'})
+            # All party group names in the system
+            all_party_names = set(
+                toolkit.get_action('group_list')(ctx, {'type': 'party'})
             )
 
             # Current groups this package belongs to
             pkg_full = toolkit.get_action('package_show')(ctx, {'id': pkg_id})
-            current_facility_groups = {
+            current_party_groups = {
                 g['name'] for g in pkg_full.get('groups', [])
-                if g.get('name') in all_facility_names
+                if g.get('name') in all_party_names
             }
 
             # ---- Reconcile ------------------------------------------------ #
-            to_add = (desired & all_facility_names) - current_facility_groups
-            to_remove = current_facility_groups - desired
+            to_add = (desired & all_party_names) - current_party_groups
+            to_remove = current_party_groups - desired
 
             for fac_id in to_add:
                 try:
@@ -207,7 +213,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                     })
                 except Exception as e:
                     logging.error(
-                        'Failed to add package %s to facility group %s: %s',
+                        'Failed to add package %s to party group %s: %s',
                         pkg_id, fac_id, e,
                     )
 
@@ -220,18 +226,18 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                     })
                 except Exception as e:
                     logging.error(
-                        'Failed to remove package %s from facility group %s: %s',
+                        'Failed to remove package %s from party group %s: %s',
                         pkg_id, fac_id, e,
                     )
 
             if to_add or to_remove:
                 logging.info(
-                    'Facility group sync for %s: added=%s removed=%s',
+                    'Party group sync for %s: added=%s removed=%s',
                     pkg_id, to_add, to_remove,
                 )
 
         except Exception as e:
-            logging.exception('Failed to sync facility groups for %s: %s',
+            logging.exception('Failed to sync party groups for %s: %s',
                               pkg_dict.get('id', '?'), e)
 
     def after_dataset_show(self, *args, **kwargs):

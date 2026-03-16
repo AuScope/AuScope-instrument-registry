@@ -1,6 +1,6 @@
 {#
-  Form snippet for parent_facility field on the Facility (group) form.
-  Renders a <select> dropdown of all existing facilities (excluding self).
+  Form snippet for parent_party field on the party (group) form.
+  Renders a <select> dropdown of all existing parties (excluding self).
 #}
 
 {% set field_id   = 'field-' ~ field.field_name %}
@@ -14,13 +14,13 @@
   <div class="controls">
     <select id="{{ field_id }}" name="{{ field_name }}" class="form-control">
       <option value="">-- None --</option>
-      {% set facilities = h.get_facility_list() %}
-      {% for fac in facilities %}
+      {% set parties = h.get_party_list() %}
+      {% for party in parties %}
         {# Exclude self to prevent circular parent reference #}
-        {% if fac.name != data.get('name', '') %}
-          <option value="{{ fac.name }}"
-                  {% if fac.name == value %}selected{% endif %}>
-            {{ fac.title or fac.name }}
+        {% if party.name != data.get('name', '') %}
+          <option value="{{ party.name }}"
+                  {% if party.name == value %}selected{% endif %}>
+            {{ party.title or party.name }}
           </option>
         {% endif %}
       {% endfor %}

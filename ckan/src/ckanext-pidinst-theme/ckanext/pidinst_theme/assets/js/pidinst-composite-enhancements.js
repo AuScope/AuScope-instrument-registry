@@ -5,9 +5,10 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       this.hideDependentFields();
       this.updateCollapsiblePanels();
       this.updateIndexes();
-      // Initialize facility selects AFTER updateCollapsiblePanels has run
-      this.initFacilitySelects();
-      this.initFunderFacilitySelects();
+      // Initialize party selects AFTER updateCollapsiblePanels has run
+      this.initPartySelects();
+      this.initFunderPartySelects();
+      this.initManufacturerPartySelects();
 
       // Re-process after row add/remove
       $(document).on('click', '.composite-btn.btn-success', function () {
@@ -15,8 +16,9 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
           setTimeout(function () {
             self.updateIndexes();
             self.updateCollapsiblePanels();
-            self.initFacilitySelects();
-            self.initFunderFacilitySelects();
+            self.initPartySelects();
+            self.initFunderPartySelects();
+            self.initManufacturerPartySelects();
             self.initializeAllSelect2().then(() => {
               self.reapplySelect2Values();
             });
@@ -63,13 +65,13 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       }
     },
 
-    /* ── Facility owner Select2 ──────────────────────────────────────────
+    /* ── party owner Select2 ──────────────────────────────────────────
      *  Scoped to this.el so only the owner instance acts on
-     *  the facility dropdowns.  Other composite-field instances find
+     *  the party dropdowns.  Other composite-field instances find
      *  zero dropdowns and return immediately.
      * ─────────────────────────────────────────────────────────────────── */
-    initFacilitySelects: function () {
-      var $dropdowns = this.el.find('.owner-facility-dropdown');
+    initPartySelects: function () {
+      var $dropdowns = this.el.find('.owner-party-dropdown');
       if ($dropdowns.length === 0) return;
 
       // Thoroughly clean up Select2 artifacts (stale clones, hiding)
@@ -92,20 +94,20 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
         var $select = $(this);
 
         $select.select2({
-          placeholder: '-- Select a facility --',
+          placeholder: '-- Select a party --',
           allowClear: true,
           width: 'resolve'
         });
 
         // Direct binding — Select2 v3 doesn't reliably bubble 'change'
-        $select.off('change.ownerFacility').on('change.ownerFacility', function () {
+        $select.off('change.ownerParty').on('change.ownerParty', function () {
           var $opt     = $select.find('option:selected');
           var $row     = $select.closest('.composite-control-repeating');
 
-          var facTitle   = $opt.data('facility-title')   || '';
-          var facContact = $opt.data('facility-contact') || '';
-          var facId      = $opt.data('facility-identifier')      || '';
-          var facIdType  = $opt.data('facility-identifier-type')  || '';
+          var facTitle   = $opt.data('party-title')   || '';
+          var facContact = $opt.data('party-contact') || '';
+          var facId      = $opt.data('party-identifier')      || '';
+          var facIdType  = $opt.data('party-identifier-type')  || '';
 
           $row.find('input[name$="owner_contact"]').val(facContact);
 
@@ -117,12 +119,12 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
       });
     },
 
-    /* ── Funder facility Select2 ───────────────────────────────────────
-     *  Same pattern as initFacilitySelects but for the funder composite.
+    /* ── Funder party Select2 ───────────────────────────────────────
+     *  Same pattern as initPartySelects but for the funder composite.
      *  Scoped to this.el so only the funder instance processes these.
      * ─────────────────────────────────────────────────────────────────── */
-    initFunderFacilitySelects: function () {
-      var $dropdowns = this.el.find('.funder-facility-dropdown');
+    initFunderPartySelects: function () {
+      var $dropdowns = this.el.find('.funder-party-dropdown');
       if ($dropdowns.length === 0) return;
 
       // Thoroughly clean up Select2 artifacts (stale clones, hiding)
@@ -146,17 +148,60 @@ ckan.module('pidinst-composite-enhancements', function ($, _) {
           width: 'resolve'
         });
 
-        $select.off('change.funderFacility').on('change.funderFacility', function () {
+        $select.off('change.funderParty').on('change.funderParty', function () {
           var $opt = $select.find('option:selected');
           var $row = $select.closest('.composite-control-repeating');
 
-          var facTitle     = $opt.data('facility-title')           || '';
-          var facId        = $opt.data('facility-identifier')      || '';
-          var facIdType    = $opt.data('facility-identifier-type')  || '';
+          var facTitle     = $opt.data('party-title')           || '';
+          var facId        = $opt.data('party-identifier')      || '';
+          var facIdType    = $opt.data('party-identifier-type')  || '';
 
           $row.find('input[name$="funder_name"]').val(facTitle);
           $row.find('input[name$="funder_identifier"]').val(facId);
           $row.find('input[name$="funder_identifier_type"]').val(facIdType);
+        });
+      });
+    },
+
+    /* ── Manufacturer party Select2 ────────────────────────────────
+     *  Same pattern as initPartySelects but for the manufacturer composite.
+     *  Scoped to this.el so only the manufacturer instance processes these.
+     * ─────────────────────────────────────────────────────────────────── */
+    initManufacturerPartySelects: function () {
+      var $dropdowns = this.el.find('.manufacturer-party-dropdown');
+      if ($dropdowns.length === 0) return;
+
+      $dropdowns.each(function () {
+        var $sel = $(this);
+        if ($sel.data('select2')) {
+          $sel.select2('destroy');
+        }
+        $sel.siblings('.select2-container').remove();
+        $sel.removeClass('select2-offscreen select2-hidden-accessible');
+        $sel.removeAttr('data-select2-id');
+        $sel.attr('style', 'width:100%');
+      });
+
+      $dropdowns.each(function () {
+        var $select = $(this);
+
+        $select.select2({
+          placeholder: '-- Select a manufacturer --',
+          allowClear: true,
+          width: 'resolve'
+        });
+
+        $select.off('change.mfrParty').on('change.mfrParty', function () {
+          var $opt = $select.find('option:selected');
+          var $row = $select.closest('.composite-control-repeating');
+
+          var partyTitle  = $opt.data('party-title')           || '';
+          var partyId     = $opt.data('party-identifier')      || '';
+          var partyIdType = $opt.data('party-identifier-type')  || '';
+
+          $row.find('input[name$="manufacturer_name"]').val(partyTitle);
+          $row.find('input[name$="manufacturer_identifier"]').val(partyId);
+          $row.find('input[name$="manufacturer_identifier_type"]').val(partyIdType);
         });
       });
     },
