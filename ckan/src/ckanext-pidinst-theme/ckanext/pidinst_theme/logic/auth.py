@@ -142,6 +142,15 @@ def package_update(next_auth, context, data_dict):
     except:
         return {'success': False, 'msg': 'Unable to retrieve package'}
 
+    # Block editing of withdrawn/duplicate records for all roles.
+    # To allow admins later, add: `and not _is_org_admin(user, package)` to the condition.
+    pub_status = _package_extra_value(package, 'publication_status') or ''
+    if pub_status in ('withdrawn', 'duplicate'):
+        return {
+            'success': False,
+            'msg': 'This record cannot be edited because it has been withdrawn or marked as duplicate.',
+        }
+
     if package.owner_org:
         user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
         # Editors and admins can always edit a package
