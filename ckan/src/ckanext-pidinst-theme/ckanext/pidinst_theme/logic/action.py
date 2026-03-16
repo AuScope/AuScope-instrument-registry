@@ -445,13 +445,34 @@ def package_mark_duplicate(context, data_dict):
     if target_status == 'duplicate':
         raise ValidationError({'duplicate_of': ['The target record is itself a duplicate and cannot be used as canonical.']})
 
+    canonical_doi = _resolve_duplicate_of_to_doi(duplicate_of)
+
+    # Get current related_identifier_obj and strip any stale IsIdenticalTo entries.
+    pkg_current = tk.get_action('package_show')({'ignore_auth': True}, {'id': pkg_id})
+    rel_ids = pkg_current.get('related_identifier_obj', []) or []
+    if isinstance(rel_ids, str):
+        try:
+            rel_ids = json.loads(rel_ids)
+        except Exception:
+            rel_ids = []
+    rel_ids = [r for r in rel_ids if isinstance(r, dict) and r.get('relation_type') != 'IsIdenticalTo']
+
+    if canonical_doi:
+        rel_ids.append({
+            'related_identifier': canonical_doi,
+            'related_identifier_type': 'DOI',
+            'related_identifier_name': target.get('title', ''),
+            'related_resource_type': 'Instrument',
+            'relation_type': 'IsIdenticalTo',
+        })
+
     tk.get_action('package_patch')(context, {
         'id': pkg_id,
         'publication_status': 'duplicate',
         'duplicate_of': duplicate_of,
+        'related_identifier_obj': json.dumps(rel_ids),
     })
 
-    _update_doi_for_duplicate(package.id, duplicate_of)
     _deactivate_doi_on_datacite(package.id)
 
     return {'success': True, 'id': pkg_id, 'publication_status': 'duplicate', 'duplicate_of': duplicate_of}
