@@ -1,5 +1,3 @@
-{% ckan_extends %}
-
 {% block info %}
   <div class="module module-narrow module-shallow context-info">
     {% if has_context_title %}
@@ -7,7 +5,7 @@
     {% endif %}
     <section class="module-content">
       {% block inner %}
-        {% block image %}        
+        {% block image %}
         {% endblock %}
 
         {% block heading %}
@@ -16,10 +14,10 @@
               [{{ _('Deleted') }}]
             {% endif %}
           </h1>
-        {% endblock %}     
+        {% endblock %}
 
         {% block description %}
-        {% endblock %}    
+        {% endblock %}
 
       {% endblock %}
     </section>
