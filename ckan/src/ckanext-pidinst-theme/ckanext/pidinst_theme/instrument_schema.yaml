@@ -296,7 +296,7 @@ dataset_fields:
     form_blanks: 0
     groupBy: About Instrument
     gcmd_scheme: measured_variables
-    custom_taxonomy: measured-variable
+    custom_taxonomy: measured-variables
     gcmd_label: Measured Variables (GCMD)
     custom_label: User Specified Measured Variables
     gcmd_code_field: measured_variable_gcmd_code

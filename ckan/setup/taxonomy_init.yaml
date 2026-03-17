@@ -75,40 +75,40 @@ taxonomies:
             extras:
               identifier_type: "URI"
 
-  - name: measured-variable
+  - name: measured-variables
     title: Measured Variable
-    uri: "https://example.org/taxonomy/measured-variable"
+    uri: "https://example.org/taxonomy/measured-variables"
     terms:
       - label: "Temperature"
         description: "Dummy measured variable category for testing"
-        uri: "https://example.org/taxonomy/measured-variable/temperature"
+        uri: "https://example.org/taxonomy/measured-variables/temperature"
         extras:
           identifier_type: "URI"
         terms:
           - label: "Air Temperature"
             description: "Dummy child term"
-            uri: "https://example.org/taxonomy/measured-variable/temperature/air"
+            uri: "https://example.org/taxonomy/measured-variables/temperature/air"
             extras:
               identifier_type: "URI"
           - label: "Water Temperature"
             description: "Dummy child term"
-            uri: "https://example.org/taxonomy/measured-variable/temperature/water"
+            uri: "https://example.org/taxonomy/measured-variables/temperature/water"
             extras:
               identifier_type: "URI"
 
       - label: "Pressure"
         description: "Dummy measured variable category for testing"
-        uri: "https://example.org/taxonomy/measured-variable/pressure"
+        uri: "https://example.org/taxonomy/measured-variables/pressure"
         extras:
           identifier_type: "URI"
         terms:
           - label: "Atmospheric Pressure"
             description: "Dummy child term"
-            uri: "https://example.org/taxonomy/measured-variable/pressure/atmospheric"
+            uri: "https://example.org/taxonomy/measured-variables/pressure/atmospheric"
             extras:
               identifier_type: "URI"
           - label: "Water Pressure"
             description: "Dummy child term"
-            uri: "https://example.org/taxonomy/measured-variable/pressure/water"
+            uri: "https://example.org/taxonomy/measured-variables/pressure/water"
             extras:
               identifier_type: "URI"
