@@ -2,6 +2,7 @@ import ckan.authz as authz
 import ckan.plugins.toolkit as tk
 import json
 from datetime import datetime
+import ckanext.pidinst_theme.helpers as h
 
 
 def pidinst_theme_get_sum():
@@ -63,6 +64,7 @@ def after_dataset_show(context, pkg_dict):
     if 'resource_type' in pkg_dict:
         citation += '(' + pkg_dict['resource_type'] +'). '
     if 'doi' in pkg_dict:
-        citation += 'https://doi.org/' + pkg_dict['doi']
+        doi_resolver_url = h.doi_resolver_url()
+        citation += doi_resolver_url + '/' + pkg_dict['doi']
 
     pkg_dict['citation'] = citation

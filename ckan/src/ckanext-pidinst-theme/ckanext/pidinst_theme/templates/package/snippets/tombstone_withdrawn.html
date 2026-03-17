@@ -15,7 +15,7 @@
 
   {% if pkg.doi %}
     <p><strong>{{ _('DOI') }}:</strong>
-      <a href="https://doi.org/{{ pkg.doi }}">https://doi.org/{{ pkg.doi }}</a>
+      <a href="{{ h.doi_resolver_url() }}/{{ pkg.doi }}">{{ h.doi_resolver_url() }}/{{ pkg.doi }}</a>
     </p>
   {% endif %}
 

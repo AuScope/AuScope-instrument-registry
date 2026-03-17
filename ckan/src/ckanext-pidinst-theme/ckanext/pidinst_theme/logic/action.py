@@ -13,7 +13,7 @@ from ckan.logic import get_action, ValidationError
 from ckanext.pidinst_theme.logic import (
     email_notifications
 )
-import ckan.authz as authz
+from ckanext.pidinst_theme.helpers import doi_resolver_url
 from ckanext.pidinst_theme.logic.auth import _is_doi_published, _package_extra_value
 from ckanext.doi.lib.api import DataciteClient
 from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
@@ -239,7 +239,7 @@ def manage_parent_related_resource(data_dict):
     doi_value = parent.get('doi')
     if doi_value:
         if 'https' not in doi_value:
-            doi_value = "https://doi.org/" + doi_value
+            doi_value = doi_resolver_url() + '/' + doi_value
         new_resource['related_resource_url'] = doi_value
 
     related_resources.append(new_resource)

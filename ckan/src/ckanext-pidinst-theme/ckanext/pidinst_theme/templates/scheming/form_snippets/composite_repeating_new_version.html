@@ -34,6 +34,9 @@
   {% set field_dict_list = [{}] %}
 {% endif %}
 
+<div id="instrument-relation-config"
+     data-doi-resolver-url="{{ h.doi_resolver_url() }}">
+</div>
 <div data-module="instrument-relation-module">
 <div data-module="pidinst-composite-repeating"
      data-module-required="{{ 'true' if is_required else 'false' }}"

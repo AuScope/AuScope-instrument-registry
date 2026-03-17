@@ -28,6 +28,12 @@ ckan.module('instrument-relation-module', function ($, _) {
     ).first();
   }
 
+  function getDoiResolverUrl() {
+    var el = document.getElementById('instrument-relation-config');
+    if (!el) return 'https://doi.org';
+    return (el.getAttribute('data-doi-resolver-url') || 'https://doi.org').replace(/\/+$/, '');
+    }
+
   /** "related_identifier_obj-3-related_resource_type" → "related_identifier_obj-3" */
   function rowPrefix(name) {
     var match = (name || '').match(/^(.+-\d+)-/);
@@ -370,8 +376,8 @@ ckan.module('instrument-relation-module', function ($, _) {
                 .map(function(word) { return word + '*'; })
                 .join(' ');
             }
-            return { 
-              q: query, 
+            return {
+              q: query,
               fq: 'type:instrument AND private:false AND state:active',
               rows: 20
             };
@@ -388,12 +394,12 @@ ckan.module('instrument-relation-module', function ($, _) {
               .map(function (p) {
                 var meta = extractInstrumentMeta(p);
                 var label = buildInstrumentLabel(p, meta);
-                
-                return { 
-                  id: p.id, 
-                  text: label, 
+
+                return {
+                  id: p.id,
+                  text: label,
                   doi: (p.doi || '').trim(),
-                  title: p.title || p.name, 
+                  title: p.title || p.name,
                   name: p.name,
                   pkgType: String(p.is_platform) === 'true' ? 'platform' : 'instrument',
                   modelName: meta.modelName,
@@ -428,10 +434,10 @@ ckan.module('instrument-relation-module', function ($, _) {
       var doi = (pkg.doi || '').trim();
       var idVal, typeVal;
       if (doi) {
-        idVal   = doi.indexOf('http') === 0 ? doi : 'https://doi.org/' + doi;
+        idVal   = doi.indexOf('http') === 0 ? doi : getDoiResolverUrl() + '/' + doi;
         typeVal = 'DOI';
       } else {
-        idVal   = window.location.origin + '/dataset/' + (pkg.name || pkg.id);
+        idVal   = window.location.origin + '/instrument/' + (pkg.name || pkg.id);
         typeVal = 'URL';
       }
 
@@ -474,12 +480,12 @@ ckan.module('instrument-relation-module', function ($, _) {
           var p = resp.result;
           var meta = extractInstrumentMeta(p);
           var label = buildInstrumentLabel(p, meta);
-          
+
           $si.select2('data', {
-            id: p.id, 
-            text: label, 
+            id: p.id,
+            text: label,
             doi: (p.doi || '').trim(),
-            title: p.title || p.name, 
+            title: p.title || p.name,
             name: p.name,
             modelName: meta.modelName,
             serialNumber: meta.serialNumber

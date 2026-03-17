@@ -9,7 +9,7 @@
       <p>{{ _('The authoritative record is:') }}
         <a href="{{ h.url_for(duplicate_target.type ~ '.read', id=duplicate_target.name) }}">{{ duplicate_target.title or duplicate_target.name }}</a>
         {% if duplicate_target.doi %}
-          (DOI: <a href="https://doi.org/{{ duplicate_target.doi }}">{{ duplicate_target.doi }}</a>)
+          (DOI: <a href="{{ h.doi_resolver_url() }}/{{ duplicate_target.doi }}">{{ duplicate_target.doi }}</a>)
         {% endif %}
       </p>
     {% elif pkg.duplicate_of %}
@@ -21,7 +21,7 @@
 
   {% if pkg.doi %}
     <p><strong>{{ _('DOI') }}:</strong>
-      <a href="https://doi.org/{{ pkg.doi }}">https://doi.org/{{ pkg.doi }}</a>
+      <a href="{{ h.doi_resolver_url() }}/{{ pkg.doi }}">{{ h.doi_resolver_url() }}/{{ pkg.doi }}</a>
     </p>
   {% endif %}
 

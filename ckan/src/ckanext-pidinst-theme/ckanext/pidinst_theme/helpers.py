@@ -590,6 +590,10 @@ def humanize_entity_type(entity_type, object_type, purpose):
     return _core(entity_type, object_type, purpose)
 
 
+def doi_resolver_url():
+    return toolkit.config.get('ckanext.doi.resolver_url', 'https://doi.org/').rstrip('/')
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -614,4 +618,5 @@ def get_helpers():
         "json_loads": json_loads,
         "humanize_entity_type": humanize_entity_type,
         "get_party_list": get_party_list,
+        "doi_resolver_url": doi_resolver_url,
     }
