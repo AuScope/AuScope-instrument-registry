@@ -62,6 +62,43 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.ITranslation)
     plugins.implements(plugins.IFacets, inherit=True)
     plugins.implements(plugins.IDatasetForm, inherit=True)
+    plugins.implements(plugins.IAuthenticator, inherit=True)
+
+    # IAuthenticator
+    def authenticate(self, identity):
+        """Case-insensitive email login support.
+
+        CKAN's default authenticator uses User.by_email() which does an
+        exact (case-sensitive) match on PostgreSQL.  This implementation
+        falls back to a case-insensitive email lookup so that users can
+        log in regardless of how they capitalise their email address.
+        """
+        login = identity.get('login', '')
+        password = identity.get('password', '')
+        if not login or not password:
+            return None
+
+        from ckan.model import User
+        from sqlalchemy import func
+
+        # Try username first (exact match, same as CKAN default)
+        user_obj = User.by_name(login)
+
+        # Fall back to case-insensitive email lookup
+        if not user_obj and '@' in login:
+            user_obj = (
+                model.Session.query(User)
+                .filter(func.lower(User.email) == login.lower())
+                .first()
+            )
+
+        if user_obj is None:
+            return None
+        if not user_obj.is_active:
+            return None
+        if not user_obj.validate_password(password):
+            return None
+        return user_obj
 
     # ITranslation
     def i18n_domain(self):
