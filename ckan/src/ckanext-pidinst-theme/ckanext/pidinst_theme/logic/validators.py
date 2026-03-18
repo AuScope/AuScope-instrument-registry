@@ -18,6 +18,7 @@ from pprint import pformat
 import geojson
 from shapely.geometry import shape, mapping
 from datetime import datetime
+import re
 
 import logging
 logger = logging.getLogger(__name__)
@@ -29,6 +30,12 @@ missing_error = _("Missing value")
 invalid_error = _("Invalid value")
 # A dictionary to store your validators
 all_validators = {}
+
+_FLEXIBLE_DATE_PATTERNS = [
+    re.compile(r"^\d{4}$"),
+    re.compile(r"^\d{4}-\d{2}$"),
+    re.compile(r"^\d{4}-\d{2}-\d{2}$"),
+]
 
 
 def add_error(errors, key, error_message):
@@ -582,7 +589,7 @@ def resource_url_validator(field, schema):
     """
     def validator(key, data, errors, context):
         url_value = data.get(key, '')
-        
+
         if isinstance(key, tuple) and len(key) > 0:
             if len(key) >= 2:
                 base_key = key[:-1]
@@ -590,42 +597,42 @@ def resource_url_validator(field, schema):
                 base_key = ()
         else:
             base_key = ()
-        
+
         id_key = base_key + ('id',) if base_key else ('id',)
         resource_id = data.get(id_key, missing)
-        
+
         action = context.get('__action')
         is_package_update = (action == 'package_update')
-        
+
         if is_package_update and resource_id and resource_id is not missing:
             return
-        
+
         # Check if we're clearing an upload (deleting the file)
         clear_upload_key = base_key + ('clear_upload',) if base_key else ('clear_upload',)
         clear_upload = data.get(clear_upload_key, False)
-        
+
         # If clearing upload is checked, skip validation (user is removing the file intentionally)
         if clear_upload:
             return
-            
+
         # Check if there's an upload file
         upload_key = base_key + ('upload',) if base_key else ('upload',)
         upload = data.get(upload_key, missing)
-        
+
         # Now validate: must have either URL or upload
         has_url = url_value and url_value is not missing and str(url_value).strip()
         has_upload = upload and upload is not missing
-        
+
         if has_upload:
             if hasattr(upload, 'filename'):
                 has_upload = bool(upload.filename)
             elif isinstance(upload, str):
                 has_upload = bool(upload.strip())
-        
+
         if not has_url and not has_upload:
             add_error(errors, key, _('Please provide either a file to upload or a link to an external resource'))
             raise StopOnError
-    
+
     return validator
 
 
@@ -670,6 +677,42 @@ def json_list_output(value, context):
 
 visibility_validator = owner_org_validator
 
+def flexible_date_validator(value, context):
+    """
+    Accepts dates in one of these formats:
+      - YYYY
+      - YYYY-MM
+      - YYYY-MM-DD
+
+    Returns the stripped string value if valid.
+    Raises Invalid if not valid.
+    """
+    if value is None:
+        return value
+
+    if not isinstance(value, str):
+        raise tk.Invalid("Date must be a string in YYYY, YYYY-MM, or YYYY-MM-DD format.")
+
+    value = value.strip()
+    if not value:
+        return value
+
+    if not any(pattern.match(value) for pattern in _FLEXIBLE_DATE_PATTERNS):
+        raise tk.Invalid("Enter a valid date in YYYY, YYYY-MM, or YYYY-MM-DD format.")
+
+    try:
+        if len(value) == 4:
+            datetime.strptime(value, "%Y")
+        elif len(value) == 7:
+            datetime.strptime(value, "%Y-%m")
+        elif len(value) == 10:
+            datetime.strptime(value, "%Y-%m-%d")
+        else:
+            raise tk.Invalid("Enter a valid date in YYYY, YYYY-MM, or YYYY-MM-DD format.")
+    except ValueError:
+        raise tk.Invalid("Enter a valid calendar date in YYYY, YYYY-MM, or YYYY-MM-DD format.")
+
+    return value
 
 def get_validators():
     return {
@@ -682,5 +725,6 @@ def get_validators():
         "group_name_validator" : group_name_validator,
         "resource_url_validator": resource_url_validator,
         "json_list_or_string": json_list_or_string,
-        "json_list_output": json_list_output
+        "json_list_output": json_list_output,
+        "flexible_date_validator": flexible_date_validator
     }
