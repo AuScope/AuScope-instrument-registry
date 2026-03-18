@@ -587,8 +587,8 @@ dataset_fields:
     choices:
       - value: noLocation
         label: "No"
-      # - value: area
-      #   label: Area on Map
+      - value: area
+        label: Area on Map
       - value: point
         label: Single point on Map
     default: noLocation
@@ -599,7 +599,7 @@ dataset_fields:
 
   - field_name: map_display
     label: Map Display
-    form_snippet: map_field_single_point.html
+    form_snippet: map_field_multi_points.html
     display_snippet: null
     help_text: Interactive map for selecting coordinates.
     groupBy: Spatial & Temporal

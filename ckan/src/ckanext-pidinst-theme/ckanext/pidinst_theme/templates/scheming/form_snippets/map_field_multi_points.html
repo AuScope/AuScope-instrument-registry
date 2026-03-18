@@ -2,6 +2,7 @@
 data-module="map-module" 
 data-module-site_url="{{ h.dump_json(h.url_for('/', locale='default', qualified=true)) }}"
 data-module-single-mode="false" 
+data-module-enable-bounding-box="true" 
 data-all-data='{{ data | tojson | safe }}'>
     <div id="map-container" style="height: 400px; display: none;"></div>
     {%- snippet 'scheming/form_snippets/spatial_fields.html', field=field, data=data , errors=errors -%}
