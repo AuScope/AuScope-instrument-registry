@@ -316,53 +316,6 @@ def package_withdraw(context, data_dict):
     return _require_org_admin_or_editor(context, data_dict, 'withdraw a record')
 
 
-# ---------------------------------------------------------------------------
-# Taxonomy auth overrides
-# ---------------------------------------------------------------------------
-# The upstream ckanext-taxonomy plugin restricts all mutating operations to
-# sysadmins.  We relax this so that users who are *admins* of the designated
-# organisation ("auscope-org") can also create/update/delete taxonomies and
-# taxonomy terms.
-
-TAXONOMY_ORG = tk.config.get('ckanext.taxonomy.org', 'auscope-org')
-
-
-def _is_taxonomy_admin(context):
-    """Return True if the current user is a sysadmin or an admin of TAXONOMY_ORG."""
-    user = context.get('auth_user_obj') or context.get('user')
-    if not user:
-        return False
-    username = user.name if hasattr(user, 'name') else user
-    if authz.is_sysadmin(username):
-        return True
-    role = authz.users_role_for_group_or_org(TAXONOMY_ORG, username)
-    return role == 'admin'
-
-
-def taxonomy_create(context, data_dict):
-    return {'success': _is_taxonomy_admin(context)}
-
-
-def taxonomy_update(context, data_dict):
-    return {'success': _is_taxonomy_admin(context)}
-
-
-def taxonomy_delete(context, data_dict):
-    return {'success': _is_taxonomy_admin(context)}
-
-
-def taxonomy_term_create(context, data_dict):
-    return {'success': _is_taxonomy_admin(context)}
-
-
-def taxonomy_term_update(context, data_dict):
-    return {'success': _is_taxonomy_admin(context)}
-
-
-def taxonomy_term_delete(context, data_dict):
-    return {'success': _is_taxonomy_admin(context)}
-
-
 def get_auth_functions():
     return {
         "pidinst_theme_get_sum": pidinst_theme_get_sum,
@@ -378,11 +331,5 @@ def get_auth_functions():
         "package_show": package_show,
         "package_list": package_list,
         "package_withdraw": package_withdraw,
-        "package_mark_duplicate": package_mark_duplicate,
-        "taxonomy_create": taxonomy_create,
-        "taxonomy_update": taxonomy_update,
-        "taxonomy_delete": taxonomy_delete,
-        "taxonomy_term_create": taxonomy_term_create,
-        "taxonomy_term_update": taxonomy_term_update,
-        "taxonomy_term_delete": taxonomy_term_delete,
+        "package_mark_duplicate": package_mark_duplicate
     }
