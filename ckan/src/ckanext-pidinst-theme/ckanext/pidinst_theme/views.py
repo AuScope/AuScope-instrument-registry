@@ -342,7 +342,7 @@ ALLOWED_FIELD_TERMS = {'user_keywords', 'measured_variable'}
 # Custom taxonomy terms proxy (ckanext-taxonomy)
 # ---------------------------------------------------------------------------
 
-ALLOWED_TAXONOMIES = {'Instruments', 'platforms', 'measured-variables'}
+ALLOWED_TAXONOMIES = toolkit.config.get('ckanext.taxonomy.allowed_taxonomies', ['instruments', 'platforms', 'measured-variables'])
 
 
 @pidinst_theme.route('/api/proxy/taxonomy_terms/<taxonomy_name>', methods=['GET'])
