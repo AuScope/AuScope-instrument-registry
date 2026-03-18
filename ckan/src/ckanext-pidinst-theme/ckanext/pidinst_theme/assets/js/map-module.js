@@ -1,11 +1,13 @@
 ckan.module("map-module", function ($, _) {
     return {
-        options: { singleMode: true, enableBoundingBox: false },
+        options: { singleMode: true, enableBoundingBox: true },
         initialize: function () {
             this.EPSGTextElement = $("#field-epsg");
             this.EPSGCodeElement = $("#field-epsg_code");
 
             this.singleMode = this.options.singleMode;
+            this.enableBoundingBox = this.options.enableBoundingBox;
+
             this.el.ready($.proxy(this.setupMap, this));
 
         },
