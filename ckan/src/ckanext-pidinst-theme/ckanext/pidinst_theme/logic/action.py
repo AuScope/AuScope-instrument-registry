@@ -15,6 +15,7 @@ from ckanext.pidinst_theme.logic import (
 )
 from ckanext.pidinst_theme.helpers import doi_resolver_url
 from ckanext.pidinst_theme.logic.auth import _is_doi_published, _package_extra_value
+from ckanext.pidinst_theme import party_propagation
 from ckanext.doi.lib.api import DataciteClient
 from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 from ckanext.doi.model.crud import DOIQuery
@@ -509,6 +510,58 @@ def package_withdraw(context, data_dict):
     return {'success': True, 'id': pkg_id, 'publication_status': 'withdrawn'}
 
 
+# ---------------------------------------------------------------------------
+# Party (group) lifecycle – update propagation & delete guard
+# ---------------------------------------------------------------------------
+
+@tk.chained_action
+def group_update(next_action, context, data_dict):
+    """After a party group is updated, propagate changed metadata into
+    every instrument that references it."""
+    result = next_action(context, data_dict)
+
+    # Only act on party-type groups
+    group_type = result.get('type') if isinstance(result, dict) else None
+    if group_type != 'party':
+        return result
+
+    try:
+        # Fetch the full party dict so scheming fields are available
+        party = tk.get_action('group_show')(
+            {'ignore_auth': True},
+            {'id': result['name'], 'include_extras': True},
+        )
+        party_propagation.propagate_party_update(party)
+    except Exception:
+        logging.getLogger(__name__).exception(
+            'Party update propagation failed for %s', result.get('name', '?'),
+        )
+
+    return result
+
+
+@tk.chained_action
+def group_delete(next_action, context, data_dict):
+    """Block deletion of a party group that is still referenced by
+    instruments.  Raises ``ValidationError`` with a helpful message."""
+    group_id = tk.get_or_bust(data_dict, 'id')
+
+    try:
+        group_dict = tk.get_action('group_show')(
+            {'ignore_auth': True}, {'id': group_id},
+        )
+    except tk.ObjectNotFound:
+        # Let the core action handle the 404
+        return next_action(context, data_dict)
+
+    if group_dict.get('type') == 'party':
+        check = party_propagation.check_party_deletable(group_dict['name'])
+        if not check['deletable']:
+            raise ValidationError({'message': check['message']})
+
+    return next_action(context, data_dict)
+
+
 def get_actions():
     return {
         'pidinst_theme_get_sum': pidinst_theme_get_sum,
@@ -523,4 +576,6 @@ def get_actions():
         "organization_delete" : organization_delete,
         'package_withdraw': package_withdraw,
         'package_mark_duplicate': package_mark_duplicate,
+        'group_update': group_update,
+        'group_delete': group_delete,
     }

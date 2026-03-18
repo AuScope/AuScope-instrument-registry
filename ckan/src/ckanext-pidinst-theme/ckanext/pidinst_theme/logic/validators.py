@@ -422,6 +422,12 @@ def composite_repeating_validator(field, schema):
                 except Exception:
                     add_error(errors, key, invalid_error)
                     items = None
+            elif isinstance(raw_value, list):
+                # package_show with scheming output validators may return the
+                # field as a Python list rather than a JSON string.  Accept it
+                # directly so that package_patch does not silently clear the
+                # field for every composite entry not included in the patch.
+                items = raw_value
 
         found = {}
         extras_to_delete = []
