@@ -8,7 +8,7 @@
 
 {%- set field_name  = field.field_name -%}
 {%- set gcmd_scheme = field.get('gcmd_scheme', 'measured_variables') -%}
-{%- set custom_taxonomy = field.get('custom_taxonomy', 'measured_variable') -%}
+{%- set custom_taxonomy = h.get_taxonomy_name(field.get('custom_taxonomy', 'measured_variable')) -%}
 
 {%- set gcmd_label_text = h.scheming_language_text(field.get('gcmd_label', 'Measured Variables (GCMD)')) -%}
 {%- set custom_label_text = h.scheming_language_text(field.get('custom_label', 'User Specified Measured Variables')) -%}

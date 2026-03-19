@@ -109,6 +109,7 @@ RUN pip install -e "git+https://github.com/AuScope/ckanext-taxonomy.git#egg=ckan
 COPY setup/prerun.py.override ${APP_DIR}/prerun.py
 COPY setup/start_ckan_development.sh.override ${APP_DIR}/start_ckan_development.sh
 COPY setup/create_auscope_org.sql ${APP_DIR}/create_auscope_org.sql
+COPY setup/taxonomy_init.yaml ${APP_DIR}/taxonomy_init.yaml
 # Apply any patches needed to CKAN core or any of the built extensions (not the
 # runtime mounted ones)
 

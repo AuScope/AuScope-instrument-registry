@@ -9,8 +9,8 @@
 {%- set field_name  = field.field_name -%}
 {%- set gcmd_scheme = field.get('gcmd_scheme', 'instruments') -%}
 {%- set gcmd_scheme_platform = field.get('gcmd_scheme_platform', gcmd_scheme) -%}
-{%- set custom_taxonomy = field.get('custom_taxonomy', 'instrument') -%}
-{%- set custom_taxonomy_platform = field.get('custom_taxonomy_platform', custom_taxonomy) -%}
+{%- set custom_taxonomy = h.get_taxonomy_name(field.get('custom_taxonomy', 'instrument')) -%}
+{%- set custom_taxonomy_platform = h.get_taxonomy_name(field.get('custom_taxonomy_platform', 'platform')) -%}
 
 {#- Dynamic labels for instrument vs platform context -#}
 {%- set gcmd_label_instrument   = h.scheming_language_text(field.get('gcmd_label', 'Instrument Type (GCMD)')) -%}

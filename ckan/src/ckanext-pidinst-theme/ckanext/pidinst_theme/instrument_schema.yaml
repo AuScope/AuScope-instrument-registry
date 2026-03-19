@@ -161,8 +161,8 @@ dataset_fields:
     groupBy: About Instrument
     gcmd_scheme: instruments
     gcmd_scheme_platform: platforms
-    custom_taxonomy: Instruments
-    custom_taxonomy_platform: platforms
+    custom_taxonomy: instrument
+    custom_taxonomy_platform: platform
     gcmd_label: Instrument Type (GCMD)
     gcmd_label_platform: Platform Type (GCMD)
     custom_label: Instrument Type (Custom)
@@ -298,7 +298,7 @@ dataset_fields:
     form_blanks: 0
     groupBy: About Instrument
     gcmd_scheme: measured_variables
-    custom_taxonomy: measured-variables
+    custom_taxonomy: measured_variable
     gcmd_label: Measured Variables (GCMD)
     custom_label: User Specified Measured Variables
     gcmd_code_field: measured_variable_gcmd_code

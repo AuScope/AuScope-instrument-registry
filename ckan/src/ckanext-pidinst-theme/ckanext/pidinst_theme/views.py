@@ -342,9 +342,6 @@ ALLOWED_FIELD_TERMS = {'user_keywords', 'measured_variable'}
 # Custom taxonomy terms proxy (ckanext-taxonomy)
 # ---------------------------------------------------------------------------
 
-ALLOWED_TAXONOMIES = toolkit.config.get('ckanext.taxonomy.allowed_taxonomies', ['instruments', 'platforms', 'measured-variables'])
-
-
 @pidinst_theme.route('/api/proxy/taxonomy_terms/<taxonomy_name>', methods=['GET'])
 def taxonomy_terms_search(taxonomy_name):
     """Search terms from a ckanext-taxonomy vocabulary for Select2 dropdowns.
@@ -354,7 +351,8 @@ def taxonomy_terms_search(taxonomy_name):
 
     Returns JSON: {"results": [{"id": "<uri>", "text": "<label>", "uri": "<uri>"}]}
     """
-    if taxonomy_name not in ALLOWED_TAXONOMIES:
+    from ckanext.pidinst_theme.helpers import get_allowed_taxonomies
+    if taxonomy_name not in get_allowed_taxonomies():
         return jsonify({'results': [], 'error': 'Taxonomy not allowed'}), 400
 
     query_term = request.args.get('q', '').strip().lower()

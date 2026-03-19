@@ -9,6 +9,40 @@ import logging
 import os
 from markupsafe import Markup
 
+# ---------------------------------------------------------------------------
+# Taxonomy name configuration – single source of truth
+# ---------------------------------------------------------------------------
+# Logical keys used in instrument_schema.yaml  →  CKAN config keys  →  defaults
+# Override via env vars, e.g. CKANEXT__PIDINST_THEME__TAXONOMY__INSTRUMENT=Instruments
+_TAXONOMY_CONFIG_KEYS = {
+    'instrument':        'ckanext.pidinst_theme.taxonomy.instrument',
+    'platform':          'ckanext.pidinst_theme.taxonomy.platform',
+    'measured_variable':  'ckanext.pidinst_theme.taxonomy.measured_variable',
+}
+_TAXONOMY_DEFAULTS = {
+    'instrument':        'instruments',
+    'platform':          'platforms',
+    'measured_variable':  'measured-variables',
+}
+
+
+def get_taxonomy_name(logical_key):
+    """Resolve a logical taxonomy key to the actual DB taxonomy name.
+
+    Reads from CKAN config (which is populated from env vars).  If the key
+    is not recognised it is returned unchanged so that a literal name still
+    works as a passthrough.
+    """
+    config_key = _TAXONOMY_CONFIG_KEYS.get(logical_key)
+    if config_key:
+        return toolkit.config.get(config_key, _TAXONOMY_DEFAULTS[logical_key])
+    return logical_key
+
+
+def get_allowed_taxonomies():
+    """Return the set of all configured taxonomy DB names."""
+    return {get_taxonomy_name(k) for k in _TAXONOMY_CONFIG_KEYS}
+
 def pidinst_theme_hello():
     return "Hello, pidinst_theme!"
 
@@ -619,4 +653,5 @@ def get_helpers():
         "humanize_entity_type": humanize_entity_type,
         "get_party_list": get_party_list,
         "doi_resolver_url": doi_resolver_url,
+        "get_taxonomy_name": get_taxonomy_name,
     }
