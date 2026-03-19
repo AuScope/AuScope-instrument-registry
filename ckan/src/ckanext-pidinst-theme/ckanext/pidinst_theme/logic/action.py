@@ -518,6 +518,19 @@ def package_withdraw(context, data_dict):
 def group_update(next_action, context, data_dict):
     """After a party group is updated, propagate changed metadata into
     every instrument that references it."""
+
+    # Capture the old slug BEFORE the update is committed so we can
+    # find instruments that still hold the old party name reference.
+    old_name = None
+    try:
+        current = tk.get_action('group_show')(
+            {'ignore_auth': True}, {'id': data_dict.get('id', '')}
+        )
+        if current.get('type') == 'party':
+            old_name = current.get('name')
+    except Exception:
+        pass
+
     result = next_action(context, data_dict)
 
     # Only act on party-type groups
@@ -526,12 +539,12 @@ def group_update(next_action, context, data_dict):
         return result
 
     try:
-        # Fetch the full party dict so scheming fields are available
+        # Use the stable UUID so the lookup works even when the slug changed
         party = tk.get_action('group_show')(
             {'ignore_auth': True},
-            {'id': result['name'], 'include_extras': True},
+            {'id': result['id'], 'include_extras': True},
         )
-        party_propagation.propagate_party_update(party)
+        party_propagation.propagate_party_update(party, old_name=old_name)
     except Exception:
         logging.getLogger(__name__).exception(
             'Party update propagation failed for %s', result.get('name', '?'),

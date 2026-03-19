@@ -149,11 +149,27 @@ def _package_references_party(pkg, party_name):
     return False
 
 
-def propagate_party_update(party_dict):
+def _package_references_party(pkg, party_name):
+    """Return True if *pkg* references *party_name* in any composite field."""
+    for comp_field, cfg in _FIELD_MAP.items():
+        entries = _parse_composite(pkg.get(comp_field))
+        for entry in entries:
+            pid = (entry.get(cfg['party_id_key']) or '').strip()
+            if pid == party_name:
+                return True
+    return False
+
+
+def propagate_party_update(party_dict, old_name=None):
     """Propagate changes from *party_dict* into every referencing instrument.
 
     *party_dict* should be a full group dict as returned by ``group_show``
     (with scheming fields promoted to top-level keys).
+
+    *old_name* is the party's previous ``name`` slug.  Pass it whenever the
+    slug may have changed so that instruments holding the old reference can
+    still be found.  When *old_name* equals the current name (no rename) it
+    is ignored.
 
     Returns a summary dict::
 
@@ -165,9 +181,16 @@ def propagate_party_update(party_dict):
         }
     """
     party_name = party_dict.get('name', '')
-    log.info('Party update propagation START for party=%s', party_name)
+    name_changed = bool(old_name and old_name != party_name)
+    # Search by the old slug when renamed, otherwise by the current slug
+    search_name = old_name if name_changed else party_name
 
-    instruments = find_instruments_referencing_party(party_name)
+    log.info(
+        'Party update propagation START for party=%s (old_name=%s, renamed=%s)',
+        party_name, old_name, name_changed,
+    )
+
+    instruments = find_instruments_referencing_party(search_name)
     log.info('Party %s: found %d instrument(s) to check', party_name, len(instruments))
 
     summary = {
@@ -179,7 +202,7 @@ def propagate_party_update(party_dict):
 
     for pkg in instruments:
         try:
-            updated = _update_instrument_party_fields(pkg, party_dict)
+            updated = _update_instrument_party_fields(pkg, party_dict, old_name=old_name)
             if updated:
                 summary['instruments_updated'] += 1
         except Exception as exc:
@@ -197,13 +220,20 @@ def propagate_party_update(party_dict):
     return summary
 
 
-def _update_instrument_party_fields(pkg, party_dict):
+def _update_instrument_party_fields(pkg, party_dict, old_name=None):
     """Update composite fields in *pkg* with values from *party_dict*.
+
+    When *old_name* differs from ``party_dict['name']`` (a rename), each
+    matching entry's ``*_party_id`` subfield is updated to the new slug so
+    the instrument keeps a valid reference.
 
     Returns True if a ``package_patch`` was performed, False if no
     changes were needed.
     """
     party_name = party_dict.get('name', '')
+    name_changed = bool(old_name and old_name != party_name)
+    # When renamed, entries still hold the old slug → match against it
+    search_name = old_name if name_changed else party_name
     patch_payload = {}
 
     # Use package_show to get the canonical, fully-resolved instrument data.
@@ -227,10 +257,16 @@ def _update_instrument_party_fields(pkg, party_dict):
 
         for entry in entries:
             pid = (entry.get(cfg['party_id_key']) or '').strip()
-            if pid != party_name:
+            if pid != search_name:
                 continue
 
-            # Map standard fields
+            # If the slug changed, update the *_party_id reference so the
+            # instrument points to the new party slug going forward.
+            if name_changed:
+                entry[cfg['party_id_key']] = party_name
+                changed = True
+
+            # Map standard display fields
             for party_key, instr_key in cfg['fields']:
                 new_val = _resolve_party_field(party_dict, party_key)
                 old_val = (entry.get(instr_key) or '').strip()
