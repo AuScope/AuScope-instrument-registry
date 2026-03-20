@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - master
-      - dev-instrument
-      - dev-data
 
 jobs:
   build-and-push-ghcr:
@@ -30,13 +28,7 @@ jobs:
         run: |
           echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
           echo "COMMIT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
-          if [[ "${{ github.ref }}" == "refs/heads/dev-instrument" ]]; then
-            echo "::set-output name=tag::ghcr.io/auscope/auscope-ckan-dev:instrument-latest"
-          elif [[ "${{ github.ref }}" == "refs/heads/dev-data" ]]; then
-            echo "::set-output name=tag::ghcr.io/auscope/auscope-ckan-dev:data-latest"
-          else
-            echo "::set-output name=tag::ghcr.io/auscope/auscope-ckan-dev:latest"
-          fi
+          echo "::set-output name=tag::ghcr.io/auscope/auscope-ckan-pidinst:latest"
 
       - name: Build and Push Docker image to GHCR
         uses: docker/build-push-action@v2

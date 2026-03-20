@@ -71,7 +71,8 @@ RUN pip install -r /tmp/spatial-reqs.txt
 RUN pip install future
 
 ### DOI extension ###
-RUN pip install -e "git+https://github.com/AuScope/ckanext-doi.git@auscope_pidinst#egg=ckanext-doi"
+RUN pip install -e "git+https://github.com/AuScope/ckanext-doi.git@auscope_pidinst#egg=ckanext-doi" && \
+    pip install jsonschema-specifications
 
 ### ISO19115 extension ###
 RUN pip install -e "git+https://github.com/AuScope/ckanext-iso19115.git@auscope_data_repo_customise#egg=ckanext-iso19115"
@@ -107,6 +108,7 @@ RUN pip install -e "git+https://github.com/AuScope/ckanext-taxonomy.git#egg=ckan
 COPY setup/prerun.py.override ${APP_DIR}/prerun.py
 COPY setup/start_ckan.sh.override ${APP_DIR}/start_ckan.sh
 COPY setup/create_auscope_org.sql ${APP_DIR}/create_auscope_org.sql
+COPY setup/taxonomy_init.yaml ${APP_DIR}/taxonomy_init.yaml
 # Apply any patches needed to CKAN core or any of the built extensions (not the
 # runtime mounted ones)
 
