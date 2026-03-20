@@ -71,7 +71,10 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         CKAN's default authenticator uses User.by_email() which does an
         exact (case-sensitive) match on PostgreSQL.  This implementation
         falls back to a case-insensitive email lookup so that users can
-        log in regardless of how they capitalise their email address.
+        log in regardless of how they capitalised their email address.
+
+        We also filter for active users only, so that deleted accounts
+        sharing the same email address do not shadow the active one.
         """
         login = identity.get('login', '')
         password = identity.get('password', '')
@@ -84,11 +87,12 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         # Try username first (exact match, same as CKAN default)
         user_obj = User.by_name(login)
 
-        # Fall back to case-insensitive email lookup
+        # Fall back to case-insensitive email lookup (active users only)
         if not user_obj and '@' in login:
             user_obj = (
                 model.Session.query(User)
                 .filter(func.lower(User.email) == login.lower())
+                .filter(User.state == 'active')
                 .first()
             )
 
