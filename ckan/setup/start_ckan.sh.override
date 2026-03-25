@@ -155,15 +155,6 @@ UWSGI_OPTS="--plugins http,python \
             -p 2 -L -b 32768 --vacuum \
             --harakiri $UWSGI_HARAKIRI"
 
-if [ $? -eq 0 ]
-then
-    # Start supervisord
-    mkdir -p /var/log/supervisor
-    mkdir -p /var/lib/ckan/storage
-    chown -R ckan:$(id -gn ckan) /var/log/supervisor /var/lib/ckan/storage
-    supervisord -c /etc/supervisor/supervisord.conf &
-    # Start uwsgi
-    su ckan -c "/usr/sbin/uwsgi $UWSGI_OPTS"
-else
-  echo "[prerun] failed...not starting CKAN."
-fi
+echo "Starting CKAN via uwsgi..."
+mkdir -p /var/lib/ckan/storage
+exec /usr/sbin/uwsgi $UWSGI_OPTS
