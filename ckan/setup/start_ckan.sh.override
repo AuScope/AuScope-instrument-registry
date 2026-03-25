@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -eu
+# set -eu
 # Add ckan.datapusher.api_token to the CKAN config file (updated with corrected value later)
 ckan config-tool $CKAN_INI ckan.datapusher.api_token=xxx
 APP_DIR=$(dirname "$CKAN_INI")
