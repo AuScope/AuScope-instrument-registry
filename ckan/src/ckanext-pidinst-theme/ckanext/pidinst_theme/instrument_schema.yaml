@@ -80,58 +80,23 @@ dataset_fields:
     validators: visibility_validator
     groupBy: About Instrument
 
-  # ======================== OWNER (PARTY) ========================
-  # Owners are selected from the Party registry (CKAN groups of type
-  # "party").  Users pick one or more parties from a dropdown and
-  # provide a contact email for each.  If the party already has a
-  # contact recorded, it is used as the default but can be overridden.
-
-  - field_name: owner
-    label: Owner
-    preset: composite_repeating
-    validators: composite_repeating_validator
-    form_snippet: composite_repeating_field.html
-    form_blanks: 1
-    groupBy: About Instrument
+  # ======================== INSTRUMENT CLASSIFICATION ========================
+  - field_name: instrument_classification
+    label: Instrument Classification
+    preset: select
     required: true
-    help_text: "Select one or more parties as owners. A contact email is required for each selected owner."
-    subfields:
-      - field_name: owner_party_id
-        label: Party
-        form_snippet: owner_party_select.html
-        help_text: "Select a party from the registry"
-        validators: ignore_missing unicode_safe
-        required: true
-
-      - field_name: owner_name
-        label: Owner Name
-        form_snippet: composite_hidden_field.html
-        display_snippet: null
-        validators: ignore_missing unicode_safe
-        help_text: "Resolved party title — used by DOI minting as the contributor name."
-
-      - field_name: owner_identifier
-        label: Owner Identifier
-        form_snippet: composite_hidden_field.html
-        display_snippet: null
-        validators: ignore_missing unicode_safe
-        help_text: "Party identifier (ROR or other) — used by DOI minting."
-
-      - field_name: owner_identifier_type
-        label: Owner Identifier Type
-        form_snippet: composite_hidden_field.html
-        display_snippet: null
-        validators: ignore_missing unicode_safe
-        help_text: "Type of the party identifier — used by DOI minting."
-
-      - field_name: owner_contact
-        label: Owner Contact
-        form_attrs:
-          type: email
-          placeholder: contact@example.edu.au
-        help_text: "Contact email for this owner. Pre-filled from party if available."
-        validators: ignore_missing unicode_safe strip_value email_validator
-
+    default: Geophysics
+    choices:
+      - value: Geophysics
+        label: Geophysics
+      - value: Geochemistry
+        label: Geochemistry
+      - value: Petrophysics
+        label: Petrophysics
+      - value: Other
+        label: Other
+    help_text: A high-level classification of the instrument.
+    groupBy: About Instrument
 
   - field_name: instrument_type_gcmd_code
     label: Instrument Type (GCMD)
@@ -184,6 +149,59 @@ dataset_fields:
       - field_name: instrument_type_identifier_type
         label: Type Identifier Type
         help_text: "Type of the identifier"
+
+  # ======================== OWNER (PARTY) ========================
+  # Owners are selected from the Party registry (CKAN groups of type
+  # "party").  Users pick one or more parties from a dropdown and
+  # provide a contact email for each.  If the party already has a
+  # contact recorded, it is used as the default but can be overridden.
+
+  - field_name: owner
+    label: Owner
+    preset: composite_repeating
+    validators: composite_repeating_validator
+    form_snippet: composite_repeating_field.html
+    form_blanks: 1
+    groupBy: About Instrument
+    required: true
+    help_text: "Select one or more parties as owners. A contact email is required for each selected owner."
+    subfields:
+      - field_name: owner_party_id
+        label: Party
+        form_snippet: owner_party_select.html
+        help_text: "Select a party from the registry"
+        validators: ignore_missing unicode_safe
+        required: true
+
+      - field_name: owner_name
+        label: Owner Name
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+        help_text: "Resolved party title — used by DOI minting as the contributor name."
+
+      - field_name: owner_identifier
+        label: Owner Identifier
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+        help_text: "Party identifier (ROR or other) — used by DOI minting."
+
+      - field_name: owner_identifier_type
+        label: Owner Identifier Type
+        form_snippet: composite_hidden_field.html
+        display_snippet: null
+        validators: ignore_missing unicode_safe
+        help_text: "Type of the party identifier — used by DOI minting."
+
+      - field_name: owner_contact
+        label: Owner Contact
+        form_attrs:
+          type: email
+          placeholder: contact@example.edu.au
+        help_text: "Contact email for this owner. Pre-filled from party if available."
+        validators: ignore_missing unicode_safe strip_value email_validator
+
 
   - field_name: manufacturer
     label: Manufacturer
