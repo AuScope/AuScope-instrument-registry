@@ -158,9 +158,12 @@ UWSGI_OPTS="--plugins http,python \
 if [ $? -eq 0 ]
 then
     # Start supervisord
-    supervisord -c /etc/supervisor/supervisord.conf &
+    supervisord -c /etc/supervisord.conf &
     # Start uwsgi
-    su ckan -c "/usr/sbin/uwsgi $UWSGI_OPTS"
+    # su ckan -c "/usr/local/bin/uwsgi $UWSGI_OPTS"
+    chown -R 92:92 /var/lib/ckan/storage /var/lib/ckan/webassets
+    chmod -R u+rwX,g+rwX /var/lib/ckan/storage /var/lib/ckan/webassets
+    exec uwsgi $UWSGI_OPTS
 else
   echo "[prerun] failed...not starting CKAN."
 fi
