@@ -202,4 +202,4 @@ RUN chmod +x ${APP_DIR}/start_ckan.sh
 # RUN chmod +x ${APP_DIR}/start_ckan.sh
 
 
-USER ckan
+# USER ckan

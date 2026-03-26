@@ -139,4 +139,4 @@ RUN pip install $APP_DIR/src_extensions/ckanext-oidc-pkce && \
 RUN chmod +x ${APP_DIR}/start_ckan_development.sh
 
 
-USER ckan
+# USER ckan
