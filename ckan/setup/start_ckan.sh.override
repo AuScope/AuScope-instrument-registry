@@ -124,7 +124,7 @@ then
 fi
 
 # Delay initializing DB for DOI
-# ckan -c $CKAN_INI doi initdb
+ckan -c $CKAN_INI doi initdb
 
 # Initialize taxonomy database tables
 echo "Initializing taxonomy tables..."
