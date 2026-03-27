@@ -160,10 +160,12 @@ else
     ckan config-tool $CKAN_INI "ckanext.s3filestore.aws_access_key_id=$CKANEXT__S3FILESTORE__AWS_ACCESS_KEY_ID"
     ckan config-tool $CKAN_INI "ckanext.s3filestore.aws_secret_access_key=$CKANEXT__S3FILESTORE__AWS_SECRET_ACCESS_KEY"
 fi
+ckan config-tool $CKAN_INI "ckanext.s3filestore.aws_bucket_name=$CKANEXT__S3FILESTORE__AWS_BUCKET_NAME"
 ckan config-tool $CKAN_INI "ckanext.s3filestore.region_name=$CKANEXT__S3FILESTORE__REGION_NAME"
 ckan config-tool $CKAN_INI "ckanext.s3filestore.signature_version=$CKANEXT__S3FILESTORE__SIGNATURE_VERSION"
 ckan config-tool $CKAN_INI "ckanext.s3filestore.acl=$CKANEXT__S3FILESTORE__ACL"
 ckan config-tool $CKAN_INI "ckanext.s3filestore.check_access_on_startup=$CKANEXT__S3FILESTORE__CHECK_ACCESS_ON_STARTUP"
+
 
 # Only set datapusher token if provided
 if [ -n "${DATAPUSHER_API_TOKEN:-}" ]; then
