@@ -141,10 +141,15 @@ this.ckan.module('pidinst-composite-repeating', function (jQuery, _) {
       }
       var newRow = this.templateRow.clone(false, false);
 
-      var existingCount = this.el.find(this.options.fieldSelector).length;
-      if (existingCount > 0) {
-        this._setRowIndex(newRow, existingCount + 1);
-      }
+      var maxIdx = 0;
+      this.el.find(':input[name]').each(function () {
+        var m = (jQuery(this).attr('name') || '').match(/-(\d+)-/);
+        if (m) {
+          var idx = parseInt(m[1], 10);
+          if (idx > maxIdx) { maxIdx = idx; }
+        }
+      });
+      this._setRowIndex(newRow, maxIdx + 1);
 
       this._attachRow(newRow);
       this._afterAddRowReset(newRow);

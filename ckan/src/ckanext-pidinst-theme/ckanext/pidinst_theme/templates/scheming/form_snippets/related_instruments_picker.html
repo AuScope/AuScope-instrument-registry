@@ -1,0 +1,77 @@
+{#- Related Instruments picker.
+    Search + Add button + selected list (like vocab-picker / type_picker).
+    Reads existing Instrument/Version entries from related_identifier_obj.
+    Writes hidden inputs that the related_instruments_validator merges back.
+-#}
+{% import 'macros/form.html' as form %}
+
+{%- set field_name = field.field_name -%}
+
+{#- Extract existing instrument & version relations from canonical storage -#}
+{%- set raw_rel = data.get('related_identifier_obj', '[]') -%}
+{%- set rel_list = h.pidinst_parse_related_instruments(raw_rel) -%}
+
+<div data-module="related-instruments-picker-module"
+     data-module-field-name="{{ field_name }}"
+     data-module-doi-resolver-url="{{ h.doi_resolver_url() }}"
+     data-module-site-url="{{ h.url_for('/', _external=True) }}"
+     class="related-instruments-picker"
+     id="related-instruments-picker-{{ field_name }}">
+
+  {#- Existing data for JS prepopulation -#}
+  <script type="application/json" class="related-instruments-existing">
+    {{ rel_list | tojson }}
+  </script>
+
+  <label class="form-label" for="related-instruments-picker-{{ field_name }}">
+    {% if h.scheming_field_required(field) %}
+      <span title="This field is required" class="control-required">*</span>
+    {% endif %}
+    {{ h.scheming_language_text(field.label) }}
+  </label>
+
+  <div class="related-instruments-search-row">
+    <div class="input-group">
+      <input type="text" class="form-control related-instruments-search-input"
+             placeholder="Search by title, model, or serial number…"
+             style="width:100%">
+
+    </div>
+    <div class="info-block" style="margin-top:4px;">
+      <i class="fa fa-info-circle"></i>
+      Add instruments that are components of this instrument.
+    </div>
+  </div>
+
+  <ul class="related-instruments-list" style="margin-top:12px;"></ul>
+
+  <div class="related-instruments-hidden-inputs"></div>
+
+  {% if errors.get(field_name) %}
+    {% for error in errors[field_name] %}
+      <span class="error-block">{{ error }}</span>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<style>
+  .related-instruments-picker { margin-bottom: 16px; }
+  .related-instruments-list { list-style: none; padding-left: 0; margin: 0; }
+  .related-instruments-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 4px;
+    margin-bottom: 4px; background: #fafbfc;
+  }
+  .related-instruments-item-label { flex: 1; }
+  .related-instruments-badge {
+    font-size: 11px; padding: 2px 6px; border-radius: 10px;
+    line-height: 1.2; white-space: nowrap;
+  }
+  .related-instruments-badge-version {
+    border: 1px solid #d9e2ff; background: #eef3ff; color: #1f3a8a; font-weight: 600;
+  }
+  .related-instruments-badge-component {
+    border: 1px solid #d1fae5; background: #ecfdf5; color: #065f46;
+  }
+  .related-instruments-empty { color: #9ca3af; padding: 8px 0; font-style: italic; }
+</style>

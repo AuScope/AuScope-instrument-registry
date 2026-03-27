@@ -19,41 +19,57 @@
 ) %}
 
 {# Detect "empty start" — non-required field with only blank rows #}
-{% set ns = namespace(has_data=false) %}
+{% set ns = namespace(has_data=false, has_visible_row=false) %}
 {% for field_dict in field_dict_list %}
-  {% for subfield in field.subfields %}
-    {% if field_dict.get(subfield.field_name, '') not in ['', none, None] %}
-      {% set ns.has_data = true %}
-    {% endif %}
-  {% endfor %}
+  {% set _cat = h.pidinst_row_category(field_dict) %}
+  {% if _cat == 'generic' %}
+    {% set ns.has_visible_row = true %}
+    {% for subfield in field.subfields %}
+      {% if field_dict.get(subfield.field_name, '') not in ['', none, None] %}
+        {% set ns.has_data = true %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
 {% endfor %}
 {% set start_empty = (not is_required and not ns.has_data) %}
 
-{# Need one hidden blank row so JS can clone it as a template #}
-{% if start_empty and field_dict_list|length == 0 %}
-  {% set field_dict_list = [{}] %}
+{# Need one hidden blank row so JS can clone it as a template.
+   Also inject one when ALL rows are instrument-managed (filtered out),
+   so the JS module always has a .composite-control-repeating to clone from.
+   We track whether the appended row is a synthetic template-only row so we
+   can force it to display:none even when start_empty is false. #}
+{% set needs_template_row = not ns.has_visible_row %}
+{% if (start_empty and field_dict_list|length == 0) or needs_template_row %}
+  {% set field_dict_list = field_dict_list + [{}] %}
 {% endif %}
 
-<div id="instrument-relation-config"
-     data-doi-resolver-url="{{ h.doi_resolver_url() }}">
-</div>
-<div data-module="instrument-relation-module">
 <div data-module="pidinst-composite-repeating"
      data-module-required="{{ 'true' if is_required else 'false' }}"
      data-module-field-label="{{ h.scheming_language_text(field.label) }}"
-     {% if start_empty %}data-module-start-empty="true"{% endif %}
+     {% if start_empty or needs_template_row %}data-module-start-empty="true"{% endif %}
      id="composite-repeating-div-{{ field.field_name }}">
 
   {% for field_dict in field_dict_list %}
     {% set subfields_repeating_label = field.get("subfields_label", "") %}
     {% set index = loop.index %}
 
-    {# ✅ readonly row rule: only IsNewVersionOf record #}
-    {% set row_readonly = (field_dict.get('relation_type') == 'IsNewVersionOf') %}
+    {# Classify row: preserved (hidden inputs), instrument (skip), or generic (editable) #}
+    {% set _cat = h.pidinst_row_category(field_dict) %}
+    {% set _rt = field_dict.get('relation_type', '') %}
+    {% set _rtype = field_dict.get('related_resource_type', '') %}
 
-    <div class="composite-control-repeating{% if row_readonly %} is-readonly{% endif %}"
-         {% if row_readonly %}data-row-readonly="true"{% endif %}
-         {% if start_empty %} style="display:none"{% endif %}>
+    {% if _cat == 'preserved' %}
+      {% for _sf in field.subfields %}
+        <input type="hidden" name="{{ field.field_name }}-{{ index }}-{{ _sf.field_name }}" value="{{ field_dict.get(_sf.field_name, '') | empty_and_escape }}">
+      {% endfor %}
+    {% elif _cat == 'generic' %}
+    {% set row_readonly = false %}
+    {# hide if: (a) start_empty, or (b) this is the synthetic template row we injected
+       because all data rows were instrument-managed (needs_template_row + loop.last + empty dict) #}
+    {% set hide_row = start_empty or (needs_template_row and loop.last and not _rt and not _rtype) %}
+
+    <div class="composite-control-repeating"
+         {% if hide_row %} style="display:none"{% endif %}>
 
       {% for subfield in field.subfields %}
         {% set subfield_form_snippet = subfield.get("form_snippet", "default") %}
@@ -233,24 +249,14 @@
       {% endfor %}
 
     </div>
+    {% endif %}
   {% endfor %}
 
 </div>
-</div>{# close instrument-relation-module wrapper #}
 
 <hr>
 
 <style>
-  /* Visual cue for the locked IsNewVersionOf row */
-  #composite-repeating-div-related_identifier_obj .composite-control-repeating.is-readonly {
-    opacity: 0.85;
-  }
-
-  /* Hide the minus/remove button ONLY for the locked IsNewVersionOf row */
-  #composite-repeating-div-related_identifier_obj .composite-control-repeating.is-readonly .btn-danger {
-    display: none !important;
-  }
-
   /* Put Type + Relation Type inline */
   #composite-repeating-div-related_identifier_obj .pidinst-inline-row {
     display: flex;
@@ -294,42 +300,13 @@
     order: 1;
     margin-bottom: 4px;
   }
-  /* Row 2: Instrument search (injected by JS after types row) */
-  #composite-repeating-div-related_identifier_obj .pidinst-instrument-search {
+  /* Row 2: related_identifier bare text input */
+  #composite-repeating-div-related_identifier_obj .pidinst-row-id-text {
     order: 2;
   }
-  /* Row 3: related_identifier bare text input */
-  #composite-repeating-div-related_identifier_obj .pidinst-row-id-text {
-    order: 3;
-  }
-  /* Row 4: Identifier Type + Identifier Name */
+  /* Row 3: Identifier Type + Identifier Name */
   #composite-repeating-div-related_identifier_obj .pidinst-row-id-details {
-    order: 4;
-  }
-  /* On narrow screens, stacked flex items are already column; ensure inline rows wrap */
-
-  /* ── Instrument relation search control ── */
-  .pidinst-instrument-search {
-    margin-top: 8px;
-    padding: 12px;
-    border: 1px solid #d0e0f0;
-    border-radius: 4px;
-    background: #f7fafd;
-  }
-  .pidinst-instrument-search-label {
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: #2a6496;
-  }
-  .pidinst-instrument-search-help {
-    font-size: 0.85em;
-    color: #777;
-    margin-top: 4px;
-  }
-  /* Disabled identifier fields visual cue */
-  .pidinst-disabled {
-    background-color: #eee !important;
-    cursor: not-allowed;
+    order: 3;
   }
 
 </style>
@@ -338,16 +315,11 @@
 (function () {
   const MAP = {
     Document: ["IsDescribedBy"],
-    Instrument: ["HasPart", "IsPartOf"],
     Metadata: ["HasMetadata", "IsMetadataFor"],
-    Dataset: ["Collects"],
-    Version: ["IsNewVersionOf"]
+    Dataset: ["Collects"]
   };
 
   function applyRow(rowEl) {
-    // Skip locked IsNewVersionOf row
-    if (rowEl.getAttribute("data-row-readonly") === "true") return;
-
     const typeSel = rowEl.querySelector('[data-pidinst-reltype-driver="1"]');
     const relSel  = rowEl.querySelector('[data-pidinst-reltype-target="1"]');
     if (!typeSel || !relSel) return;

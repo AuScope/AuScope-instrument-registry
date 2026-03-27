@@ -167,10 +167,10 @@ this.ckan.module('jstree-view-module', function ($, _) {
         if (nt === 'group') { inst.toggle_node(node); return; }
         if (nt === 'cycle' || nt === 'root') return;
 
-        // Instrument nodes: navigate to dataset page
+        // Instrument nodes: navigate to instrument page
         var href = node.data.pkgName
-          ? '/dataset/' + node.data.pkgName
-          : (node.data.pkgId ? '/dataset/' + node.data.pkgId : null);
+          ? '/instrument/' + node.data.pkgName
+          : (node.data.pkgId ? '/instrument/' + node.data.pkgId : null);
         if (href) window.location.href = href;
       });
     },
@@ -298,7 +298,7 @@ this.ckan.module('jstree-view-module', function ($, _) {
                           ancestors: ancestors,
                           _rels: rels },
               a_attr:   { title: title,
-                          href: '/dataset/' + (pkg.name || pkg.id),
+                          href: '/instrument/' + (pkg.name || pkg.id),
                           class: 'clickable-node' },
               children: hasMore          /* true → show expand arrow */
             });
@@ -355,7 +355,7 @@ this.ckan.module('jstree-view-module', function ($, _) {
         text:     this._trunc(label, 200) + (hasUnavail ? '' : ' (unresolved)'),
         type:     'unresolved',
         data:     { nodeType: 'unresolved', pkgId: pkgId || null },
-        a_attr:   { href: pkgId ? '/dataset/' + pkgId : '#',
+        a_attr:   { href: pkgId ? '/instrument/' + pkgId : '#',
                     class: pkgId ? 'clickable-node' : 'pidinst-unresolved-node',
                     title: label },
         children: false

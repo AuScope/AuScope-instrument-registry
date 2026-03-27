@@ -447,22 +447,84 @@ dataset_fields:
 
 
 
+  # ======================== RELATED INSTRUMENTS ========================
+  - field_name: related_instruments
+    label: Related Instruments
+    form_snippet: related_instruments_picker.html
+    display_snippet: related_instruments_display.html
+    validators: related_instruments_validator
+    groupBy: Related Instruments
+    help_text: Add component instruments that are part of this instrument.
+
+
+  # ================= GEOLOCATION FIELDS =================
+  - field_name: locality
+    label: Locality
+    help_text: The locality or named place where the instrument is located
+    groupBy: Spatial & Temporal
+
+  - field_name: location_choice
+    label: Location Details
+    preset: radio
+    choices:
+      - value: noLocation
+        label: "No"
+      - value: area
+        label: Area on Map
+      - value: point
+        label: Single point on Map
+    default: noLocation
+    display_snippet: map_field.html
+    help_text: Choose how to specify the location.
+    validators: location_validator
+    groupBy: Spatial & Temporal
+
+  - field_name: map_display
+    label: Map Display
+    form_snippet: map_field_multi_points.html
+    display_snippet: null
+    help_text: Interactive map for selecting coordinates.
+    groupBy: Spatial & Temporal
+
+  - field_name: location_data
+    label: Location Data
+    form_snippet: null
+    display_snippet: null
+    preset: json_object
+    groupBy: Spatial & Temporal
+
+  - field_name: spatial
+    label: Spatial
+    form_snippet: null
+    display_snippet: null
+    preset: json_object
+    groupBy: Spatial & Temporal
+
+  - field_name: epsg_code
+    label: Geographic Coordinate System
+    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
+    form_snippet: null
+    display_snippet: null
+    groupBy: Spatial & Temporal
+
+  - field_name: epsg
+    label: Geographic Coordinate System
+    form_snippet: hidden_field.html
+    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
+    display_snippet: null
+    groupBy: Spatial & Temporal
+
   # ======================== RELATED RESOURCES ========================
   - field_name: related_identifier_obj
-    label: Related Identifier
+    label: Related Resources
     preset: composite_repeating
     form_snippet: composite_repeating_field.html
-    validators: composite_repeating_validator
-    scheming_validators: [ensure_single_isnewversionof]
+    validators: "composite_repeating_validator merge_related_instruments"
     form_blanks: 0
     groupBy: Related Resources
     composite_rules:
       - when_present: related_identifier
         require: [related_identifier_type]
-      - when_equals:
-          field: related_resource_type
-          value: Instrument
-        require: [related_instrument_package_id]
     subfields:
       - field_name: related_identifier
         label: Related Identifier
@@ -528,14 +590,10 @@ dataset_fields:
         choices:
           - value: Document
             label: Document
-          - value: Instrument
-            label: Instrument
           - value: Metadata
             label: Metadata
           - value: Dataset
             label: Dataset
-          - value: Version
-            label: Version
         help_text: Choose what kind of thing this identifier refers to. This will filter Relation Type options.
 
       - field_name: relation_type
@@ -547,18 +605,12 @@ dataset_fields:
         choices:
           - value: IsDescribedBy
             label: IsDescribedBy (The instrument is described by the document)
-          - value: HasPart
-            label: HasPart (The instrument has the related resource as a part)
-          - value: IsPartOf
-            label: IsPartOf (The instrument is part of the related resource)
           - value: HasMetadata
             label: HasMetadata (The instrument has related metadata for the resource)
           - value: IsMetadataFor
             label: IsMetadataFor (The resource has metadata describing the instrument)
           - value: Collects
             label: Collects (The instrument collects the related dataset)
-          - value: IsNewVersionOf
-            label: IsNewVersionOf (The instrument is a new version of the related resource)
         help_text: Description of the relationship
 
       - field_name: related_instrument_package_id
@@ -574,63 +626,6 @@ dataset_fields:
         display_snippet: null
         validators: ignore_missing
         help_text: Role of the related instrument (child or parent)
-
-  # ================= GEOLOCATION FIELDS =================
-  - field_name: locality
-    label: Locality
-    help_text: The locality or named place where the instrument is located
-    groupBy: Spatial & Temporal
-
-  - field_name: location_choice
-    label: Location Details
-    preset: radio
-    choices:
-      - value: noLocation
-        label: "No"
-      - value: area
-        label: Area on Map
-      - value: point
-        label: Single point on Map
-    default: noLocation
-    display_snippet: map_field.html
-    help_text: Choose how to specify the location.
-    validators: location_validator
-    groupBy: Spatial & Temporal
-
-  - field_name: map_display
-    label: Map Display
-    form_snippet: map_field_multi_points.html
-    display_snippet: null
-    help_text: Interactive map for selecting coordinates.
-    groupBy: Spatial & Temporal
-
-  - field_name: location_data
-    label: Location Data
-    form_snippet: null
-    display_snippet: null
-    preset: json_object
-    groupBy: Spatial & Temporal
-
-  - field_name: spatial
-    label: Spatial
-    form_snippet: null
-    display_snippet: null
-    preset: json_object
-    groupBy: Spatial & Temporal
-
-  - field_name: epsg_code
-    label: Geographic Coordinate System
-    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
-    form_snippet: null
-    display_snippet: null
-    groupBy: Spatial & Temporal
-
-  - field_name: epsg
-    label: Geographic Coordinate System
-    form_snippet: hidden_field.html
-    help_text: "A geographic coordinate system is a three-dimensional reference system that locates points on the Earth's surface. We use EPSG (https://epsg.io/) to represent the coordinate system"
-    display_snippet: null
-    groupBy: Spatial & Temporal
 
   # XXX This will be auto-generated after DOI minting, see metadata document
 
