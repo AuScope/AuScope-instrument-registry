@@ -4,11 +4,11 @@
     {% set pkg = h.get_package(parent_id) %}  {# Attempt to fetch the package details by ID #}
 
     {% if pkg %}
-        {% set pkg_link = h.url_for('dataset.read', id=parent_id) %}
-        <a href="{{ pkg_link }}">{{ pkg.title }}</a>  
+        {% set pkg_link = h.url_for('instrument.read', id=parent_id) %}
+        <a href="{{ pkg_link }}">{{ pkg.title }}</a>
     {% else %}
-        <span>No valid parent found.</span>  
+        <span>No valid parent found.</span>
     {% endif %}
 {% else %}
-    <span>No parent assigned</span>  
+    <span>No parent assigned</span>
 {% endif %}

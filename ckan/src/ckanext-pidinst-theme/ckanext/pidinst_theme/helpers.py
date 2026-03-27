@@ -98,11 +98,11 @@ def pidinst_parse_json_list(value):
 
 
 def is_creating_or_editing_dataset():
-    """Determine if the user is creating or editing a dataset."""
+    """Determine if the user is creating or editing a instrument."""
     current_path = toolkit.request.path
-    if current_path.startswith('/dataset/new'):
+    if current_path.startswith('/instrument/new'):
         return True
-    elif "/dataset/edit/" in current_path:
+    elif "/instrument/edit/" in current_path:
         return True
     return False
 
@@ -172,7 +172,7 @@ def get_user_role_in_organization(org_id):
 def custom_structured_data(dataset_id, profiles=None, _format='jsonld'):
     '''
     Returns a string containing the structured data of the given
-    dataset id and using the given profiles (if no profiles are supplied
+    instrument id and using the given profiles (if no profiles are supplied
     the default profiles are used).
 
     This string can be used in the frontend.
@@ -334,7 +334,7 @@ def get_analytics_config():
 
 def prepare_dataset_for_cloning(original_pkg_dict, original_pkg_id):
     """
-    Prepare a dataset dict for cloning as a new version.
+    Prepare a instrument dict for cloning as a new version.
     Removes fields that should not be copied and adds IsNewVersionOf relationship.
 
     Args:
@@ -415,7 +415,7 @@ def prepare_dataset_for_cloning(original_pkg_dict, original_pkg_id):
 
     # Create the new relationship entry with all required fields matching schema
     new_relationship = {
-        'related_identifier': original_doi if original_doi else toolkit.url_for('dataset.read',
+        'related_identifier': original_doi if original_doi else toolkit.url_for('instrument.read',
                                                                                   id=original_pkg_id,
                                                                                   qualified=True),
         'related_identifier_name': original_title,
@@ -453,7 +453,7 @@ def pidinst_upload_help_html():
     )
 
 def get_cover_photo_info(package_id, current_resource_id=None):
-    """Return info about the existing cover photo resource for a dataset,
+    """Return info about the existing cover photo resource for a instrument,
     excluding *current_resource_id* (the resource being edited).
 
     Returns a dict ``{'id': ..., 'name': ...}`` or ``None``.

@@ -27,7 +27,7 @@
   {% if package.description %}
     <div>{{ h.markdown_extract(package.description, extract_length=180)|urlize }}</div>
   {% else %}
-    <p class="empty">{{ h.humanize_entity_type('package', package.type, 'no description') or _("There is no description for this dataset") }}</p>
+    <p class="empty">{{ h.humanize_entity_type('package', package.type, 'no description') or _("There is no description for this instrument") }}</p>
   {% endif %}
 {% endblock %}
 

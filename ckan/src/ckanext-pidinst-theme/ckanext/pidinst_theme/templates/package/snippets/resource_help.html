@@ -17,16 +17,16 @@
           </ul>
         </div>
         {% if resources|length > 10 %}
-          <a href="{{ h.url_for('dataset.read', id=pkg.name) }}" class="load-more">Load More</a>
+          <a href="{{ h.url_for('instrument.read', id=pkg.name) }}" class="load-more">Load More</a>
         {% endif %}
       {% else %}
         {% block resource_list_empty %}
           {% if h.check_access('resource_create', {'package_id': pkg['id']}) %}
             {% trans url=h.url_for(pkg.type ~ '_resource.new', id=pkg.name) %}
-              <p class="empty">This dataset has no data, <a href="{{ url }}">why not add some?</a></p>
+              <p class="empty">This instrument has no data, <a href="{{ url }}">why not add some?</a></p>
             {% endtrans %}
           {% else %}
-            <p class="empty">{{ _('This dataset has no data') }}</p>
+            <p class="empty">{{ _('This instrument has no data') }}</p>
           {% endif %}
         {% endblock %}
       {% endif %}

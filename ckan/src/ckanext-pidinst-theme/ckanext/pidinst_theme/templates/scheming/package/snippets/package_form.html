@@ -32,7 +32,7 @@
               {# stage 1 #}
               <button class="highlight" name="save" value="go-resources" type="submit">{{ _('Add data') }}</button>
             {%- else -%}
-              {% link_for _('Add data'), named_route='dataset.new', class_='highlight' %}
+              {% link_for _('Add data'), named_route='instrument.new', class_='highlight' %}
             {%- endif -%}
           {%- endif -%}
         </li>
@@ -49,7 +49,7 @@
     {%- snippet 'scheming/snippets/errors.html',
         errors=errors,
         fields=schema.dataset_fields,
-        entity_type='dataset',
+        entity_type='instrument',
         object_type=dataset_type -%}
   {%- endif -%}
 {% endblock %}
@@ -137,7 +137,7 @@
                   data=data,
                   errors=errors,
                   licenses=c.licenses,
-                  entity_type='dataset',
+                  entity_type='instrument',
                   object_type=dataset_type -%}
             {%- endif -%}
           {%- endfor -%}
