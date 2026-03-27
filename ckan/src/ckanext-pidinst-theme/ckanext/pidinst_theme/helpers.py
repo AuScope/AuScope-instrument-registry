@@ -422,7 +422,9 @@ def prepare_dataset_for_cloning(original_pkg_dict, original_pkg_id):
         'related_identifier_type': 'DOI' if original_doi else 'URL',
         'relation_type': 'IsNewVersionOf',
         'related_resource_type': 'Version',
-        '_is_version_relationship': True  # Mark this as a version relationship
+        # related_instrument_package_id is required so the picker JS/validator
+        # round-trip works correctly and the version row is not silently dropped.
+        'related_instrument_package_id': original_pkg_id,
     }
 
     # Find and remove existing IsNewVersionOf relationship from the list
@@ -628,6 +630,65 @@ def doi_resolver_url():
     return toolkit.config.get('ckanext.doi.resolver_url', 'https://doi.org/').rstrip('/')
 
 
+def _first_str(val, default=''):
+    """Coerce to string, taking first element if list."""
+    if isinstance(val, list):
+        val = next((s for s in val if s), default)
+    return val or default
+
+
+def pidinst_row_category(entry):
+    """Classify a related_identifier_obj row for template filtering.
+
+    Returns 'preserved' (IsPartOf/IsNewVersionOf), 'instrument' (picker-managed), or 'generic'.
+    """
+    if not isinstance(entry, dict):
+        return 'generic'
+    rt = entry.get('relation_type', '')
+    if rt in ('IsPartOf', 'IsNewVersionOf'):
+        return 'preserved'
+    rtype = entry.get('related_resource_type', '')
+    pkg_id = (entry.get('related_instrument_package_id') or '').strip()
+    if rtype in ('Instrument', 'Version') or rt == 'HasPart' or pkg_id:
+        return 'instrument'
+    return 'generic'
+
+
+def pidinst_parse_related_instruments(raw):
+    """Extract instrument/version entries from related_identifier_obj for the picker UI."""
+    items = []
+    if not raw:
+        return items
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return items
+    if not isinstance(raw, list):
+        return items
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        rel = entry.get('relation_type', '')
+        # Skip child-side reciprocals
+        if rel == 'IsPartOf':
+            continue
+        rtype = entry.get('related_resource_type', '')
+        if rtype not in ('Instrument', 'Version') and rel not in ('HasPart', 'IsNewVersionOf'):
+            continue
+        items.append({
+            'package_id': entry.get('related_instrument_package_id', ''),
+            'label': _first_str(entry.get('related_identifier_name'))
+                     or _first_str(entry.get('related_identifier'))
+                     or entry.get('related_instrument_package_id', ''),
+            'doi': '',
+            'relation_type': rel,
+            'identifier': _first_str(entry.get('related_identifier')),
+            'identifier_type': _first_str(entry.get('related_identifier_type')),
+        })
+    return items
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -654,4 +715,6 @@ def get_helpers():
         "get_party_list": get_party_list,
         "doi_resolver_url": doi_resolver_url,
         "get_taxonomy_name": get_taxonomy_name,
+        "pidinst_parse_related_instruments": pidinst_parse_related_instruments,
+        "pidinst_row_category": pidinst_row_category,
     }

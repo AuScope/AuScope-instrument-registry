@@ -28,6 +28,63 @@ StopOnError = df.StopOnError
 not_empty = get_validator('not_empty')
 missing_error = _("Missing value")
 invalid_error = _("Invalid value")
+
+
+def _coerce_str(v, default=''):
+    """Coerce to stripped string; takes first element if list (CKAN getlist)."""
+    if isinstance(v, list):
+        v = v[0] if v else default
+    return (v or default).strip()
+
+
+def _parse_json_to_list(raw):
+    """Parse a JSON string or list to a list. Returns [] on failure."""
+    if not raw or raw is missing:
+        return []
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, list) else []
+        except (json.JSONDecodeError, ValueError):
+            return []
+    return []
+
+
+def _build_instrument_entries(picker_rows):
+    """Convert picker rows into canonical instrument entries, deduplicating."""
+    entries = []
+    seen = set()
+    for row in picker_rows:
+        if not isinstance(row, dict):
+            continue
+        pkg_id = _coerce_str(row.get('package_id'))
+        rel_type = _coerce_str(row.get('relation_type'), 'HasPart')
+        # Dedup: version → single slot, component → by pkg_id, legacy → by identifier
+        if rel_type == 'IsNewVersionOf':
+            dedup_key = '__version__'
+        elif pkg_id:
+            dedup_key = pkg_id
+        else:
+            identifier = _coerce_str(row.get('identifier'))
+            dedup_key = f'id:{identifier}' if identifier else ''
+        if not dedup_key or dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+        is_version = rel_type == 'IsNewVersionOf'
+        entries.append({
+            'related_identifier': _coerce_str(row.get('identifier')),
+            'related_identifier_type': _coerce_str(row.get('identifier_type'), 'URL'),
+            'related_identifier_name': _coerce_str(row.get('label')),
+            'related_resource_type': 'Version' if is_version else 'Instrument',
+            'relation_type': rel_type,
+            'related_instrument_package_id': pkg_id,
+            'instrument_relation_role': 'version' if is_version else 'child',
+        })
+    return entries
+
+
 # A dictionary to store your validators
 all_validators = {}
 
@@ -42,77 +99,6 @@ def add_error(errors, key, error_message):
     errors[key] = errors.get(key, [])
     errors[key].append(error_message)
 
-
-@scheming_validator
-@register_validator
-def ensure_single_isnewversionof(field, schema):
-    """
-    Ensure exactly one IsNewVersionOf relationship exists in related_identifier_obj.
-    If missing, reinsert based on hidden original fields.
-    If multiple, collapse to one and warn.
-    """
-    def validator(key, data, errors, context):
-        related_key = key
-        value = data.get(related_key, [])
-
-        # Expect list of dicts
-        if value in (missing, None):
-            value = []
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except Exception:
-                value = []
-        if not isinstance(value, list):
-            value = []
-
-        # Pull originals from hidden fields
-        orig_rel = {
-            'related_identifier': data.get(('_original_related_identifier',), ''),
-            'related_identifier_name': data.get(('_original_related_identifier_name',), ''),
-            'related_identifier_type': data.get(('_original_related_identifier_type',), 'DOI'),
-            'relation_type': data.get(('_original_relation_type',), 'IsNewVersionOf') or 'IsNewVersionOf',
-        }
-
-        # Fallback to dataset URL if no identifier
-        if not orig_rel['related_identifier']:
-            pkg_id = data.get(('_original_package_id',), '') or data.get(('id',), '')
-            if pkg_id:
-                try:
-                    orig_rel['related_identifier'] = tk.url_for('dataset.read', id=pkg_id, qualified=True)
-                except Exception:
-                    orig_rel['related_identifier'] = ''
-
-        # Collect non-version relationships
-        non_version = [rel for rel in value if rel.get('relation_type') != 'IsNewVersionOf']
-
-        # Build the single enforced version relationship
-        version_rel = {
-            'related_identifier': orig_rel.get('related_identifier', ''),
-            'related_identifier_name': orig_rel.get('related_identifier_name', ''),
-            'related_identifier_type': orig_rel.get('related_identifier_type', 'DOI'),
-            'relation_type': 'IsNewVersionOf',
-        }
-
-        # Ensure version relationship has a value
-        if not version_rel['related_identifier']:
-            errors[related_key] = errors.get(related_key, [])
-            errors[related_key].append(_('Missing IsNewVersionOf related identifier'))
-            return
-
-        # Prepend the version relationship, rest follow
-        new_list = [version_rel] + non_version
-
-        # Write back
-        data[related_key] = new_list
-
-        # If more than one version relationship was present, add a warning
-        num_version = sum(1 for rel in value if rel.get('relation_type') == 'IsNewVersionOf')
-        if num_version > 1:
-            errors[related_key] = errors.get(related_key, [])
-            errors[related_key].append(_('Only one IsNewVersionOf relationship is allowed; extra entries were removed'))
-
-    return validator
 
 @scheming_validator
 @register_validator
@@ -321,6 +307,10 @@ def _parse_composite_from_extras(key, data):
         extras_to_delete.append(name)
 
         found.setdefault(index, {})
+        # CKAN's parse_params returns a list when the same field name appears
+        # more than once in the POST body.  Normalise to the first non-empty value.
+        if isinstance(text, list):
+            text = next((t for t in text if t), text[0] if text else '')
         found[index][subfield] = text
 
     found_list = [row for _, row in sorted(found.items(), key=lambda kv: kv[0])]
@@ -720,6 +710,113 @@ def flexible_date_validator(value, context):
 
     return value
 
+
+@scheming_validator
+@register_validator
+def related_instruments_validator(field, schema):
+    """Parse the related-instruments picker JSON and stash entries for merge."""
+    def validator(key, data, errors, context):
+        field_name = key[-1]
+
+        # Try data[key], then __extras
+        raw = data.get(key, '')
+        if not raw or raw is missing:
+            extras_key = key[:-1] + ('__extras',)
+            extras = data.get(extras_key, {})
+            if isinstance(extras, dict) and field_name in extras:
+                raw = extras.pop(field_name)
+
+        picker_rows = _parse_json_to_list(raw)
+
+        # Fallback: old flat composite extras format
+        if not picker_rows:
+            _, found_list, extras_to_delete, extras_dict = \
+                _parse_composite_from_extras(key, data)
+            if found_list:
+                picker_rows = found_list
+                if extras_dict is not None:
+                    for name in extras_to_delete:
+                        extras_dict.pop(name, None)
+
+        instrument_entries = _build_instrument_entries(picker_rows)
+
+        logger.debug(
+            '[related_instruments_validator] stashing %d entries: %s',
+            len(instrument_entries),
+            [e.get('related_instrument_package_id') for e in instrument_entries],
+        )
+        # Stash for merge_related_instruments; flag whether picker was submitted
+        data[('_related_instruments_entries',)] = instrument_entries
+        data[('_related_instruments_submitted',)] = bool(raw and raw is not missing)
+        data[key] = ''
+
+    return validator
+
+
+@scheming_validator
+@register_validator
+def merge_related_instruments(field, schema):
+    """Post-processor for related_identifier_obj: merge instrument entries from picker."""
+    def validator(key, data, errors, context):
+        instrument_entries = data.pop(('_related_instruments_entries',), None)
+        picker_submitted = data.pop(('_related_instruments_submitted',), False)
+
+        # Fallback: stash not yet set (validators ran in unexpected order)
+        if instrument_entries is None:
+            raw_picker = data.get(('related_instruments',), '')
+            if not raw_picker or raw_picker is missing:
+                extras = data.get(('__extras',), {})
+                if isinstance(extras, dict):
+                    raw_picker = extras.get('related_instruments', '')
+            picker_rows = _parse_json_to_list(raw_picker)
+            if picker_rows:
+                picker_submitted = True
+            instrument_entries = _build_instrument_entries(picker_rows)
+
+        # Parse the current validated value
+        current_list = _parse_json_to_list(data.get(key, ''))
+
+        # Categorise existing entries
+        non_instrument = []
+        existing_versions = []
+        existing_ispartof = []
+        existing_components = []
+        for entry in current_list:
+            if not isinstance(entry, dict):
+                continue
+            rt = entry.get('relation_type', '')
+            rtype = entry.get('related_resource_type', '')
+            if rt == 'IsNewVersionOf':
+                existing_versions.append(entry)
+            elif rt == 'IsPartOf':
+                existing_ispartof.append(entry)
+            elif rtype in ('Instrument', 'Version') or rt == 'HasPart':
+                existing_components.append(entry)
+            else:
+                non_instrument.append(entry)
+
+        # Picker wins when submitted; otherwise preserve existing
+        picker_versions = [e for e in instrument_entries if e['relation_type'] == 'IsNewVersionOf']
+        picker_components = [e for e in instrument_entries if e['relation_type'] != 'IsNewVersionOf']
+        final_versions = picker_versions if picker_versions else existing_versions
+        final_components = picker_components if picker_submitted else existing_components
+
+        if len(final_versions) > 1:
+            errors[key] = errors.get(key, [])
+            errors[key].append(_('Only one previous-version relation is allowed'))
+            raise StopOnError
+
+        merged = final_versions + final_components + existing_ispartof + non_instrument
+        logger.debug(
+            '[merge_related_instruments] merged %d entries (versions=%d components=%d ispartof=%d other=%d picker_submitted=%s)',
+            len(merged), len(final_versions), len(final_components),
+            len(existing_ispartof), len(non_instrument), picker_submitted,
+        )
+        data[key] = json.dumps(merged, ensure_ascii=False) if merged else ''
+
+    return validator
+
+
 def get_validators():
     return {
         "pidinst_theme_required": pidinst_theme_required,
@@ -732,5 +829,7 @@ def get_validators():
         "resource_url_validator": resource_url_validator,
         "json_list_or_string": json_list_or_string,
         "json_list_output": json_list_output,
-        "flexible_date_validator": flexible_date_validator
+        "flexible_date_validator": flexible_date_validator,
+        "related_instruments_validator": related_instruments_validator,
+        "merge_related_instruments": merge_related_instruments,
     }

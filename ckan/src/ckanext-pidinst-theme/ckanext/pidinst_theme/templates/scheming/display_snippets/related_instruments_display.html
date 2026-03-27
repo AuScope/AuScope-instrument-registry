@@ -1,0 +1,31 @@
+{#- Display snippet for the related_instruments virtual field.
+    Reads parent-owned instrument relations from canonical related_identifier_obj storage.
+-#}
+{%- set raw_rel = data.get('related_identifier_obj', '[]') -%}
+{%- set rel_list = h.pidinst_parse_related_instruments(raw_rel) -%}
+
+{% if rel_list %}
+  <ul class="related-instruments-display-list" style="list-style:none;padding-left:0;margin:0;">
+    {% for entry in rel_list %}
+      <li style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f0f0f0;">
+        {% set is_version = entry.relation_type == 'IsNewVersionOf' %}
+        <span style="flex:1;">
+          {% if entry.package_id %}
+            <a href="/instrument/{{ entry.package_id }}" target="_blank">{{ entry.label or entry.package_id }} </a>
+          {% elif entry.identifier %}
+            <a href="{{ entry.identifier }}" target="_blank" rel="noopener">{{ entry.label or entry.identifier }}</a>
+          {% else %}
+            {{ entry.label }}
+          {% endif %}
+        </span>
+        <span style="font-size:11px;padding:2px 6px;border-radius:10px;white-space:nowrap;
+               {% if is_version %}border:1px solid #d9e2ff;background:#eef3ff;color:#1f3a8a;font-weight:600;
+               {% else %}border:1px solid #d1fae5;background:#ecfdf5;color:#065f46;{% endif %}">
+          {{ 'Previous version' if is_version else 'Component' }}
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <span class="muted" style="color:#9ca3af;font-style:italic;">None</span>
+{% endif %}

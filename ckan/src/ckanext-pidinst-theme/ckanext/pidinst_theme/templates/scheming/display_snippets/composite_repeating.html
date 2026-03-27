@@ -6,6 +6,8 @@
 
 <ul>
  {% for composite_dict in composite_dict_list %}
+   {# For related_identifier_obj, skip instrument-managed rows (shown by the picker instead) #}
+   {% if field.field_name != 'related_identifier_obj' or h.pidinst_row_category(composite_dict) == 'generic' %}
    <li>
      {% set first_key_written = false %}
      {% for key in name_list %}
@@ -43,5 +45,6 @@
        {% endif %}
      {% endfor %}
    </li>
+   {% endif %}
  {% endfor %}
 </ul>

@@ -59,7 +59,7 @@ this.ckan.module('vocab-picker-module', function ($, _) {
       this._updateLabels();
       this._initGcmdSelect2();
       this._initCustomSelect2();
-      this._bindAddButtons();
+      this._bindAutoAdd();
       this._prepopulate();
     },
 
@@ -128,18 +128,20 @@ this.ckan.module('vocab-picker-module', function ($, _) {
       });
     },
 
-    /* ── Add buttons ────────────────────────────────────────────────── */
-    _bindAddButtons: function () {
+    /* ── Auto-add on selection ──────────────────────────────────────── */
+    _bindAutoAdd: function () {
       var self = this;
 
-      this.el.find('.vocab-picker-gcmd-add').on('click', function () {
+      this.gcmdSelect.on('change', function (e) {
+        if (!e.val) return;
         var d = self.gcmdSelect.select2('data');
         if (!d) return;
         self._addEntry(d.text, d.id, 'URI', 'gcmd');
         self.gcmdSelect.select2('val', '');
       });
 
-      this.el.find('.vocab-picker-custom-add').on('click', function () {
+      this.customSelect.on('change', function (e) {
+        if (!e.val) return;
         var d = self.customSelect.select2('data');
         if (!d) return;
         self._addEntry(d.text, d.id || '', d.id ? 'URI' : '', 'custom');

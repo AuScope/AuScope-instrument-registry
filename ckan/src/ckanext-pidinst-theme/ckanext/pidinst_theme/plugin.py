@@ -9,6 +9,7 @@ from ckanext.pidinst_theme.logic import validators
 from ckanext.pidinst_theme import views
 from ckanext.pidinst_theme import helpers
 from ckanext.pidinst_theme import analytics
+from ckanext.pidinst_theme import relation_sync
 
 import ckan.model as model
 import logging
@@ -182,6 +183,26 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
 
         # Sync party group membership
         self._sync_party_groups(context, pkg_dict)
+
+        # Sync reciprocal instrument relationships on publish
+        try:
+            relation_sync.sync_publish_reciprocals(context, pkg_dict)
+        except Exception as e:
+            logging.error('Failed to sync publish reciprocals: %s', e)
+
+        # Clean up reciprocals if withdrawn
+        pub_status = pkg_dict.get('publication_status', '')
+        if pub_status in ('withdrawn', 'duplicate'):
+            try:
+                relation_sync.cleanup_reciprocals(context, pkg_dict)
+            except Exception as e:
+                logging.error('Failed to cleanup reciprocals: %s', e)
+
+    def after_dataset_delete(self, context, pkg_dict):
+        try:
+            relation_sync.cleanup_reciprocals(context, pkg_dict)
+        except Exception as e:
+            logging.error('Failed to cleanup reciprocals on delete: %s', e)
 
         # self.process_doi_metadata(pkg_dict)
 
@@ -412,7 +433,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                 "id": p.get("id"),
                 "name": p.get("name"),
                 "title": p.get("title") or p.get("name"),
-                "url": toolkit.url_for("dataset.read", id=(p.get("name") or p.get("id")), qualified=True),
+                "url": toolkit.url_for("instrument.read", id=(p.get("name") or p.get("id")), qualified=True),
                 "version_number": p.get("version_number"),
                 "metadata_created": p.get("metadata_created"),
             }

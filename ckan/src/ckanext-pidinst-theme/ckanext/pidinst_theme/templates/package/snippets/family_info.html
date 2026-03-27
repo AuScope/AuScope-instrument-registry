@@ -56,46 +56,45 @@
 {% endblock %}
 
 <style>
-  /* ── Ensure parent containers handle overflow properly ── */
-  .context-info {
-    overflow: hidden;
-  }
-  .context-info [data-module="jstree-view-module"] {
-    overflow: hidden;
-    width: 100%;
-  }
+  /* ── Overflow safety ── */
+  .context-info { overflow: hidden; }
+  .context-info [data-module="jstree-view-module"] { overflow: hidden; width: 100%; }
 
-  /* ── Instrument Family Tree (scoped to .pidinst-family-tree) ─────── */
+  /* ── Tree container ── */
+  .pidinst-family-tree { padding: 4px 2px; width: 100%; }
+  .pidinst-family-tree .jstree,
+  .pidinst-family-tree .jstree-container-ul { overflow: hidden; }
 
-  /* ── Fix: only set vertical margin; preserve jsTree's margin-left (indentation) ── */
-  .pidinst-family-tree {
-    padding: 8px 4px;
-    overflow: hidden;
-    width: 100%;
-  }
-  .pidinst-family-tree .jstree {
-    overflow: hidden;
-  }
-  .pidinst-family-tree .jstree-container-ul {
-    overflow: hidden;
+  /* ── Branch lines ── */
+  .pidinst-family-tree .jstree-children {
+    margin-left: 6px;
+    padding-left: 16px;
+    border-left: 1px solid var(--bs-gray-300);
   }
   .pidinst-family-tree .jstree-node {
+    position: relative;
     margin-top: 2px;
-    margin-bottom: 0;
-    overflow: hidden;
-    /* margin-left is set by jsTree theme (24px) — do NOT override */
+    margin-bottom: 2px;
+    margin-left: 12px !important;
+    overflow: visible;
   }
-  .pidinst-family-tree .jstree-children {
-    overflow: hidden;
+  .pidinst-family-tree .jstree-children > .jstree-node::before {
+    content: "";
+    position: absolute;
+    top: 13px;
+    left: -16px;
+    width: 12px;
+    border-top: 1px solid var(--bs-gray-300);
   }
 
-  /* ── Fix: sprite paths break when CSS is bundled; use CSS triangles instead ── */
+  /* ── Toggle arrows ── */
   .pidinst-family-tree .jstree-ocl {
     position: relative;
-    width: 24px;
+    width: 22px;
     height: 24px;
     cursor: pointer;
-    background-image: none !important; /* override broken sprite */
+    background-image: none !important;
+    vertical-align: middle;
   }
   .pidinst-family-tree .jstree-ocl::after {
     content: '';
@@ -103,138 +102,82 @@
     top: 50%;
     left: 50%;
     border-style: solid;
-    /* collapsed state: right-pointing triangle */
-    border-width: 5px 0 5px 7px;
-    border-color: transparent transparent transparent #9ca3af;
-    transform: translate(-50%, -50%);
-    transition: transform 0.15s ease;
+    border-width: 5px 0 5px 8px;
+    border-color: transparent transparent transparent var(--bs-gray-500);
+    transform: translate(-40%, -50%);
   }
   .pidinst-family-tree .jstree-open > .jstree-ocl::after {
-    /* expanded state: down-pointing triangle */
-    border-width: 7px 5px 0 5px;
-    border-color: #6b7280 transparent transparent transparent;
+    border-width: 8px 5px 0 5px;
+    border-color: var(--bs-gray-500) transparent transparent transparent;
+    transform: translate(-50%, -30%);
   }
-  /* Leaf nodes (no children) — hide the toggle entirely */
-  .pidinst-family-tree .jstree-leaf > .jstree-ocl::after {
-    display: none;
-  }
+  .pidinst-family-tree .jstree-leaf > .jstree-ocl::after { display: none; }
 
-  /* ── Anchors: readable size, aligned text, row height ~26px ── */
+  /* ── Node anchors ── */
   .pidinst-family-tree .jstree-anchor {
-    font-size: 18px;
-    color: #374151;
+    font-size: inherit;
+    color: inherit;
     text-decoration: none;
-    padding: 2px 6px;
-    border-radius: 4px;
-    line-height: 1.6;
-    height: 26px;
+    padding: 3px 4px;
+    line-height: 1.5;
     vertical-align: middle;
-    transition: background 0.15s ease, color 0.15s ease;
     display: inline-block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: calc(100% - 30px);
-    width: auto;
+    max-width: calc(100% - 26px);
   }
-  .pidinst-family-tree .jstree-anchor:hover {
-    background: #f0f4fa;
-    text-decoration: none;
-  }
-
-  /* ── Wholerow element ── */
-  .pidinst-family-tree .jstree-wholerow {
-    overflow: hidden;
-  }
+  .pidinst-family-tree .jstree-anchor:hover { background: transparent; text-decoration: underline; }
 
   /* ── Wholerow hover + selection ── */
-  .pidinst-family-tree .jstree-wholerow-hovered {
-    background: rgba(59, 130, 246, 0.06) !important;
-  }
-  .pidinst-family-tree .jstree-wholerow-clicked {
-    background: rgba(59, 130, 246, 0.10) !important;
-  }
+  .pidinst-family-tree .jstree-wholerow { overflow: hidden; }
+  .pidinst-family-tree .jstree-wholerow-hovered { background: rgba(40, 37, 114, 0.04) !important; }
+  .pidinst-family-tree .jstree-wholerow-clicked  { background: rgba(40, 37, 114, 0.05) !important; }
 
-  /* ── Group nodes = section headers (muted, semi-bold, uppercase) ── */
-  .pidinst-family-tree .pidinst-group-node {
-    color: #6b7280 !important;
-    font-weight: 600;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    cursor: pointer;
-  }
-
-  /* ── Root / current instrument emphasis ── */
+  /* ── Current instrument ── */
   .pidinst-family-tree .pidinst-current-node {
-    font-weight: 600;
-    color: #1e293b !important;
+    font-weight: 700;
+    color: var(--color-aus-black) !important;
   }
 
   /* ── Clickable instrument links ── */
   .pidinst-family-tree .clickable-node {
     cursor: pointer;
-    color: #2563eb !important;
+    color: var(--color-aus-royal-blue) !important;
   }
   .pidinst-family-tree .clickable-node:hover {
-    color: #1d4ed8 !important;
+    color: var(--color-aus-royal-blue-dark) !important;
     text-decoration: underline;
   }
 
   /* ── Cycle / unresolved placeholders ── */
   .pidinst-family-tree .pidinst-cycle-node,
   .pidinst-family-tree .pidinst-unresolved-node {
-    color: #9ca3af !important;
+    color: var(--bs-gray-500) !important;
     font-style: italic;
     cursor: default;
   }
 
-  /* ── Other Versions widget ──────────────────────────── */
-  .pidinst-versions-box {
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
-  }
-  .pidinst-versions-list {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-  }
-  .pidinst-versions-item + .pidinst-versions-item {
-    border-top: none;
-  }
+  /* ── Other Versions widget ── */
+  .pidinst-versions-box { margin-top: 0; padding-top: 0; border-top: none; }
+  .pidinst-versions-list { list-style: none; padding-left: 0; margin: 0; background: transparent; }
+  .pidinst-versions-item + .pidinst-versions-item { border-top: none; }
   .pidinst-versions-link {
     display: flex;
     justify-content: space-between;
     gap: 12px;
     padding: 6px 10px;
     text-decoration: none;
-    border-radius: 4px;
+    border-radius: 3px;
   }
-  .pidinst-versions-link:hover {
-    background: #f6f7f9;
-    text-decoration: none;
-  }
-  .pidinst-versions-right {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    flex: 0 0 auto;
-  }
+  .pidinst-versions-link:hover { background: var(--bs-gray-100); text-decoration: none; }
+  .pidinst-versions-right { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
   .pidinst-badge {
     font-size: 11px;
     padding: 2px 6px;
     border-radius: 10px;
     line-height: 1.2;
-    border: 1px solid #d9e2ff;
-    background: #eef3ff;
-    color: #1f3a8a;
+    border: 1px solid var(--bs-gray-300);
+    background: var(--bs-gray-100);
+    color: var(--color-aus-royal-blue);
     white-space: nowrap;
   }
-  .pidinst-badge-latest {
-    font-weight: 600;
-  }
+  .pidinst-badge-latest { font-weight: 600; }
 </style>
