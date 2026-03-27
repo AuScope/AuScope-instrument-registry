@@ -1,19 +1,9 @@
 /**
  * jstree-view-module.js
  *
- * Recursive, lazy-loaded instrument family tree.
- *
- * Data flow:
- *  1. Reads data-related-identifiers (JSON from pkg.related_identifier_obj),
- *     filters HasPart/IsPartOf, lazy-loads deeper levels via package_show.
- *  2. Fallback: CKAN package_relationships_list (legacy parent_of).
- *
- * Key design decisions:
- *  - Multi-parent: same instrument may appear under multiple parents.
- *    Each display node gets a unique sequential id (nid()); real package
- *    id is in node.data.pkgId.
- *  - Cycle protection: ancestor chain per path; cycles show a placeholder.
- *  - Group nodes ("Is Part of"/"Has Part of") are lazy-loaded section headers.
+ * Lazy-loaded instrument family tree.
+ * Instruments load as direct children — no relation-label group nodes.
+ * Multi-parent safe (display ids via nid()), cycle-protected per branch.
  */
 this.ckan.module('jstree-view-module', function ($, _) {
   'use strict';
@@ -130,8 +120,6 @@ this.ckan.module('jstree-view-module', function ($, _) {
       return dfd.promise();
     },
 
-    /* ── jsTree initialisation ────────────────────── */
-
     _initTree: function () {
       var self  = this;
       var $tree = this.$tree;
@@ -146,15 +134,13 @@ this.ckan.module('jstree-view-module', function ($, _) {
         },
         plugins: ['types', 'wholerow'],
         types: {
-          'default':    { icon: false },
-          instrument:   { icon: false },
-          group:        { icon: false },
-          cycle:        { icon: false },
-          unresolved:   { icon: false }
+          'default':  { icon: false },
+          instrument: { icon: false },
+          cycle:      { icon: false },
+          unresolved: { icon: false }
         }
       });
 
-      /* Click → navigate (instrument nodes only) */
       $tree.on('click', '.jstree-anchor', function (e) {
         e.preventDefault();
         var inst   = $tree.jstree(true);
@@ -162,12 +148,7 @@ this.ckan.module('jstree-view-module', function ($, _) {
         var node   = inst.get_node(nodeId);
         if (!node || !node.data) return;
         var nt = node.data.nodeType;
-
-        // Group nodes: toggle expand/collapse on text click
-        if (nt === 'group') { inst.toggle_node(node); return; }
         if (nt === 'cycle' || nt === 'root') return;
-
-        // Instrument nodes: navigate to instrument page
         var href = node.data.pkgName
           ? '/instrument/' + node.data.pkgName
           : (node.data.pkgId ? '/instrument/' + node.data.pkgId : null);
@@ -175,38 +156,27 @@ this.ckan.module('jstree-view-module', function ($, _) {
       });
     },
 
-    /* ── core.data router (called by jsTree for lazy nodes) ── */
-
     _loadNode: function (node, cb) {
       var self = this;
 
-      /* Root call */
       if (node.id === '#') {
         var rootPkg  = this._pkgCache[this.packageId];
         var rootRels = this._extractRelations(rootPkg._related);
-        var groups   = this._makeGroups(this.packageId, rootRels, [], true);
-
+        var hasMore  = (rootRels.parents.length + rootRels.children.length) > 0;
         cb([{
           id:       nid(),
           text:     this._trunc(this.packageTitle, 200),
           type:     'instrument',
           state:    { opened: true },
           data:     { pkgId: this.packageId, pkgName: this.packageName,
-                      nodeType: 'root', ancestors: [] },
+                      nodeType: 'root', ancestors: [], _rels: rootRels },
           a_attr:   { title: this.packageTitle, href: '#',
                       class: 'pidinst-current-node' },
-          children: groups
+          children: hasMore
         }]);
         return;
       }
 
-      /* Expanding a group node */
-      if (node.data && node.data.nodeType === 'group') {
-        this._loadGroupKids(node, cb);
-        return;
-      }
-
-      /* Expanding an instrument node */
       if (node.data && (node.data.nodeType === 'instrument' ||
                          node.data.nodeType === 'root')) {
         this._loadInstrumentKids(node, cb);
@@ -216,120 +186,71 @@ this.ckan.module('jstree-view-module', function ($, _) {
       cb([]);
     },
 
-    /* ── Build group nodes ────────────────────────── */
-
-    _makeGroups: function (pkgId, rels, ancestors, autoOpen) {
-      var out   = [];
-      var chain = ancestors.concat([pkgId]);
-
-      if (rels.parents.length) {
-        out.push({
-          id:       nid(),
-          text:     'Is Part of',
-          type:     'group',
-          state:    { opened: !!autoOpen },
-          data:     { nodeType: 'group', direction: 'parents',
-                      ownerPkgId: pkgId, items: rels.parents,
-                      ancestors: chain },
-          a_attr:   { href: '#', class: 'pidinst-group-node' },
-          children: true                /* ← lazy-load */
-        });
-      }
-
-      if (rels.children.length) {
-        out.push({
-          id:       nid(),
-          text:     'Has Part of',
-          type:     'group',
-          state:    { opened: !!autoOpen },
-          data:     { nodeType: 'group', direction: 'children',
-                      ownerPkgId: pkgId, items: rels.children,
-                      ancestors: chain },
-          a_attr:   { href: '#', class: 'pidinst-group-node' },
-          children: true                /* ← lazy-load */
-        });
-      }
-
-      return out;
-    },
-
-    /* ── Expand group → return instrument nodes ───── */
-
-    _loadGroupKids: function (node, cb) {
-      var self      = this;
-      var items     = node.data.items || [];
-      var ancestors = node.data.ancestors || [];
-      var results   = [];
-      var pending   = items.length;
-
-      if (!pending) { cb([]); return; }
-
-      items.forEach(function (item) {
-        var pkgId = item.pkgId;
-        var label = item.label || 'Unknown instrument';
-
-        /* Cycle check */
-        if (pkgId && ancestors.indexOf(pkgId) !== -1) {
-          results.push(self._cycleNode(label));
-          if (--pending === 0) cb(results);
-          return;
-        }
-
-        /* No pkgId → unresolved */
-        if (!pkgId) {
-          results.push(self._unresolvedNode(label));
-          if (--pending === 0) cb(results);
-          return;
-        }
-
-        self._fetchPkg(pkgId).then(
-          function (pkg) {
-            var title   = pkg.title || pkg.name || label;
-            var rels    = self._extractRelations(pkg._related);
-            var hasMore = (rels.parents.length + rels.children.length) > 0;
-
-            results.push({
-              id:       nid(),
-              text:     self._trunc(title, 200),
-              type:     'instrument',
-              data:     { nodeType: 'instrument',
-                          pkgId: pkg.id,
-                          pkgName: pkg.name || pkg.id,
-                          ancestors: ancestors,
-                          _rels: rels },
-              a_attr:   { title: title,
-                          href: '/instrument/' + (pkg.name || pkg.id),
-                          class: 'clickable-node' },
-              children: hasMore          /* true → show expand arrow */
-            });
-            if (--pending === 0) cb(results);
-          },
-          function () {
-            results.push(self._unresolvedNode(label + ' (unavailable)', pkgId));
-            if (--pending === 0) cb(results);
-          }
-        );
-      });
-    },
-
-    /* ── Expand instrument → return its groups ────── */
-
     _loadInstrumentKids: function (node, cb) {
-      var self      = this;
-      var pkgId     = node.data.pkgId;
-      var ancestors = node.data.ancestors || [];
+      var self          = this;
+      var pkgId         = node.data.pkgId;
+      var ancestors     = node.data.ancestors || [];
+      var nextAncestors = ancestors.concat([pkgId]);
+
+      function buildNodes(rels) {
+        var items   = rels.parents.concat(rels.children);
+        var pending = items.length;
+        if (!pending) { cb([]); return; }
+
+        var results = [];
+        items.forEach(function (item) {
+          var id    = item.pkgId;
+          var label = item.label || 'Unknown instrument';
+
+          if (id && nextAncestors.indexOf(id) !== -1) {
+            results.push(self._cycleNode(label));
+            if (--pending === 0) cb(results);
+            return;
+          }
+
+          if (!id) {
+            results.push(self._unresolvedNode(label));
+            if (--pending === 0) cb(results);
+            return;
+          }
+
+          self._fetchPkg(id).then(
+            function (pkg) {
+              var title   = pkg.title || pkg.name || label;
+              var rels    = self._extractRelations(pkg._related);
+              var hasMore = (rels.parents.length + rels.children.length) > 0;
+              results.push({
+                id:       nid(),
+                text:     self._trunc(title, 200),
+                type:     'instrument',
+                data:     { nodeType: 'instrument',
+                            pkgId: pkg.id,
+                            pkgName: pkg.name || pkg.id,
+                            ancestors: nextAncestors,
+                            _rels: rels },
+                a_attr:   { title: title,
+                            href: '/instrument/' + (pkg.name || pkg.id),
+                            class: 'clickable-node' },
+                children: hasMore
+              });
+              if (--pending === 0) cb(results);
+            },
+            function () {
+              results.push(self._unresolvedNode(label + ' (unavailable)', id));
+              if (--pending === 0) cb(results);
+            }
+          );
+        });
+      }
 
       if (node.data._rels) {
-        cb(self._makeGroups(pkgId, node.data._rels, ancestors, false));
+        buildNodes(node.data._rels);
         return;
       }
 
       self._fetchPkg(pkgId).then(
-        function (pkg) {
-          var rels = self._extractRelations(pkg._related);
-          cb(self._makeGroups(pkgId, rels, ancestors, false));
-        },
-        function () { cb([]); }
+        function (pkg) { buildNodes(self._extractRelations(pkg._related)); },
+        function ()    { cb([]); }
       );
     },
 
