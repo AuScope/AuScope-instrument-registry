@@ -111,7 +111,7 @@ this.ckan.module('related-instruments-picker-module', function ($, _) {
           data: function (term) {
             var safe = (term || '').replace(/([+\-&|!(){}[\]^"~*?:\\/])/g, '\\$1');
             var query = safe.split(/\s+/).filter(Boolean).map(function (w) { return w + '*'; }).join(' ');
-            return { q: query || '*:*', fq: 'type:instrument AND private:true AND state:active', rows: 20 };
+            return { q: query || '*:*', fq: 'type:instrument AND private:false AND state:active', rows: 20 };
           },
           results: function (data) {
             if (!data.success) return { results: [] };
