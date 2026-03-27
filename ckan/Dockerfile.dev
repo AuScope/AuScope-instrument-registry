@@ -82,7 +82,8 @@ RUN pip install -e "git+https://github.com/AuScope/ckanext-doi.git@ckan-2.11#egg
     pip install jsonschema-specifications
 
 ### S3 Filestore extension ###
-RUN pip install -e "git+https://github.com/keitaroinc/ckanext-s3filestore.git#egg=ckanext-s3filestore"
+# RUN pip install -e "git+https://github.com/AuScope/ckanext-s3filestore.git@ckan-2.11#egg=ckanext-s3filestore"
+RUN pip install -e 'git+https://github.com/qld-gov-au/ckanext-s3filestore.git#egg=ckanext-s3filestore'
 
 ### Scheming ###
 RUN pip install -e "git+https://github.com/ckan/ckanext-scheming.git@master#egg=ckanext-scheming"
