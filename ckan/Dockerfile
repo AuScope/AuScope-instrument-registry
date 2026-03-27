@@ -82,7 +82,8 @@ RUN pip install ckanext-contact
 
 ### S3 Filestore extension ###
 # RUN pip install -e "git+https://github.com/AuScope/ckanext-s3filestore.git@ckan-2.11#egg=ckanext-s3filestore"
-RUN pip install -e 'git+https://github.com/qld-gov-au/ckanext-s3filestore.git#egg=ckanext-s3filestore'
+RUN pip install -e 'git+https://github.com/qld-gov-au/ckanext-s3filestore.git#egg=ckanext-s3filestore' && \
+    pip install boto3 botocore
 
 ### Scheming ###
 RUN pip install -e "git+https://github.com/ckan/ckanext-scheming.git@master#egg=ckanext-scheming"
