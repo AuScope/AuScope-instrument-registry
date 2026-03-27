@@ -435,7 +435,7 @@ def package_mark_duplicate(context, data_dict):
             {'ignore_auth': True}, {'id': duplicate_of}
         )
     except tk.ObjectNotFound:
-        raise ValidationError({'duplicate_of': ['No dataset found with that id or name.']})
+        raise ValidationError({'duplicate_of': ['No instrument found with that id or name.']})
 
     if target['id'] == package.id:
         raise ValidationError({'duplicate_of': ['A record cannot be a duplicate of itself.']})

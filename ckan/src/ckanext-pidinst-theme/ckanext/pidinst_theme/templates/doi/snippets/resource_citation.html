@@ -9,7 +9,7 @@
                 {% block default_citation_string %}
                 {{ h.get_translated(pkg_dict, 'citation') }}
                 {% block citation_link %}
-                    {% set res_link = h.url_for('resource.read', qualified=True, id=pkg_dict['name'], resource_id=res['id']) %}
+                    {% set res_link = h.url_for('instrument_resource.read', qualified=True, id=pkg_dict['name'], resource_id=res['id']) %}
                     <a href="{{ res_link }}" target="_blank">
                         {{ res_link }}
                     </a>

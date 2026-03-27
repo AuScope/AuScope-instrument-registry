@@ -163,7 +163,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
             try:
                 analytics.track_dataset_created(user, pkg_dict)
             except Exception as e:
-                logging.error(f"Failed to track dataset creation: {e}")
+                logging.error(f"Failed to track instrument creation: {e}")
 
         # Sync party group membership
         self._sync_party_groups(context, pkg_dict)
@@ -179,7 +179,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                 if pkg_dict.get('doi'):
                     analytics.track_doi_created(user, pkg_dict, pkg_dict.get('doi'))
             except Exception as e:
-                logging.error(f"Failed to track dataset update: {e}")
+                logging.error(f"Failed to track instrument update: {e}")
 
         # Sync party group membership
         self._sync_party_groups(context, pkg_dict)
@@ -209,7 +209,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     def _sync_party_groups(self, context, pkg_dict):
         """Add/remove this package from party CKAN groups so that
         group-based faceting (``fq=groups:name``) and party-page
-        dataset counts work automatically.
+        instrument counts work automatically.
 
         Reads party IDs from the ``owner``, ``funder``, and
         ``manufacturer`` composite fields and ensures the package is a
@@ -351,7 +351,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
 
     # IDatasetForm
     # ------------------------------------------------------------------
-    # IResourceController – enforce "one cover photo per dataset"
+    # IResourceController – enforce "one cover photo per instrument"
     # ------------------------------------------------------------------
 
     def after_resource_create(self, context, resource):
@@ -362,7 +362,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
 
     def _enforce_single_cover_photo(self, context, resource):
         """If *resource* is flagged as cover photo, clear the flag on every
-        other resource in the same dataset."""
+        other resource in the same instrument."""
         cover_val = resource.get('pidinst_is_cover_image')
         if cover_val not in (True, 'true', 'True'):
             return

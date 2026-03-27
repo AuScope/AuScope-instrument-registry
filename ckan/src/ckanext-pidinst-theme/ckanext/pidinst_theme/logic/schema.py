@@ -36,7 +36,7 @@ def after_dataset_show(context, pkg_dict):
     Format:
         owners (PublicationYear): Title. Publisher. (ResourceType). Identifier
     Example:
-        Irino, T; Tada, R (2009): Chemical and mineral compositions of sediments from ODP Site 127-797. V. 2.1. Geological Institute, University of Tokyo. (dataset). https://doi.org/10.1594/PANGAEA.726855
+        Irino, T; Tada, R (2009): Chemical and mineral compositions of sediments from ODP Site 127-797. V. 2.1. Geological Institute, University of Tokyo. (instrument). https://doi.org/10.1594/PANGAEA.726855
     """
     citation = ''
 

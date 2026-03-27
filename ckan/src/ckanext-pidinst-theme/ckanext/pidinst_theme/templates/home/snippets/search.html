@@ -20,7 +20,7 @@
     <div class="tags">
         <h3>{{ _('Popular keywords') }}</h3>
         {% for tag in tags %}
-        <a class="tag" href="{% url_for 'dataset.search', tags=tag.name %}">{{ tag.display_name|truncate(22) }}</a>
+        <a class="tag" href="{% url_for 'instrument.search', tags=tag.name %}">{{ tag.display_name|truncate(22) }}</a>
         {% endfor %}
     </div>
 </div>

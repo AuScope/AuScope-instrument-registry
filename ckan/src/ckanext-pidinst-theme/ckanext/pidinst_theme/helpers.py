@@ -549,7 +549,7 @@ def pidinst_cover_image_url(pkg_dict):
 
     if not cover:
         return None
-    return toolkit.url_for("resource.download", id=pkg_dict["name"], resource_id=cover["id"])
+    return toolkit.url_for("instrument_resource.download", id=pkg_dict["name"], resource_id=cover["id"])
 
 
 def json_loads(value):

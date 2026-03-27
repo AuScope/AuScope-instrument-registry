@@ -94,8 +94,8 @@ def resource_create(next_auth, context, data_dict):
             return {'success': True}
         # Can't edit a published resource unless admin
         elif not package.private:
-            return {'success': False, 'msg': 'You are not authorised to add a resource to a published dataset'}
-        # Members and editors can only update their own resources IF the dataset has not been published (private)
+            return {'success': False, 'msg': 'You are not authorised to add a resource to a published instrument'}
+        # Members and editors can only update their own resources IF the instrument has not been published (private)
         elif (user_role == 'member' or user_role == 'editor') and package.creator_user_id and package.creator_user_id == user.id:
             return {'success': True}
 
@@ -129,7 +129,7 @@ def resource_view_create(next_auth, context, data_dict):
         elif hasattr(user, 'id') and authz.user_is_collaborator_on_dataset(user.id, package.id, ['editor']):
             return {'success': True}
         else:
-            return {'success': False, 'msg': 'Unauthorized to view dataset'}
+            return {'success': False, 'msg': 'Unauthorized to view instrument'}
 
     return next_auth(context, data_dict)
 
@@ -160,7 +160,7 @@ def package_update(next_auth, context, data_dict):
         elif user_role == 'member' and package.creator_user_id and package.creator_user_id == user.id and package.private:
             return {'success': True}
         else:
-            return {'success': False, 'msg': 'Unauthorized to update dataset'}
+            return {'success': False, 'msg': 'Unauthorized to update instrument'}
 
     return next_auth(context, data_dict)
 
@@ -177,8 +177,8 @@ def resource_update(next_auth, context, data_dict):
             return {'success': True}
         # Can't edit a published resource unless admin/editor
         elif not package.private:
-            return {'success': False, 'msg': 'You are not authorised to edit a resource of a published dataset'}
-        # Members and editors can only update their own resources IF the dataset has not been published (private)
+            return {'success': False, 'msg': 'You are not authorised to edit a resource of a published instrument'}
+        # Members and editors can only update their own resources IF the instrument has not been published (private)
         elif (user_role == 'member' or user_role=='editor') and package.creator_user_id and package.creator_user_id == user.id:
             return {'success': True}
         # Member is an editing collaborator and package has not been published
@@ -202,8 +202,8 @@ def resource_view_update(next_auth, context, data_dict):
             return {'success': True}
         # Can't edit a published resource unless admin
         elif not package.private:
-            return {'success': False, 'msg': 'You are not authorised to edit a resource view of a published dataset'}
-        # Members and editors can only update their own resources IF the dataset has not been published (private)
+            return {'success': False, 'msg': 'You are not authorised to edit a resource view of a published instrument'}
+        # Members and editors can only update their own resources IF the instrument has not been published (private)
         elif (user_role == 'member' or user_role == 'editor') and package.creator_user_id and package.creator_user_id == user.id:
             return {'success': True}
 
@@ -226,7 +226,7 @@ def package_delete(next_auth, context, data_dict):
     elif (user_role == 'member' or user_role == 'editor') and package.creator_user_id and user.id == package.creator_user_id:
         return {'success': True}
     else:
-        return {'success': False, 'msg': 'Unauthorized to delete dataset'}
+        return {'success': False, 'msg': 'Unauthorized to delete instrument'}
 
 @tk.chained_auth_function
 def resource_delete(next_auth, context, data_dict):
@@ -278,7 +278,7 @@ def package_show(next_auth, context, data_dict):
     if package and package.owner_org:
         user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
         if user_role == 'member' and package.private and hasattr(user, 'id') and package.creator_user_id != user.id:
-            return {'success': False, 'msg': 'This dataset is private.'}
+            return {'success': False, 'msg': 'This instrument is private.'}
 
     return next_auth(context, data_dict)
 
