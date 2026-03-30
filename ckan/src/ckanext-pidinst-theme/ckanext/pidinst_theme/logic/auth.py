@@ -267,6 +267,7 @@ def resource_view_delete(next_auth, context, data_dict):
     return next_auth(context, data_dict)
 
 @tk.chained_auth_function
+@tk.auth_allow_anonymous_access
 def package_show(next_auth, context, data_dict):
     package = get_package_object(context, data_dict)
     user = context.get('auth_user_obj')
@@ -275,7 +276,7 @@ def package_show(next_auth, context, data_dict):
         if not package.private:
             return {'success': True}
 
-    if package and package.owner_org:
+    if package and package.owner_org and user:
         user_role = authz.users_role_for_group_or_org(package.owner_org, user.name)
         if user_role == 'member' and package.private and hasattr(user, 'id') and package.creator_user_id != user.id:
             return {'success': False, 'msg': 'This instrument is private.'}
@@ -284,6 +285,7 @@ def package_show(next_auth, context, data_dict):
 
 
 @tk.chained_auth_function
+@tk.auth_allow_anonymous_access
 def package_list(next_auth, context, data_dict):
     """
     Let any user bring up a package list
