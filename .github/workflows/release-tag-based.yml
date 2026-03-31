@@ -4,73 +4,60 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: "Release Type (patch/minor/major)"
+        description: Release Type
         required: true
-        default: "patch"
-      appName:
-        description: "Application Name (data/instrument)"
-        required: true
-        default: "data"
-    branches:
-      - master
-      - release/*
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
-  # sanity-check:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Check branch for patch release
-  #       if: ${{ github.event.inputs.releaseType == 'patch' }}
-  #       run: |
-  #         BRANCH_NAME=$(echo $GITHUB_REF | sed 's/refs\/heads\///')
-  #         if [[ $BRANCH_NAME == release* ]]; then
-  #           echo "Valid branch for patch release."
-  #         else
-  #           echo "::error::Patch releases are only allowed on branches prefixed with 'release'."
-  #           exit 1
-  #         fi
-
   sanity-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check branch for patch release
-        if: ${{ github.event.inputs.releaseType == 'patch' }}
+      - name: Validate release branch rules
+        env:
+          RELEASE_TYPE: ${{ inputs.releaseType }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          echo "Valid branch for patch release."
+          echo "Release type: $RELEASE_TYPE"
+          echo "Branch: $REF_NAME"
 
-  build-docker-image:
-    needs: sanity-check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
+          if [[ "$RELEASE_TYPE" == "patch" ]]; then
+            if [[ "$REF_NAME" != release/* ]]; then
+              echo "::error::Patch releases are only allowed from release/* branches."
+              exit 1
+            fi
+          fi
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ vars.USERNAME }}
-          password: ${{ secrets.TOKEN }}
+          if [[ "$RELEASE_TYPE" == "minor" || "$RELEASE_TYPE" == "major" ]]; then
+            if [[ "$REF_NAME" != "master" ]]; then
+              echo "::error::Minor and major releases are only allowed from master."
+              exit 1
+            fi
+          fi
 
-      - name: Build Docker image with 'latest' tag
-        uses: docker/build-push-action@v2
-        with:
-          context: ./ckan
-          file: ./ckan/Dockerfile
-          push: true
-          tags: ghcr.io/auscope/auscope-ckan:latest
+          echo "Branch validation passed."
 
   prepare-release:
-    needs: build-docker-image
+    needs: sanity-check
     runs-on: ubuntu-latest
     outputs:
       new-version: ${{ steps.bump_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
@@ -79,37 +66,60 @@ jobs:
 
       - name: Set up Git identity
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "GitHub Actions"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
 
       - name: Bump version
         id: bump_version
+        env:
+          RELEASE_TYPE: ${{ inputs.releaseType }}
         run: |
-          bump2version ${{ github.event.inputs.releaseType }} --config-file ./ckan/setup.cfg
-          NEW_VERSION=$(grep 'current_version = ' ./ckan/setup.cfg | sed -r 's/current_version = //')
-          echo "::set-output name=version::$NEW_VERSION"
+          bump2version "$RELEASE_TYPE" --config-file ./ckan/setup.cfg
+          NEW_VERSION=$(grep '^current_version = ' ./ckan/setup.cfg | sed -E 's/^current_version = //')
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "New version: $NEW_VERSION"
 
-      - name: Push the tags and changes
+      - name: Push tags and version bump commit
         run: |
+          git push origin HEAD
           git push origin --tags
-          git push
 
-  retag-and-push-docker-image:
+  build-and-push-docker-image:
     needs: prepare-release
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ vars.USERNAME }}
-          password: ${{ secrets.TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull 'latest' Docker image
-        run: docker pull ghcr.io/auscope/auscope-ckan:latest
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/auscope/auscope-ckan-pidinst
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ needs.prepare-release.outputs.new-version }}
+          labels: |
+            org.opencontainers.image.title=auscope-ckan-pidinst
+            org.opencontainers.image.description=CKAN PIDINST image
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.url=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Tag Docker image with new version and AppName
-        run: docker tag ghcr.io/auscope/auscope-ckan:latest ghcr.io/auscope/auscope-ckan:${{ github.event.inputs.AppName }}-${{ needs.prepare-release.outputs.new-version }}
-
-      - name: Push Docker image with new version
-        run: docker push ghcr.io/auscope/auscope-ckan:${{ github.event.inputs.AppName }}-${{ needs.prepare-release.outputs.new-version }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ckan
+          file: ./ckan/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
