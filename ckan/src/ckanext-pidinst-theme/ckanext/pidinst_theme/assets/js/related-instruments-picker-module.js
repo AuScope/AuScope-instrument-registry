@@ -117,9 +117,10 @@ this.ckan.module('related-instruments-picker-module', function ($, _) {
             if (!data.success) return { results: [] };
             var currentName = '';
             try { currentName = self.$search.closest('form').find('input[name="name"]').val() || ''; } catch (e) {}
+            var selectedIds = self.entries.map(function (e) { return e.package_id; });
             return {
               results: (data.result.results || [])
-                .filter(function (p) { return p.name !== currentName && p.id !== currentName; })
+                .filter(function (p) { return p.name !== currentName && p.id !== currentName && selectedIds.indexOf(p.id) === -1; })
                 .map(function (p) {
                   var meta = extractMeta(p);
                   return { id: p.id, text: buildLabel(p, meta), doi: (p.doi || '').trim(), title: p.title || p.name, name: p.name };
