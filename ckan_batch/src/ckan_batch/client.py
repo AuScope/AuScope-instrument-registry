@@ -293,7 +293,7 @@ class CKANClient(RemoteCKAN):
         IMPORTANT:
         - Draft visibility in `package_search` is controlled by `include_drafts=True`.
         - Private visibility in `package_search` is controlled by `include_private=True`.
-        - If hard_delete=True, records are permanently removed using package_purge.
+        - If hard_delete=True, records are permanently removed using dataset_purge.
         """
         if not (include_private or include_public or include_draft):
             print("Nothing to do: include_draft/include_private/include_public are all False.")
@@ -384,7 +384,7 @@ class CKANClient(RemoteCKAN):
         for p in to_delete:
             try:
                 if hard_delete:
-                    self.action.package_purge(id=p["id"])
+                    self.action.dataset_purge(id=p["id"])
                 else:
                     self.action.package_delete(id=p["id"])
                 deleted += 1

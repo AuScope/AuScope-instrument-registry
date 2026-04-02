@@ -9,6 +9,7 @@ import math
 import openpyxl
 
 from ckan_batch.constants import COMPOSITE_FIELDS
+from ckan_batch.helpers import validate_pidinst_date_text
 from ckan_batch.client import CKANClient
 
 
@@ -638,7 +639,12 @@ def read_pidinst_template(
                 _append_unique(ds["model"], model, identity_keys=("model_name", "model_identifier"))
 
             # Date composite (repeating)
-            dval = _clean(row.get("DATES.Date"))
+            raw_dval = row.get("DATES.Date")
+            try:
+                dval = validate_pidinst_date_text(raw_dval)
+            except ValueError as exc:
+                errors.append(f"[Record {record} | Row {row['__rownum__']}] {exc}")
+                dval = None
             dtype = _clean(row.get("DATES.dateType"))
             if dval or dtype:
                 date_obj = {"date_value": dval, "date_type": dtype}
