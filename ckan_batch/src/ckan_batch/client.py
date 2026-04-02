@@ -1065,6 +1065,54 @@ class CKANClient(RemoteCKAN):
 
         return None, None
 
+    # ------------------------------------------------------------------ #
+    #  EPSG code resolution (cached)                                      #
+    # ------------------------------------------------------------------ #
+
+    def get_epsg_label(self, code: str) -> str:
+        """
+        Resolve an EPSG code to its display label (e.g. '4326 - WGS 84').
+        Falls back to returning the raw code if the lookup fails.
+        Cached per code for the lifetime of this client instance.
+        """
+        code = str(code).strip()
+        if not code:
+            return code
+
+        cache: Dict[str, str] = getattr(self, "_epsg_cache", {})
+        if code in cache:
+            return cache[code]
+
+        url = (
+            f"https://apps.epsg.org/api/v1/CoordRefSystem/"
+            f"?includeDeprecated=false&pageSize=10&page=0"
+            f"&keywords={urllib.parse.quote(code)}"
+        )
+
+        try:
+            req = urllib.request.Request(url, headers={
+                "Accept": "application/json",
+                "User-Agent": "ckan-batch/1.0",
+            })
+            with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:
+            print(f"[EPSG] Lookup failed for {code}: {exc}")
+            cache[code] = code
+            self._epsg_cache = cache
+            return code
+
+        for item in data.get("Results", []):
+            if str(item.get("Code", "")).strip() == code:
+                label = f"{code} - {item.get('Name', '')}".strip()
+                cache[code] = label
+                self._epsg_cache = cache
+                return label
+
+        cache[code] = code
+        self._epsg_cache = cache
+        return code
+
     def get_taxonomy_list(self):
         return self.action.taxonomy_list()
 

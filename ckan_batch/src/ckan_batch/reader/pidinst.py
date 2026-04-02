@@ -561,6 +561,7 @@ def read_pidinst_template(
             epsg = _clean(row.get("GEOLOCATION.EPSG"))
             if epsg and _is_blank(ds.get("epsg_code")):
                 ds["epsg_code"] = epsg
+                ds["epsg"] = client.get_epsg_label(epsg)
 
             # (Geolocation is resolved per-record after all rows – see below)
 
