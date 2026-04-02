@@ -3,54 +3,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import math
 
 import openpyxl
 
+from ckan_batch.constants import COMPOSITE_FIELDS
+from ckan_batch.client import CKANClient
 
 
-COMPOSITE_FIELDS = {
-    "manufacturer",
-    "owner",
-    "model",
-    "date",
-    "alternate_identifier_obj",
-    "funder",
-    "related_identifier_obj",
-}
-
-TAG_FIELDS = {
-    "measured_variable",
-    "user_keywords",
-    "gcmd_keywords_code",
-}
-
-PIDINST_SITE_DEFAULTS = {
-    # Publisher (DataCite mapping)
-    "publisher": "AuScope",
-    "publisher_identifier": "https://ror.org/04s1m4564",
-    "publisher_identifier_type": "ROR",
-
-    # Primary contact (site-managed)
-    "primary_contact_name": "AuScope Instrument Registry",
-    "primary_contact_email": "help@data.auscope.org.au",
-
-    # Optional extras you might also want to force:
-    # "domain": "instrument-test.data.auscope.org.au",
-    # "doi_publisher": "AuScope",
-}
 
 # -----------------------------
 # Types
 # -----------------------------
-RelatedInstrumentResolver = Callable[[str, str, str], Optional[str]]
-# resolver(manufacturer, model, serial) -> DOI (string) or None
-
 
 @dataclass
 class MappingResult:
-    datasets: List[Dict[str, Any]]
+    records: List[Dict[str, Any]]
     errors: List[str]
 
 
@@ -134,6 +103,255 @@ def _accumulate_csv_field(acc: Dict[str, List[str]], field: str, cell_value: Opt
 
 
 # -----------------------------
+# Party / vocab / geo helpers
+# -----------------------------
+
+def _resolve_party_composite(
+    party_name: str,
+    expected_role: str,
+    party_cache: Dict[str, Dict[str, Any]],
+    errors: List[str],
+    record: str,
+    rownum: int,
+    *,
+    party_id_field: str,
+    name_field: str,
+    id_field: str,
+    id_type_field: str,
+) -> Optional[Dict[str, Any]]:
+    """Resolve a party by name, validate role, return composite subfield dict."""
+    key = party_name.strip().lower()
+    party = party_cache.get(key)
+
+    if party is None:
+        errors.append(
+            f"[Record {record} | Row {rownum}] Party not found: {party_name}"
+        )
+        return None
+
+    if expected_role.strip().lower() not in party["roles"]:
+        errors.append(
+            f"[Record {record} | Row {rownum}] Party role mismatch: {party_name} "
+            f"expected role {expected_role}"
+        )
+        return None
+
+    return {
+        party_id_field: party["name"],
+        name_field: party["title"],
+        id_field: party["party_identifier"],
+        id_type_field: party["party_identifier_type"],
+    }
+
+
+def _resolve_vocab_items(
+    gcmd_raw: Optional[str],
+    custom_raw: Optional[str],
+    gcmd_endpoint_key: str,
+    taxonomy_name: str,
+    client: CKANClient,
+    errors: List[str],
+    record: str,
+    *,
+    name_field: str,
+    id_field: str,
+    id_type_field: str,
+    field_label: str,
+) -> Tuple[List[Dict[str, Any]], Optional[str], Optional[str]]:
+    """
+    Resolve GCMD + custom taxonomy terms for a controlled-vocab field.
+    Returns (items_list, gcmd_codes_csv, gcmd_labels_csv).
+    """
+    items: List[Dict[str, Any]] = []
+    gcmd_codes: List[str] = []
+    gcmd_labels: List[str] = []
+
+    # --- GCMD terms ---
+    if gcmd_raw:
+        for token in _split_csv_cell(gcmd_raw):
+            found = client.gcmd_find_term(gcmd_endpoint_key, token)
+            if found is None:
+                errors.append(
+                    f"[Record {record}] GCMD term not found ({field_label}): {token}"
+                )
+            else:
+                gcmd_codes.append(found["code"])
+                gcmd_labels.append(found["label"])
+                items.append({
+                    name_field: found["label"],
+                    id_field: found["code"],
+                    id_type_field: "URL",
+                })
+
+    # --- Custom taxonomy terms ---
+    if custom_raw:
+        for token in _split_csv_cell(custom_raw):
+            term = client.find_taxonomy_term(taxonomy_name, token)
+            if term is None:
+                tax_id = client.get_taxonomy_id_by_name(taxonomy_name)
+                lst_term = list(map(lambda x: x["label"], client.get_taxonomy_terms(tax_id)))
+                errors.append(
+                    f"[Record {record}] Custom taxonomy term not found ({field_label}): {token}"
+                )
+            else:
+                items.append({
+                    name_field: term.get("label") or term.get("name") or token,
+                    id_field: term.get("uri", ""),
+                    id_type_field: "URL",
+                })
+
+    codes_str = ", ".join(gcmd_codes) if gcmd_codes else None
+    labels_str = ", ".join(gcmd_labels) if gcmd_labels else None
+    return items, codes_str, labels_str
+
+
+def _resolve_geolocation(
+    rows: List[Dict[str, Any]],
+    errors: List[str],
+    record: str,
+) -> Dict[str, Any]:
+    """
+    Validate and resolve geolocation fields from grouped rows.
+    Returns dict of fields to set on the record.
+    """
+    loc_types: set = set()
+    for row in rows:
+        lt = _clean(row.get("GEOLOCATION.Location Type"))
+        if lt:
+            loc_types.add(lt.strip().lower())
+
+    if not loc_types:
+        return {"location_choice": "noLocation"}
+
+    if len(loc_types) > 1:
+        errors.append(
+            f"[Record {record}] Mixed locationType in record: {loc_types}"
+        )
+        return {}
+
+    loc_type = loc_types.pop()
+
+    if loc_type == "nolocation":
+        return {"location_choice": "noLocation"}
+
+    if loc_type == "point":
+        for row in rows:
+            lon_raw = _clean(row.get("GEOLOCATION.Longitude"))
+            lat_raw = _clean(row.get("GEOLOCATION.Latitude"))
+            if lon_raw is not None and lat_raw is not None:
+                try:
+                    lon = float(lon_raw)
+                    lat = float(lat_raw)
+                except (ValueError, TypeError):
+                    errors.append(
+                        f"[Record {record} | Row {row['__rownum__']}] "
+                        f"Point location requires valid numeric Latitude/Longitude"
+                    )
+                    return {}
+
+                if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                    errors.append(
+                        f"[Record {record} | Row {row['__rownum__']}] "
+                        f"Coordinates out of range: lon={lon}, lat={lat}"
+                    )
+                    return {}
+
+                fc = {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "properties": {},
+                            "geometry": {"type": "Point", "coordinates": [lon, lat]},
+                        }
+                    ],
+                }
+                return {
+                    "location_choice": "point",
+                    "location_data": fc,
+                    "spatial": {"type": "Point", "coordinates": [lon, lat]},
+                }
+
+        errors.append(
+            f"[Record {record}] Point location requires Latitude/Longitude"
+        )
+        return {}
+
+    if loc_type == "area":
+        for row in rows:
+            min_lng = _clean(row.get("GEOLOCATION.min_lng"))
+            min_lat = _clean(row.get("GEOLOCATION.min_lat"))
+            max_lng = _clean(row.get("GEOLOCATION.max_lng"))
+            max_lat = _clean(row.get("GEOLOCATION.max_lat"))
+            if all(v is not None for v in (min_lng, min_lat, max_lng, max_lat)):
+                try:
+                    min_lon_f = float(min_lng)
+                    min_lat_f = float(min_lat)
+                    max_lon_f = float(max_lng)
+                    max_lat_f = float(max_lat)
+                except (ValueError, TypeError):
+                    errors.append(
+                        f"[Record {record} | Row {row['__rownum__']}] "
+                        f"Area location requires valid numeric bounding box coordinates"
+                    )
+                    return {}
+
+                if min_lon_f > max_lon_f or min_lat_f > max_lat_f:
+                    errors.append(
+                        f"[Record {record} | Row {row['__rownum__']}] "
+                        f"Area bounding box invalid: min > max"
+                    )
+                    return {}
+
+                if not (-90 <= min_lat_f <= 90) or not (-90 <= max_lat_f <= 90):
+                    errors.append(
+                        f"[Record {record} | Row {row['__rownum__']}] "
+                        f"Latitude out of range (-90 to 90)"
+                    )
+                    return {}
+
+                if not (-180 <= min_lon_f <= 180) or not (-180 <= max_lon_f <= 180):
+                    errors.append(
+                        f"[Record {record} | Row {row['__rownum__']}] "
+                        f"Longitude out of range (-180 to 180)"
+                    )
+                    return {}
+
+                coords = [
+                    [min_lon_f, min_lat_f],
+                    [max_lon_f, min_lat_f],
+                    [max_lon_f, max_lat_f],
+                    [min_lon_f, max_lat_f],
+                    [min_lon_f, min_lat_f],
+                ]
+                fc = {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "properties": {},
+                            "geometry": {"type": "Polygon", "coordinates": [coords]},
+                        }
+                    ],
+                }
+                return {
+                    "location_choice": "area",
+                    "location_data": fc,
+                    "spatial": {"type": "Polygon", "coordinates": [coords]},
+                }
+
+        errors.append(
+            f"[Record {record}] Area location requires min/max bounding box coordinates"
+        )
+        return {}
+
+    errors.append(
+        f"[Record {record}] Unknown locationType: {loc_type}"
+    )
+    return {}
+
+
+# -----------------------------
 # Template header parsing
 # -----------------------------
 def _forward_fill(values: List[Optional[str]]) -> List[Optional[str]]:
@@ -198,10 +416,10 @@ def _build_column_keys(ws, header_row: int = 5, section_row: int = 3, group_row:
         # Special-case: section rows in your template contain long text for the related blocks
         # Normalize those into short identifiers.
         sec_label = sec_ff[i] or ""
-        if sec_label.startswith("RELATED RESOURCES (EXTERNAL)"):
-            sec_label = "RELATED_RESOURCES_EXTERNAL"
-        elif sec_label.startswith("RELATED RESOURCES (REGISTERED"):
-            sec_label = "RELATED_RESOURCES_REGISTERED"
+        if sec_label.startswith("RELATED_RESOURCES") or sec_label.startswith("RELATED RESOURCES"):
+            sec_label = "RELATED_RESOURCES"
+        elif sec_label.startswith("RELATED_INSTRUMENT_COMPONENTS") or sec_label.startswith("RELATED INSTRUMENT COMPONENTS"):
+            sec_label = "RELATED_INSTRUMENT_COMPONENTS"
         elif sec_label.startswith("RESOURCES"):
             sec_label = "RESOURCES"
 
@@ -215,76 +433,24 @@ def _build_column_keys(ws, header_row: int = 5, section_row: int = 3, group_row:
 
     return keys, required_map
 
-#-----------------------------
-# Final adjustments
-#-----------------------------
-
-def apply_site_defaults(payload: Dict[str, Any], *, override: bool = False) -> Dict[str, Any]:
-    """
-    Adds site-managed hidden fields required by scheming validation.
-    If override=False, only fills missing/blank values.
-    """
-    p = dict(payload)
-    for k, v in PIDINST_SITE_DEFAULTS.items():
-        if override or (k not in p) or (p[k] is None) or (isinstance(p[k], str) and p[k].strip() == ""):
-            p[k] = v
-    return p
-
-def _to_ckan_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
-    p = dict(payload)
-
-    # Ensure resources exists (fine)
-    if "resources" not in p:
-        p["resources"] = []
-
-    # ---- IMPORTANT: tag-string fields must never be Missing/None ----
-    # If your scheming uses tag_string_convert on these, CKAN crashes when value is Missing.
-    for k in TAG_FIELDS:
-        if k not in p or p[k] is None:
-            p[k] = ""  # safest value for tag_string_convert
-        else:
-            # ensure it's a plain string (not list/dict)
-            p[k] = str(p[k]).strip()
-
-    # Convert composite lists/dicts to JSON strings (scheming repeating composite pattern)
-    for k in COMPOSITE_FIELDS:
-        if k in p and isinstance(p[k], (list, dict)):
-            p[k] = json.dumps(p[k], ensure_ascii=False)
-
-    # Spatial is often stored as a string too
-    if "spatial" in p and isinstance(p["spatial"], dict):
-        p["spatial"] = json.dumps(p["spatial"], ensure_ascii=False)
-
-
-    if "location_data" in p and isinstance(p["location_data"], dict):
-        p["location_data"] = json.dumps(p["location_data"], ensure_ascii=False)
-
-    # Optional: drop None scalars to avoid weird Missing conversions elsewhere
-    for k in list(p.keys()):
-        if p[k] is None:
-            del p[k]
-
-    p = apply_site_defaults(p)
-
-    return p
 # -----------------------------
 # Main mapper
 # -----------------------------
 def read_pidinst_template(
     excel_path: str,
+    client: CKANClient,
     sheet_name: str = "Instruments",
     record_col_key: str = "FIELD.Record",  # derived key for Record* column
-    related_instrument_resolver: Optional[RelatedInstrumentResolver] = None,
 ) -> MappingResult:
     """
-    Reads your adjusted PIDINST template and maps it to CKAN dataset payload dicts.
+    Reads your adjusted PIDINST template and maps it to CKAN record payload dicts.
 
     Grouping:
       - uses Record* as the grouping key (first row in a group holds base required fields)
 
     Repeating composites supported:
       - manufacturer, owner, model, date, alternate_identifier_obj, funder,
-        related_identifier_obj (external + registered/internal)
+        related_identifier_obj, related_instruments
 
     is_platform is derived from sheet_name:
       - "Instruments" -> False
@@ -315,7 +481,7 @@ def read_pidinst_template(
             rows.append(row)
 
     errors: List[str] = []
-    datasets: List[Dict[str, Any]] = []
+    records: List[Dict[str, Any]] = []
 
     # Group by Record*
     groups: Dict[str, List[Dict[str, Any]]] = {}
@@ -327,6 +493,13 @@ def read_pidinst_template(
             continue
         groups.setdefault(rec, []).append(row)
 
+    # Resolve party cache once
+    try:
+        party_cache = client.get_parties_by_name()
+    except Exception as exc:
+        errors.append(f"Failed to fetch party list: {exc}")
+        return MappingResult(records=[], errors=errors)
+
     for record, grp in groups.items():
         ds: Dict[str, Any] = {}
 
@@ -334,8 +507,17 @@ def read_pidinst_template(
         for k in COMPOSITE_FIELDS:
             ds[k] = []
 
+        # Related instrument components (JSON list for the picker field)
+        ds["related_instruments"] = []
+
         # Tag-like accumulators
         tag_acc: Dict[str, List[str]] = {}
+
+        # Vocab field token accumulators (instrument type + measured variable)
+        it_gcmd_tokens: List[str] = []
+        it_custom_tokens: List[str] = []
+        mv_gcmd_tokens: List[str] = []
+        mv_custom_tokens: List[str] = []
 
 
         # Validate required columns on the first row (your “first row has required info” rule)
@@ -364,6 +546,10 @@ def read_pidinst_template(
             if title and _is_blank(ds.get("title")):
                 ds["title"] = title  # CKAN title
 
+            instrument_class = _clean(row.get("INSTRUMENT_CLASS.Class"))
+            if instrument_class and _is_blank(ds.get("instrument_classification")):
+                ds["instrument_classification"] = instrument_class  # CKAN instrument class
+
             desc = _clean(row.get("OTHER.Description"))
             if desc and _is_blank(ds.get("description")):
                 ds["description"] = desc
@@ -376,93 +562,71 @@ def read_pidinst_template(
             if epsg and _is_blank(ds.get("epsg_code")):
                 ds["epsg_code"] = epsg
 
-            # Geo: template provides lon/lat columns; schema uses location_choice + location_data (+ spatial)
-            lon_raw = _clean(row.get("GEOLOCATION.Longitude"))
-            lat_raw = _clean(row.get("GEOLOCATION.Latitude"))
+            # (Geolocation is resolved per-record after all rows – see below)
 
-            lon = lat = None
-            try:
-                if lon_raw is not None and lat_raw is not None:
-                    lon = float(lon_raw)
-                    lat = float(lat_raw)
-            except Exception:
-                lon = lat = None
-
-            # If this row has NO coords, do NOT clobber an existing point set by a previous row
-            if lon is None or lat is None:
-                if _is_blank(ds.get("location_choice")):
-                    ds["location_choice"] = "noLocation"
-                    ds["location_data"] = None
-                    ds.pop("spatial", None)
-            else:
-                fc = {
-                    "type": "FeatureCollection",
-                    "features": [
-                        {
-                            "type": "Feature",
-                            "properties": {},
-                            "geometry": {"type": "Point", "coordinates": [lon, lat]},
-                        }
-                    ],
-                }
-
-                # Always prefer point if we have coords on any row
-                ds["location_choice"] = "point"
-
-                # Set location_data/spatial once (first coords wins)
-                if _is_blank(ds.get("location_data")):
-                    ds["location_data"] = fc
-                if _is_blank(ds.get("spatial")):
-                    ds["spatial"] = {"type": "Point", "coordinates": [lon, lat]}
-
-            # Comma-separated fields (read from first row with value)
-            if _is_blank(ds.get("measured_variable")):
-                measured_var = _split_comma_separated(_clean(row.get("OTHER.MeasuredVariable")))
-                if measured_var:
-                    ds["measured_variable"] = measured_var
-
+            # Comma-separated tag fields (read from first row with value)
             if _is_blank(ds.get("user_keywords")):
                 user_kw = _split_comma_separated(_clean(row.get("OTHER.UserKeywords")))
                 if user_kw:
                     ds["user_keywords"] = user_kw
 
-            if _is_blank(ds.get("gcmd_keywords_code")):
-                gcmd_kw = _split_comma_separated(_clean(row.get("OTHER.GCMDKeywordsCode")))
-                if gcmd_kw:
-                    ds["gcmd_keywords_code"] = gcmd_kw
-
-            # Tags
-            # Tags / multi-token fields (now comma-separated in ONE cell)
-            _accumulate_csv_field(tag_acc, "measured_variable", _clean(row.get("OTHER.MeasuredVariable")))
+            # Tags / multi-token fields (accumulate across rows)
             _accumulate_csv_field(tag_acc, "user_keywords", _clean(row.get("OTHER.UserKeywords")))
-            _accumulate_csv_field(tag_acc, "gcmd_keywords_code", _clean(row.get("OTHER.GCMDKeywordsCode")))
+
+            # Instrument type tokens (accumulate across rows)
+            for t in _split_csv_cell(_clean(row.get("INSTRUMENT (RESOURCE) TYPE.instrumentTypeGCMD"))):
+                if t not in it_gcmd_tokens:
+                    it_gcmd_tokens.append(t)
+            for t in _split_csv_cell(_clean(row.get("INSTRUMENT (RESOURCE) TYPE.instrumentTypeCustom"))):
+                if t not in it_custom_tokens:
+                    it_custom_tokens.append(t)
+
+            # Measured variable tokens (accumulate across rows)
+            for t in _split_csv_cell(_clean(row.get("OTHER.MeasuredVariableGCMD"))):
+                if t not in mv_gcmd_tokens:
+                    mv_gcmd_tokens.append(t)
+            for t in _split_csv_cell(_clean(row.get("OTHER.MeasuredVariableCustom"))):
+                if t not in mv_custom_tokens:
+                    mv_custom_tokens.append(t)
 
             credit = _clean(row.get("OTHER.Credit"))
             if credit and _is_blank(ds.get("credit")):
                 ds["credit"] = credit
 
-            # Manufacturer composite (repeating)
-            m = {
-                "manufacturer_name": _clean(row.get("MANUFACTURER.Name")),
-                "manufacturer_identifier": _clean(row.get("MANUFACTURER.Identifier")),
-                "manufacturer_identifier_type": _clean(row.get("MANUFACTURER.IdentifierType")),
-            }
-            # only append if manufacturer_name present
-            if m.get("manufacturer_name"):
-                _append_unique(ds["manufacturer"], m, identity_keys=("manufacturer_name", "manufacturer_identifier"))
-
-            # Owner composite (repeating)
-            o = {
-                "owner_name": _clean(row.get("OWNER.Name")),
-                "owner_contact": _clean(row.get("OWNER.Contact")),
-                "owner_relationship_type": _clean(row.get("OWNER.Relationship")),
-                "owner_identifier": _clean(row.get("OWNER.Identifier")),
-                "owner_identifier_type": _clean(row.get("OWNER.IdentifierType")),
-            }
-            if o.get("owner_name") or o.get("owner_contact") or o.get("owner_relationship_type"):
-                _append_unique(
-                    ds["owner"], o, identity_keys=("owner_name", "owner_contact", "owner_relationship_type")
+            # Manufacturer composite (repeating) – resolved via party registry
+            manuf_name_raw = _clean(row.get("MANUFACTURER.Name"))
+            if manuf_name_raw:
+                m = _resolve_party_composite(
+                    manuf_name_raw, "Manufacturer", party_cache, errors,
+                    record, row["__rownum__"],
+                    party_id_field="manufacturer_party_id",
+                    name_field="manufacturer_name",
+                    id_field="manufacturer_identifier",
+                    id_type_field="manufacturer_identifier_type",
                 )
+                if m:
+                    _append_unique(ds["manufacturer"], m, identity_keys=("manufacturer_name",))
+
+            # Owner composite (repeating) – resolved via party registry
+            owner_name_raw = _clean(row.get("OWNER.Name"))
+            owner_contact_raw = _clean(row.get("OWNER.Contact"))
+            if owner_name_raw:
+                o = _resolve_party_composite(
+                    owner_name_raw, "Owner", party_cache, errors,
+                    record, row["__rownum__"],
+                    party_id_field="owner_party_id",
+                    name_field="owner_name",
+                    id_field="owner_identifier",
+                    id_type_field="owner_identifier_type",
+                )
+                if o:
+                    contact = owner_contact_raw
+                    if not contact:
+                        party_entry = party_cache.get(owner_name_raw.strip().lower())
+                        if party_entry:
+                            contact = party_entry.get("party_contact")
+                    o["owner_contact"] = contact or ""
+                    _append_unique(ds["owner"], o, identity_keys=("owner_name",))
 
             # Model composite (repeating)
             model = {
@@ -510,29 +674,31 @@ def read_pidinst_template(
                     "description": res_desc,
                 })
 
-            # Funder composite (repeating)
-            f = {
-                "funder_name": _clean(row.get("FUNDER.Name")),
-                "funder_identifier": _clean(row.get("FUNDER.Id")),
-                "funder_identifier_type": _clean(row.get("FUNDER.IdType")),
-                "award_number": _clean(row.get("FUNDER.AwardNumber")),
-                "award_uri": _clean(row.get("FUNDER.AwardURI")),
-                "award_title": _clean(row.get("FUNDER.AwardTitle")),
-            }
-            if f.get("funder_name") or f.get("funder_identifier") or f.get("award_number"):
-                _append_unique(ds["funder"], f, identity_keys=("funder_name", "funder_identifier", "award_number"))
+            # Funder composite (repeating) – resolved via party registry
+            funder_name_raw = _clean(row.get("FUNDER.Name"))
+            if funder_name_raw:
+                f = _resolve_party_composite(
+                    funder_name_raw, "Funder", party_cache, errors,
+                    record, row["__rownum__"],
+                    party_id_field="funder_party_id",
+                    name_field="funder_name",
+                    id_field="funder_identifier",
+                    id_type_field="funder_identifier_type",
+                )
+                if f:
+                    f["award_number"] = _clean(row.get("FUNDER.AwardNumber"))
+                    f["award_uri"] = _clean(row.get("FUNDER.AwardURI"))
+                    f["award_title"] = _clean(row.get("FUNDER.AwardTitle"))
+                    _append_unique(ds["funder"], f, identity_keys=("funder_name", "award_number"))
 
             # -----------------------------
-            # Related resources: EXTERNAL
+            # Related resources (external)
             # -----------------------------
-            ext_id = _clean(row.get("RELATED_RESOURCES_EXTERNAL.Id"))
-            ext_id_type = _clean(row.get("RELATED RESOURCES (EXTERNAL)\n[Use this block for resources that are not registered in our Instrument Registry (e.g. related documents or datasets)].IdType"))  # safe fallback if key changes
-            # Prefer stable key if present:
-            if _is_blank(ext_id_type):
-                ext_id_type = _clean(row.get("RELATED_RESOURCES_EXTERNAL.IdType"))
-            ext_res_type = _clean(row.get("RELATED_RESOURCES_EXTERNAL.ResourceType"))
-            ext_rel = _clean(row.get("RELATED_RESOURCES_EXTERNAL.Relationship"))
-            ext_name = _clean(row.get("RELATED_RESOURCES_EXTERNAL.IdentifierName"))
+            ext_id = _clean(row.get("RELATED_RESOURCES.Id"))
+            ext_id_type = _clean(row.get("RELATED_RESOURCES.IdType"))
+            ext_res_type = _clean(row.get("RELATED_RESOURCES.ResourceType"))
+            ext_rel = _clean(row.get("RELATED_RESOURCES.Relationship"))
+            ext_name = _clean(row.get("RELATED_RESOURCES.IdentifierName"))
 
             if ext_id or ext_res_type or ext_rel:
                 rel_obj = {
@@ -542,7 +708,6 @@ def read_pidinst_template(
                     "relation_type": ext_rel,
                     "related_identifier_name": ext_name,
                 }
-                # keep only if something meaningful
                 if rel_obj.get("related_identifier"):
                     _append_unique(
                         ds["related_identifier_obj"],
@@ -551,57 +716,129 @@ def read_pidinst_template(
                     )
 
             # -----------------------------
-            # Related resources: REGISTERED
+            # Related instrument components
             # -----------------------------
-            reg_id = _clean(row.get("RELATED_RESOURCES_REGISTERED.Id"))
-            reg_manf = _clean(row.get("RELATED_RESOURCES_REGISTERED.Manufacturer"))
-            reg_model = _clean(row.get("RELATED_RESOURCES_REGISTERED.Model"))
-            reg_sn = _clean(row.get("RELATED_RESOURCES_REGISTERED.Serial Number"))
-            reg_rel = _clean(row.get("RELATED_RESOURCES_REGISTERED.Relationship"))
+            comp_id = _clean(row.get("RELATED_INSTRUMENT_COMPONENTS.Id"))
+            comp_manf = _clean(row.get("RELATED_INSTRUMENT_COMPONENTS.Manufacturer"))
+            comp_model = _clean(row.get("RELATED_INSTRUMENT_COMPONENTS.Model"))
+            comp_alt = _clean(row.get("RELATED_INSTRUMENT_COMPONENTS.AlternateIdentifier"))
 
-            if reg_id or reg_manf or reg_model or reg_sn or reg_rel:
-                doi: Optional[str] = None
-                if reg_id:
-                    doi = reg_id  # user provided DOI directly
-                else:
-                    # Must resolve via callback if not provided
-                    if related_instrument_resolver and reg_manf and reg_model and reg_sn:
-                        doi = related_instrument_resolver(reg_manf, reg_model, reg_sn)
-                    else:
-                        errors.append(
-                            f"[Record {record} | Row {row['__rownum__']}] "
-                            f"Registered related resource missing DOI, and/or missing (Manufacturer+Model+Serial) or resolver not provided."
-                        )
-
-                if doi:
-                    rel_res_type = "Version" if (reg_rel == "IsNewVersionOf") else "Instrument"
-                    reg_obj = {
-                        "related_identifier": doi,
-                        "related_identifier_type": "DOI",
-                        "related_resource_type": rel_res_type,
-                        "relation_type": reg_rel,
-                    }
+            if comp_id:
+                # Look up instrument by DOI - must be public with minted DOI
+                found = client.find_public_instrument_by_doi(comp_id)
+                if found:
                     _append_unique(
-                        ds["related_identifier_obj"],
-                        reg_obj,
-                        identity_keys=("related_identifier_type", "related_identifier", "relation_type"),
+                        ds["related_instruments"],
+                        {
+                            "package_id": found["id"],
+                            "identifier": found["doi"],
+                            "identifier_type": "DOI",
+                            "label": found["title"],
+                            "relation_type": "HasPart",
+                        },
+                        identity_keys=("package_id",),
                     )
                 else:
                     errors.append(
                         f"[Record {record} | Row {row['__rownum__']}] "
-                        f"Could not resolve registered related instrument. Provided: DOI={reg_id}, "
-                        f"Manufacturer={reg_manf}, Model={reg_model}, Serial={reg_sn}"
+                        f"Related instrument component not found as a public instrument with minted DOI: {comp_id}"
                     )
+            elif comp_manf and comp_model and comp_alt:
+                # Search by Manufacturer + Model + AlternateIdentifier combo
+                found, duplicates = client.find_public_instrument_by_attributes(
+                    comp_manf, comp_model, comp_alt,
+                )
+                if found:
+                    _append_unique(
+                        ds["related_instruments"],
+                        {
+                            "package_id": found["id"],
+                            "identifier": found["doi"],
+                            "identifier_type": "DOI",
+                            "label": found["title"],
+                            "relation_type": "HasPart",
+                        },
+                        identity_keys=("package_id",),
+                    )
+                elif duplicates:
+                    errors.append(
+                        f"[Record {record} | Row {row['__rownum__']}] "
+                        f"Multiple public instruments match Manufacturer={comp_manf}, "
+                        f"Model={comp_model}, AlternateIdentifier={comp_alt}: {duplicates}"
+                    )
+                else:
+                    errors.append(
+                        f"[Record {record} | Row {row['__rownum__']}] "
+                        f"No public instrument found for Manufacturer={comp_manf}, "
+                        f"Model={comp_model}, AlternateIdentifier={comp_alt}"
+                    )
+            elif comp_manf or comp_model or comp_alt:
+                errors.append(
+                    f"[Record {record} | Row {row['__rownum__']}] "
+                    f"Related instrument component requires either a DOI in the Id column "
+                    f"or all three: Manufacturer, Model, and AlternateIdentifier."
+                )
 
         # Apply accumulated tag fields (join)
         for k, vals in tag_acc.items():
             if vals:
                 ds[k] = ", ".join(vals)
 
+        # ----- Instrument type resolution (GCMD + custom taxonomy) -----
+        is_platform = sheet_is_platform == "true"
+        gcmd_ep = "platforms" if is_platform else "instruments"
+        tax_name = "platforms" if is_platform else "instruments"
+        if it_gcmd_tokens or it_custom_tokens:
+            gcmd_joined = ", ".join(it_gcmd_tokens) if it_gcmd_tokens else None
+            custom_joined = ", ".join(it_custom_tokens) if it_custom_tokens else None
+            it_items, it_gcmd_codes, it_gcmd_labels = _resolve_vocab_items(
+                gcmd_joined, custom_joined,
+                gcmd_ep, tax_name, client, errors, record,
+                name_field="instrument_type_name",
+                id_field="instrument_type_identifier",
+                id_type_field="instrument_type_identifier_type",
+                field_label="instrument type",
+            )
+            if it_items:
+                ds["instrument_type"] = it_items
+            if it_gcmd_codes:
+                ds["instrument_type_gcmd_code"] = it_gcmd_codes
+            if it_gcmd_labels:
+                ds["instrument_type_gcmd"] = it_gcmd_labels
+
+        # ----- Measured variable resolution (GCMD + custom taxonomy) -----
+        if mv_gcmd_tokens or mv_custom_tokens:
+            gcmd_joined = ", ".join(mv_gcmd_tokens) if mv_gcmd_tokens else None
+            custom_joined = ", ".join(mv_custom_tokens) if mv_custom_tokens else None
+            mv_items, mv_gcmd_codes, mv_gcmd_labels = _resolve_vocab_items(
+                gcmd_joined, custom_joined,
+                "measured_variables", "measured-variables", client, errors, record,
+                name_field="measured_variable_name",
+                id_field="measured_variable_identifier",
+                id_type_field="measured_variable_identifier_type",
+                field_label="measured variable",
+            )
+            if mv_items:
+                ds["measured_variable"] = mv_items
+            if mv_gcmd_codes:
+                ds["measured_variable_gcmd_code"] = mv_gcmd_codes
+            if mv_gcmd_labels:
+                ds["measured_variable_gcmd"] = mv_gcmd_labels
+
+        # ----- Geolocation resolution (locationType-based) -----
+        geo = _resolve_geolocation(grp, errors, record)
+        ds.update(geo)
+
         # Clean empty repeating composites
         for k in COMPOSITE_FIELDS:
             if not ds.get(k):
                 ds.pop(k, None)
+
+        # Serialize related_instruments to JSON (the validator expects a JSON string)
+        if ds.get("related_instruments"):
+            ds["related_instruments"] = json.dumps(ds["related_instruments"], ensure_ascii=False)
+        else:
+            ds.pop("related_instruments", None)
 
         # Clean empty __resources__
         if not ds.get("__resources__"):
@@ -622,7 +859,7 @@ def read_pidinst_template(
             continue
 
         ds["is_platform"] = sheet_is_platform
-        datasets.append(ds)
+        records.append(ds)
 
-    return MappingResult(datasets=datasets, errors=errors)
+    return MappingResult(records=records, errors=errors)
 

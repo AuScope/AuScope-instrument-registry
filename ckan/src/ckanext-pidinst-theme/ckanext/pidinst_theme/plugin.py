@@ -21,7 +21,6 @@ from ckanext.pidinst_theme.logic import (
     action, schema, auth, validators
 )
 
-import logging
 
 original_build_metadata_dict = doi_metadata.build_metadata_dict
 
@@ -133,6 +132,68 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     # IPackageController
     # def process_doi_metadata(self, pkg_dict):
     #     pkg_dict['language_code'] = 'en'
+    def before_dataset_index(self, pkg_dict):
+        manufacturers = pkg_dict.get("manufacturer") or []
+        names = []
+
+        # if manufacturer is stored as JSON string, decode first
+        if isinstance(manufacturers, str):
+            import json
+            try:
+                manufacturers = json.loads(manufacturers)
+            except Exception:
+                manufacturers = []
+
+        for item in manufacturers:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("manufacturer_name")
+            if name:
+                names.append(name)
+
+        pkg_dict["manufacturer_name_search"] = names
+
+        log.warning("INDEXING DATASET %s manufacturer_name_search=%s", pkg_dict.get("name"), names)
+
+        models = pkg_dict.get("model") or []
+        model_names = []
+
+        if isinstance(models, str):
+            import json
+            try:
+                models = json.loads(models)
+            except Exception:
+                models = []
+
+        for item in models:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("model_name")
+            if name:
+                model_names.append(name)
+
+        pkg_dict["model_name_search"] = model_names
+
+
+        alternate_id_objs = pkg_dict.get("alternate_identifier_obj") or []
+        alternate_ids = []
+
+        if isinstance(alternate_id_objs, str):
+            import json
+            try:
+                alternate_id_objs = json.loads(alternate_id_objs)
+            except Exception:
+                alternate_id_objs = []
+
+        for item in alternate_id_objs:
+            if not isinstance(item, dict):
+                continue
+            alt_id = item.get("alternate_identifier")
+            if alt_id:
+                alternate_ids.append(alt_id)
+
+        pkg_dict["alternate_identifier_search"] = alternate_ids
+        return pkg_dict
 
     def before_view(self, pkg_dict):
         pass

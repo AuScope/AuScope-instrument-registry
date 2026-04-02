@@ -1,20 +1,28 @@
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import json
+import urllib.parse
+import urllib.request
 
-from ckan_batch.reader.pidinst import _to_ckan_payload
 from ckanapi import RemoteCKAN
 from ckanapi.errors import CKANAPIError, NotFound
+
+from ckan_batch.helpers import _to_ckan_payload
+from ckan_batch.constants import GCMD_VOCAB_ENDPOINTS, GCMD_BASE_URL
 
 
 @dataclass
 class CreateResult:
     created: List[Dict[str, Any]]          # successful creates (and updates if enabled)
     failed: List[Dict[str, Any]]           # errors with payload + message
-    resource_results: List[Dict[str, Any]] = field(default_factory=list)  # per-dataset resource upload results
+    resource_results: List[Dict[str, Any]] = field(default_factory=list)  # per-record resource upload results
 
 
 def _extract_name_from_ckan_error(err: Any) -> Optional[str]:
@@ -33,27 +41,14 @@ def _extract_name_from_ckan_error(err: Any) -> Optional[str]:
         return None
 
 
-
 class CKANClient(RemoteCKAN):
     """
-    CKAN API client for managing datasets (instruments, etc.).
+    CKAN API client for managing records (instruments, etc.).
     Inherits from RemoteCKAN and provides convenient methods for batch operations.
     """
 
-    def _normalize_party_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        out = dict(payload)
 
-        if out.get("website") in ("", None):
-            out.pop("website", None)
-
-        if out.get("is_part_of") in ("", None):
-            out.pop("is_part_of", None)
-
-        out["type"] = "party"
-        return out
-
-
-    def create_resources_for_dataset(
+    def create_resources_for_record(
         self,
         package_id: str,
         resources: List[Dict[str, Any]],
@@ -61,7 +56,7 @@ class CKANClient(RemoteCKAN):
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
-        Upload file resources to an existing CKAN dataset.
+        Upload file resources to an existing CKAN record.
         Each resource dict: {path, name, is_cover, format, description}
         """
         created: List[Dict[str, Any]] = []
@@ -112,17 +107,17 @@ class CKANClient(RemoteCKAN):
 
         return {"created": created, "failed": failed}
 
-    def create_datasets(
+    def create_records(
         self,
-        datasets: List[Dict[str, Any]],
+        records: List[Dict[str, Any]],
         make_public: bool = False,
         *,
-        dataset_type: str = "instrument",
+        record_type: str = "instrument",
         dry_run: bool = False,
         allow_update_if_exists: bool = False,
     ) -> CreateResult:
         """
-        Create CKAN datasets using package_create (or package_update if enabled and exists).
+        Create CKAN records using package_create (or package_update if enabled and exists).
 
         Assumptions:
           - Your payload dicts match the CKAN scheming fields (e.g. title, owner, manufacturer, model, etc.)
@@ -132,18 +127,18 @@ class CKANClient(RemoteCKAN):
         failed: List[Dict[str, Any]] = []
         resource_results: List[Dict[str, Any]] = []
 
-        for i, payload in enumerate(datasets, start=1):
+        for i, payload in enumerate(records, start=1):
             # Extract __resources__ before building CKAN payload
             resources = list(payload.get("__resources__") or [])
 
-            # Ensure dataset_type is set (scheming uses this)
+            # Ensure record_type is set (scheming uses this)
             payload_to_send = dict(payload)
             payload_to_send.pop("__resources__", None)
             payload_to_send["private"] = not make_public
-            payload_to_send.setdefault("type", dataset_type)
+            payload_to_send.setdefault("type", record_type)
 
             if dry_run:
-                rr = self.create_resources_for_dataset(f"dry_run_{i}", resources, dry_run=True)
+                rr = self.create_resources_for_record(f"dry_run_{i}", resources, dry_run=True)
                 resource_results.append({"index": i, "package_id": None, **rr})
                 created.append(
                     {
@@ -161,7 +156,7 @@ class CKANClient(RemoteCKAN):
                 payload_to_send = _to_ckan_payload(payload_to_send)  # optional pre-processing if needed
                 resp = self.action.package_create(**payload_to_send)
                 pkg_id = resp.get("id")
-                rr = self.create_resources_for_dataset(pkg_id, resources, dry_run=dry_run)
+                rr = self.create_resources_for_record(pkg_id, resources, dry_run=dry_run)
                 resource_results.append({"index": i, "package_id": pkg_id, **rr})
                 created.append(
                     {
@@ -191,7 +186,7 @@ class CKANClient(RemoteCKAN):
                             payload_to_send["id"] = existing["id"]
                             resp2 = self.action.package_update(**payload_to_send)
                             pkg_id2 = resp2.get("id")
-                            rr2 = self.create_resources_for_dataset(pkg_id2, resources, dry_run=dry_run)
+                            rr2 = self.create_resources_for_record(pkg_id2, resources, dry_run=dry_run)
                             resource_results.append({"index": i, "package_id": pkg_id2, **rr2})
                             created.append(
                                 {
@@ -239,24 +234,66 @@ class CKANClient(RemoteCKAN):
 
         return CreateResult(created=created, failed=failed, resource_results=resource_results)
 
+
+    def delete_record_by_id(self, record_id: str, hard_delete: bool = False) -> bool:
+        """
+        Delete a record by ID.
+
+        If hard_delete is False, perform a soft delete.
+        If hard_delete is True, soft delete first and then purge.
+
+        Returns True if successful, otherwise False.
+        """
+        try:
+            if hard_delete:
+                try:
+                    self.action.package_delete(id=record_id)
+                except CKANAPIError as e:
+                    error_text = getattr(e, "error_dict", None) or str(e)
+                    text = str(error_text).lower()
+                    if "already" not in text or "deleted" not in text:
+                        logger.warning("Failed soft delete before purge for record %s: %s", record_id, error_text)
+                        return False
+
+                self.action.dataset_purge(id=record_id)
+            else:
+                self.action.package_delete(id=record_id)
+
+            return True
+
+        except NotFound:
+            logger.warning("Record %s not found for deletion", record_id)
+            return False
+        except CKANAPIError as e:
+            logger.warning(
+                "CKANAPIError deleting record %s: %s",
+                record_id,
+                getattr(e, "error_dict", None) or str(e),
+            )
+            return False
+        except Exception:
+            logger.exception("Unexpected error deleting record %s", record_id)
+            return False
+
+
     def delete_all_in_org(
         self,
         owner_org: str = "auscope-org",
         *,
         dry_run: bool = True,
-        dataset_type: Optional[str] = "instrument",
+        record_type: Optional[str] = "instrument",
         include_draft: bool = True,
         include_private: bool = True,
         include_public: bool = False,
         hard_delete: bool = False,
     ) -> List[Dict[str, Any]]:
         """
-        Delete datasets in an organization with configurable inclusion of draft/private/public.
+        Delete records in an organization with configurable inclusion of draft/private/public.
 
         IMPORTANT:
         - Draft visibility in `package_search` is controlled by `include_drafts=True`.
         - Private visibility in `package_search` is controlled by `include_private=True`.
-        - If hard_delete=True, datasets are permanently removed using package_purge.
+        - If hard_delete=True, records are permanently removed using package_purge.
         """
         if not (include_private or include_public or include_draft):
             print("Nothing to do: include_draft/include_private/include_public are all False.")
@@ -267,9 +304,9 @@ class CKANClient(RemoteCKAN):
             raise NotFound(f"Organization {owner_org!r} not found.")
 
         q_parts: List[str] = []
-        if dataset_type is not None:
-            q_parts.append(f"type:{dataset_type}")
-            type_label = f"{dataset_type} "
+        if record_type is not None:
+            q_parts.append(f"type:{record_type}")
+            type_label = f"{record_type} "
         else:
             type_label = ""
 
@@ -326,7 +363,7 @@ class CKANClient(RemoteCKAN):
 
         mode = "HARD DELETE" if hard_delete else "SOFT DELETE"
         print(
-            f"Found {len(to_delete)} {type_label}dataset(s) in owner_org={owner_org!r} "
+            f"Found {len(to_delete)} {type_label}record(s) in owner_org={owner_org!r} "
             f"for {mode} "
             f"(draft={include_draft}, private={include_private}, public={include_public})"
         )
@@ -401,7 +438,7 @@ class CKANClient(RemoteCKAN):
 
         Notes:
         - Uses Solr via package_search.
-        - You only get what the user can see (private datasets require permission).
+        - You only get what the user can see (private records require permission).
         - `include_private/include_drafts` control CKAN search flags.
         """
         start = 0
@@ -439,6 +476,113 @@ class CKANClient(RemoteCKAN):
 
         return out
 
+
+    def get_records_by_title(
+        self,
+        title: str,
+        record_type: str | None = None,
+        exact_phrase: bool = True,
+        rows: int = 100,
+        include_private: bool = False,
+        include_drafts: bool = False,
+    ) -> list[dict]:
+        """
+        Return a list of records matching the given title.
+
+        Args:
+            title: Title value to search for.
+            record_type: Optional dataset type filter, e.g. "instrument".
+            exact_phrase: If True, search for an exact title match; otherwise do a broader match.
+            rows: Maximum number of results to return.
+            include_private: Whether to include private datasets.
+            include_drafts: Whether to include draft datasets.
+
+        Returns:
+            List of matching package dicts. Returns an empty list on error.
+        """
+        try:
+            q = f'title:"{title}"' if exact_phrase else f"title:{title}"
+            fq = f"type:{record_type}" if record_type else None
+
+            result = self.action.package_search(
+                q=q,
+                fq=fq,
+                include_private=include_private,
+                include_drafts=include_drafts,
+                rows=rows,
+            )
+            return result.get("results", [])
+
+        except NotFound:
+            return []
+        except CKANAPIError as e:
+            print(f"CKANAPIError searching records by title '{title}': {getattr(e, 'error_dict', None) or str(e)}")
+            return []
+        except Exception as e:
+            print(f"Unexpected error searching records by title '{title}': {e}")
+            return []
+
+    # ------------------------------------------------------------------ #
+    #  Party resolution (cached)                                          #
+    # ------------------------------------------------------------------ #
+    def _normalize_party_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        out = dict(payload)
+
+        if out.get("website") in ("", None):
+            out.pop("website", None)
+
+        if out.get("is_part_of") in ("", None):
+            out.pop("is_part_of", None)
+
+        out["type"] = "party"
+        return out
+
+    def get_parties_by_name(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Fetch all party groups and return a dict keyed by lowercased title.
+        Cached after first call.
+        """
+        cache: Optional[Dict[str, Dict[str, Any]]] = getattr(self, "_party_cache", None)
+        if cache is not None:
+            return cache
+
+        raw = self.action.group_list(
+            all_fields=True,
+            include_extras=True,
+            type="party",
+        )
+
+        result: Dict[str, Dict[str, Any]] = {}
+        for p in raw:
+            title = (p.get("title") or "").strip()
+            if not title:
+                continue
+
+            roles_raw = p.get("party_role", "")
+            if isinstance(roles_raw, list):
+                roles = {r.strip().lower() for r in roles_raw if r}
+            elif isinstance(roles_raw, str):
+                roles = {r.strip().lower() for r in roles_raw.split(",") if r.strip()}
+            else:
+                roles = set()
+
+            id_type = (p.get("party_identifier_type") or "").strip()
+            if id_type.upper() == "ROR":
+                identifier = (p.get("party_identifier_ror") or "").strip()
+            else:
+                identifier = (p.get("party_identifier") or "").strip()
+
+            result[title.lower()] = {
+                "name": p.get("name"),
+                "title": title,
+                "roles": roles,
+                "party_identifier_type": id_type,
+                "party_identifier": identifier,
+                "party_contact": (p.get("party_contact") or "").strip(),
+            }
+
+        self._party_cache = result
+        return result
 
     def create_parties(
         self,
@@ -663,3 +807,266 @@ class CKANClient(RemoteCKAN):
             }
             for g in results
         ]
+
+    # ------------------------------------------------------------------ #
+    #  CKAN custom taxonomy resolution (cached)                           #
+    # ------------------------------------------------------------------ #
+
+    def get_taxonomy_id_by_name(self, taxonomy_name: str) -> Optional[str]:
+        """Return the ID of a CKAN taxonomy by its name. Cached."""
+        cache: Optional[List[Dict[str, Any]]] = getattr(self, "_taxonomy_list_cache", None)
+        if cache is None:
+            cache = self.action.taxonomy_list()
+            self._taxonomy_list_cache = cache
+
+        needle = taxonomy_name.strip().lower()
+        for t in cache:
+            if (t.get("name") or "").strip().lower() == needle:
+                return t.get("id")
+        return None
+
+    def get_taxonomy_terms(self, taxonomy_id: str) -> List[Dict[str, Any]]:
+        """Return terms for a taxonomy by ID. Cached per taxonomy_id."""
+        terms_cache: Dict[str, List[Dict[str, Any]]] = getattr(self, "_taxonomy_terms_cache", {})
+        if taxonomy_id in terms_cache:
+            return terms_cache[taxonomy_id]
+
+        terms = self.action.taxonomy_term_list(id=taxonomy_id)
+        terms_cache[taxonomy_id] = terms
+        self._taxonomy_terms_cache = terms_cache
+        return terms
+
+    def find_taxonomy_term(self, taxonomy_name: str, label: str) -> Optional[Dict[str, Any]]:
+        """
+        Look up a term by label in a named taxonomy.
+        Matches against label, name, and title fields (case-insensitive).
+        Returns the term dict or None.
+        """
+        tid = self.get_taxonomy_id_by_name(taxonomy_name)
+        if tid is None:
+            return None
+        terms = self.get_taxonomy_terms(tid)
+        needle = label.strip().lower()
+        for t in terms:
+            for attr in ("label", "name", "title"):
+                val = (t.get(attr) or "").strip()
+                if val.lower() == needle:
+                    return t
+        return None
+
+    # ------------------------------------------------------------------ #
+    #  ARDC GCMD vocabulary lookup (cached, via LDA API)                  #
+    # ------------------------------------------------------------------ #
+
+    def gcmd_find_term(self, endpoint_key: str, label: str) -> Optional[Dict[str, Any]]:
+        """
+        Search the ARDC GCMD LDA API for a term by label.
+        Returns {"code": <uri>, "label": <prefLabel>} or None.  Cached.
+        """
+        cache: Dict[Tuple[str, str], Optional[Dict[str, Any]]] = getattr(self, "_gcmd_cache", {})
+        norm = label.strip().lower()
+        cache_key = (endpoint_key, norm)
+        if cache_key in cache:
+            return cache[cache_key]
+
+        endpoint = GCMD_VOCAB_ENDPOINTS.get(endpoint_key)
+        if not endpoint:
+            cache[cache_key] = None
+            self._gcmd_cache = cache
+            return None
+
+        url = (
+            f"{GCMD_BASE_URL}/{endpoint}/concept.json"
+            f"?labelcontains={urllib.parse.quote(label.strip())}"
+            f"&_pageSize=100"
+        )
+
+        try:
+            req = urllib.request.Request(url, headers={
+                "Accept": "application/json",
+                "User-Agent": "ckan-batch/1.0",
+            })
+            with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:
+            print(f"[GCMD] HTTP error for {url}: {exc}")
+            cache[cache_key] = None
+            self._gcmd_cache = cache
+            return None
+
+        items = data.get("result", {}).get("items", [])
+        for item in items:
+            pref = item.get("prefLabel")
+            if isinstance(pref, dict):
+                pref_val = (pref.get("_value") or "").strip()
+            elif isinstance(pref, str):
+                pref_val = pref.strip()
+            else:
+                continue
+
+            if pref_val.lower() == norm:
+                result = {"code": item.get("_about", ""), "label": pref_val}
+                cache[cache_key] = result
+                self._gcmd_cache = cache
+                return result
+
+        cache[cache_key] = None
+        self._gcmd_cache = cache
+        return None
+
+
+    # ------------------------------------------------------------------ #
+    #  Related instrument lookup (by DOI, public only)                    #
+    # ------------------------------------------------------------------ #
+
+    def find_public_instrument_by_doi(self, doi: str) -> Optional[Dict[str, Any]]:
+        """
+        Search for a public, DOI-minted instrument by its DOI value.
+        Returns {"id": package_id, "title": title, "doi": doi, "name": slug}
+        or None if not found / not public / no minted DOI.
+        """
+        cache: Dict[str, Optional[Dict[str, Any]]] = getattr(self, "_doi_cache", {})
+        norm = doi.strip()
+        if norm in cache:
+            return cache[norm]
+
+        try:
+            results = self.action.package_search(
+                q=f'doi:"{norm}"',
+                fq="type:instrument",
+                include_private=False,
+                include_drafts=False,
+                rows=5,
+            )
+        except Exception as exc:
+            print(f"[DOI lookup] Search error for {norm}: {exc}")
+            cache[norm] = None
+            self._doi_cache = cache
+            return None
+
+        for pkg in results.get("results", []):
+            pkg_doi = (pkg.get("doi") or "").strip()
+            if pkg_doi == norm and pkg.get("state") == "active" and not pkg.get("private"):
+                result = {
+                    "id": pkg["id"],
+                    "title": pkg.get("title", ""),
+                    "doi": pkg_doi,
+                    "name": pkg.get("name", ""),
+                }
+                cache[norm] = result
+                self._doi_cache = cache
+                return result
+
+        cache[norm] = None
+        self._doi_cache = cache
+        return None
+
+    def find_public_instrument_by_attributes(
+        self,
+        manufacturer: str,
+        model: str,
+        alternate_identifier: str,
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[List[Dict[str, str]]]]:
+        """
+        Search for a public instrument by manufacturer name, model name,
+        and alternate identifier.
+
+        Returns:
+        (result_dict, None)         if exactly one match is found
+        (None, [summaries])         if multiple matches are found
+        (None, None)                if no match is found
+        """
+        import json
+
+        manuf_norm = manufacturer.strip()
+        model_norm = model.strip()
+        alt_norm = alternate_identifier.strip()
+
+        try:
+            results = self.action.package_search(
+                q=(
+                    f'manufacturer_name_search:"{manuf_norm}" '
+                    f'AND model_name_search:"{model_norm}" '
+                    f'AND alternate_identifier_search:"{alt_norm}"'
+                ),
+                fq="type:instrument",
+                include_private=False,
+                include_drafts=False,
+                rows=100,
+            )
+        except Exception as exc:
+            print(f"[Instrument lookup] Search error: {exc}")
+            return None, None
+
+        def _load_list(value):
+            if not value:
+                return []
+            if isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    return []
+            return value if isinstance(value, list) else []
+
+        matches: List[Dict[str, Any]] = []
+
+        for pkg in results.get("results", []):
+            if pkg.get("state") != "active" or pkg.get("private"):
+                continue
+
+            manufacturers = _load_list(pkg.get("manufacturer"))
+            manufacturer_match = any(
+                (item.get("manufacturer_name") or "").strip() == manuf_norm
+                for item in manufacturers
+                if isinstance(item, dict)
+            )
+            if not manufacturer_match:
+                continue
+
+            models = _load_list(pkg.get("model"))
+            model_match = any(
+                (item.get("model_name") or "").strip() == model_norm
+                for item in models
+                if isinstance(item, dict)
+            )
+            if not model_match:
+                continue
+
+            alternate_ids = _load_list(pkg.get("alternate_identifier_obj"))
+            alt_match = any(
+                (item.get("alternate_identifier") or "").strip().lower() == alt_norm.lower()
+                for item in alternate_ids
+                if isinstance(item, dict)
+            )
+            if not alt_match:
+                continue
+
+            matches.append(pkg)
+
+        if len(matches) == 1:
+            pkg = matches[0]
+            return {
+                "id": pkg["id"],
+                "title": pkg.get("title", ""),
+                "doi": (pkg.get("doi") or "").strip(),
+                "name": pkg.get("name", ""),
+            }, None
+
+        if len(matches) > 1:
+            summaries = [
+                {
+                    "id": p["id"],
+                    "title": p.get("title", ""),
+                    "doi": (p.get("doi") or "").strip(),
+                }
+                for p in matches
+            ]
+            return None, summaries
+
+        return None, None
+
+    def get_taxonomy_list(self):
+        return self.action.taxonomy_list()
+
+    def get_taxonomy_term_list(self, taxonomy_id: str):
+        return self.action.taxonomy_term_list(id=taxonomy_id)

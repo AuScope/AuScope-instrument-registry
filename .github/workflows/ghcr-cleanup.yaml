@@ -1,0 +1,21 @@
+name: Cleanup GHCR Untagged Images
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 0"  # weekly
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old untagged GHCR versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: auscope-ckan-pidinst
+          package-type: container
+          min-versions-to-keep: 20
+          delete-only-untagged-versions: true
