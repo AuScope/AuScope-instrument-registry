@@ -133,66 +133,42 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     # def process_doi_metadata(self, pkg_dict):
     #     pkg_dict['language_code'] = 'en'
     def before_dataset_index(self, pkg_dict):
-        manufacturers = pkg_dict.get("manufacturer") or []
-        names = []
+        import json
 
-        # if manufacturer is stored as JSON string, decode first
-        if isinstance(manufacturers, str):
-            import json
-            try:
-                manufacturers = json.loads(manufacturers)
-            except Exception:
-                manufacturers = []
+        def _load_list(value):
+            if not value:
+                return []
+            if isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except Exception:
+                    return []
+            return value if isinstance(value, list) else []
 
-        for item in manufacturers:
-            if not isinstance(item, dict):
-                continue
-            name = item.get("manufacturer_name")
-            if name:
-                names.append(name)
+        manufacturers = _load_list(pkg_dict.get("manufacturer"))
+        manufacturer_names = [
+            item.get("manufacturer_name")
+            for item in manufacturers
+            if isinstance(item, dict) and item.get("manufacturer_name")
+        ]
+        pkg_dict["manufacturer_name_search"] = " | ".join(manufacturer_names)
 
-        pkg_dict["manufacturer_name_search"] = names
+        models = _load_list(pkg_dict.get("model"))
+        model_names = [
+            item.get("model_name")
+            for item in models
+            if isinstance(item, dict) and item.get("model_name")
+        ]
+        pkg_dict["model_name_search"] = " | ".join(model_names)
 
-        log.warning("INDEXING DATASET %s manufacturer_name_search=%s", pkg_dict.get("name"), names)
+        alternate_id_objs = _load_list(pkg_dict.get("alternate_identifier_obj"))
+        alternate_ids = [
+            item.get("alternate_identifier")
+            for item in alternate_id_objs
+            if isinstance(item, dict) and item.get("alternate_identifier")
+        ]
+        pkg_dict["alternate_identifier_search"] = " | ".join(alternate_ids)
 
-        models = pkg_dict.get("model") or []
-        model_names = []
-
-        if isinstance(models, str):
-            import json
-            try:
-                models = json.loads(models)
-            except Exception:
-                models = []
-
-        for item in models:
-            if not isinstance(item, dict):
-                continue
-            name = item.get("model_name")
-            if name:
-                model_names.append(name)
-
-        pkg_dict["model_name_search"] = model_names
-
-
-        alternate_id_objs = pkg_dict.get("alternate_identifier_obj") or []
-        alternate_ids = []
-
-        if isinstance(alternate_id_objs, str):
-            import json
-            try:
-                alternate_id_objs = json.loads(alternate_id_objs)
-            except Exception:
-                alternate_id_objs = []
-
-        for item in alternate_id_objs:
-            if not isinstance(item, dict):
-                continue
-            alt_id = item.get("alternate_identifier")
-            if alt_id:
-                alternate_ids.append(alt_id)
-
-        pkg_dict["alternate_identifier_search"] = alternate_ids
         return pkg_dict
 
     def before_view(self, pkg_dict):
