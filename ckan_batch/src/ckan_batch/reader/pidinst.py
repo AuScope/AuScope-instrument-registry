@@ -441,6 +441,7 @@ def read_pidinst_template(
     client: CKANClient,
     sheet_name: str = "Instruments",
     record_col_key: str = "FIELD.Record",  # derived key for Record* column
+    org_own: str = "auscope-org",  # default owner organization (CKAN org name, not required in your template)
 ) -> MappingResult:
     """
     Reads your adjusted PIDINST template and maps it to CKAN record payload dicts.
@@ -539,9 +540,7 @@ def read_pidinst_template(
 
         for row in grp:
             # Base scalar fields
-            org_own = _clean(row.get("SITE_ORG.Organisation"))
-            if org_own and _is_blank(ds.get("owner_org")):
-                ds["owner_org"] = org_own  # CKAN owner organization (not required in your template, but if present on any row in the group, use it)
+            ds["owner_org"] = org_own  # CKAN owner organization (not required in your template, but if present on any row in the group, use it)
             title = _clean(row.get("TITLE.Name"))
             if title and _is_blank(ds.get("title")):
                 ds["title"] = title  # CKAN title
