@@ -290,6 +290,8 @@ dataset_fields:
             label: Commissioned
           - value: DeCommissioned
             label: DeCommissioned
+          - value: Coverage
+            label: Period of Activity
         help_text: The type of the date
 
   - field_name: measured_variable_gcmd_code
