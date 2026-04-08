@@ -10,36 +10,20 @@ _ALLOWED_PIDINST_DATE_RE = re.compile(
     r"(?:-(?P<day>0[1-9]|[12]\d|3[01]))?)?$"
 )
 
+_ALLOWED_PIDINST_COVERAGE_RE = re.compile(
+    r"^(?:(?P<start>\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?)?)"
+    r"/"
+    r"(?:(?P<end>\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?)?)$"
+)
 
-def validate_pidinst_date_text(value: Any) -> Optional[str]:
+
+def _validate_pidinst_single_date_text(text: str) -> str:
     """
-    Accept only plain-text PIDINST date formats:
+    Validate plain-text PIDINST single date:
       YYYY
       YYYY-MM
       YYYY-MM-DD
-
-    Returns normalized string if valid, None if blank.
-    Raises ValueError otherwise.
     """
-    if value is None:
-        return None
-
-    if isinstance(value, str):
-        text = value.strip()
-    else:
-        text = str(value).strip()
-
-    if not text:
-        return None
-
-    # Reject Excel-converted date/datetime values explicitly
-    if isinstance(value, (datetime, date)):
-        raise ValueError(
-            f"Date value '{value}' is not plain text. "
-            "Please enter dates in Excel as plain text using one of: "
-            "YYYY, YYYY-MM, YYYY-MM-DD."
-        )
-
     m = _ALLOWED_PIDINST_DATE_RE.fullmatch(text)
     if not m:
         raise ValueError(
@@ -62,6 +46,110 @@ def validate_pidinst_date_text(value: Any) -> Optional[str]:
             )
 
     return text
+
+
+def _validate_pidinst_coverage_date_text(text: str) -> str:
+    """
+    Validate plain-text PIDINST Coverage date:
+      YYYY
+      YYYY-MM
+      YYYY-MM-DD
+      YYYY/YYYY
+      YYYY-MM/YYYY-MM
+      YYYY-MM-DD/YYYY-MM-DD
+      YYYY/
+      YYYY-MM/
+      YYYY-MM-DD/
+      /YYYY
+      /YYYY-MM
+      /YYYY-MM-DD
+    """
+    if "/" not in text:
+        return _validate_pidinst_single_date_text(text)
+
+    m = _ALLOWED_PIDINST_COVERAGE_RE.fullmatch(text)
+    if not m:
+        raise ValueError(
+            f"Invalid Coverage date value '{text}'. "
+            "Please enter Coverage dates in Excel as plain text using one of: "
+            "YYYY, YYYY-MM, YYYY-MM-DD, start/end, start/, or /end."
+        )
+
+    start = m.group("start")
+    end = m.group("end")
+
+    if not start and not end:
+        raise ValueError(
+            "Invalid Coverage date value '/'. "
+            "Coverage start and end cannot both be empty."
+        )
+
+    if start:
+        _validate_pidinst_single_date_text(start)
+    if end:
+        _validate_pidinst_single_date_text(end)
+
+    return text
+
+
+def validate_pidinst_date_text(
+    value: Any,
+    date_type: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Accept only plain-text PIDINST date formats.
+
+    Standard dates:
+      YYYY
+      YYYY-MM
+      YYYY-MM-DD
+
+    Coverage dates:
+      YYYY
+      YYYY-MM
+      YYYY-MM-DD
+      YYYY/YYYY
+      YYYY-MM/YYYY-MM
+      YYYY-MM-DD/YYYY-MM-DD
+      YYYY/
+      YYYY-MM/
+      YYYY-MM-DD/
+      /YYYY
+      /YYYY-MM
+      /YYYY-MM-DD
+
+    Returns normalized string if valid, None if blank.
+    Raises ValueError otherwise.
+    """
+    if value is None:
+        return None
+
+    # Reject Excel-converted date/datetime values explicitly
+    if isinstance(value, (datetime, date)):
+        if isinstance(date_type, str) and date_type.strip().lower() == "coverage":
+            raise ValueError(
+                f"Coverage date value '{value}' is not plain text. "
+                "Please enter Coverage dates in Excel as plain text using one of: "
+                "YYYY, YYYY-MM, YYYY-MM-DD, start/end, start/, or /end."
+            )
+        raise ValueError(
+            f"Date value '{value}' is not plain text. "
+            "Please enter dates in Excel as plain text using one of: "
+            "YYYY, YYYY-MM, YYYY-MM-DD."
+        )
+
+    if isinstance(value, str):
+        text = value.strip()
+    else:
+        text = str(value).strip()
+
+    if not text:
+        return None
+
+    if isinstance(date_type, str) and date_type.strip().lower() == "coverage":
+        return _validate_pidinst_coverage_date_text(text)
+
+    return _validate_pidinst_single_date_text(text)
 
 def apply_site_defaults(payload: Dict[str, Any], *, override: bool = False) -> Dict[str, Any]:
     """

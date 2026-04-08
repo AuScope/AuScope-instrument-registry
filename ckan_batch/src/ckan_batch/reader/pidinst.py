@@ -639,17 +639,19 @@ def read_pidinst_template(
                 _append_unique(ds["model"], model, identity_keys=("model_name", "model_identifier"))
 
             # Date composite (repeating)
+            dtype = _clean(row.get("DATES.dateType"))
+            if dtype and dtype.lower() == "period of activity":
+                dtype = "Coverage"
             raw_dval = row.get("DATES.Date")
             try:
-                dval = validate_pidinst_date_text(raw_dval)
+                dval = validate_pidinst_date_text(raw_dval, date_type=dtype)
             except ValueError as exc:
                 errors.append(f"[Record {record} | Row {row['__rownum__']}] {exc}")
                 dval = None
-            dtype = _clean(row.get("DATES.dateType"))
+
             if dval or dtype:
                 date_obj = {"date_value": dval, "date_type": dtype}
                 _append_unique(ds["date"], date_obj, identity_keys=("date_value", "date_type"))
-
             # Alternate Identifier composite (repeating)
             alt = {
                 "alternate_identifier": _clean(row.get("ALTERNATE IDENTIFIER.Id")),
