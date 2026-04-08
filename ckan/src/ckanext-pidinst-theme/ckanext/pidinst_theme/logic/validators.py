@@ -30,6 +30,18 @@ missing_error = _("Missing value")
 invalid_error = _("Invalid value")
 
 
+_FLEXIBLE_DATE_PATTERNS = [
+    re.compile(r"^\d{4}$"),
+    re.compile(r"^\d{4}-\d{2}$"),
+    re.compile(r"^\d{4}-\d{2}-\d{2}$"),
+]
+
+_COVERAGE_SINGLE_RE = re.compile(r"^\d{4}(-\d{2}){0,2}$")
+_COVERAGE_RANGE_RE = re.compile(
+    r"^(?P<start>\d{4}(-\d{2}){0,2})?/(?P<end>\d{4}(-\d{2}){0,2})?$"
+)
+
+
 def _coerce_str(v, default=''):
     """Coerce to stripped string; takes first element if list (CKAN getlist)."""
     if isinstance(v, list):
@@ -87,13 +99,6 @@ def _build_instrument_entries(picker_rows):
 
 # A dictionary to store your validators
 all_validators = {}
-
-_FLEXIBLE_DATE_PATTERNS = [
-    re.compile(r"^\d{4}$"),
-    re.compile(r"^\d{4}-\d{2}$"),
-    re.compile(r"^\d{4}-\d{2}-\d{2}$"),
-]
-
 
 def add_error(errors, key, error_message):
     errors[key] = errors.get(key, [])
@@ -673,26 +678,7 @@ def json_list_output(value, context):
 
 visibility_validator = owner_org_validator
 
-def flexible_date_validator(value, context):
-    """
-    Accepts dates in one of these formats:
-      - YYYY
-      - YYYY-MM
-      - YYYY-MM-DD
-
-    Returns the stripped string value if valid.
-    Raises Invalid if not valid.
-    """
-    if value is None:
-        return value
-
-    if not isinstance(value, str):
-        raise tk.Invalid("Date must be a string in YYYY, YYYY-MM, or YYYY-MM-DD format.")
-
-    value = value.strip()
-    if not value:
-        return value
-
+def _validate_single_date(value):
     if not any(pattern.match(value) for pattern in _FLEXIBLE_DATE_PATTERNS):
         raise tk.Invalid("Enter a valid date in YYYY, YYYY-MM, or YYYY-MM-DD format.")
 
@@ -706,9 +692,85 @@ def flexible_date_validator(value, context):
         else:
             raise tk.Invalid("Enter a valid date in YYYY, YYYY-MM, or YYYY-MM-DD format.")
     except ValueError:
-        raise tk.Invalid("Enter a valid calendar date in YYYY, YYYY-MM, or YYYY-MM-DD format.")
+        raise tk.Invalid(
+            "Enter a valid calendar date in YYYY, YYYY-MM, or YYYY-MM-DD format."
+        )
 
-    return value
+
+def _validate_coverage_date(value):
+    if "/" not in value:
+        _validate_single_date(value)
+        return
+
+    match = _COVERAGE_RANGE_RE.match(value)
+    if not match:
+        raise tk.Invalid(
+            "Enter a valid Coverage date in YYYY, YYYY-MM, YYYY-MM-DD, start/end, start/, or /end format."
+        )
+
+    start = match.group("start")
+    end = match.group("end")
+
+    if not start and not end:
+        raise tk.Invalid("Coverage date range '/' is invalid.")
+
+    if start:
+        _validate_single_date(start)
+    if end:
+        _validate_single_date(end)
+
+
+def pidinst_date_repeating_validator(value, context):
+    original_value = value
+
+    if value in (None, "", []):
+        return original_value
+
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            raise tk.Invalid("Invalid date structure.")
+
+    if isinstance(value, dict):
+        value = [value]
+
+    if not isinstance(value, list):
+        raise tk.Invalid("Invalid date structure.")
+
+    errors = []
+
+    for idx, row in enumerate(value, start=1):
+        if not isinstance(row, dict):
+            errors.append(f"Date {idx}: Invalid date entry.")
+            continue
+
+        date_value = row.get("date_value")
+        date_type = row.get("date_type")
+
+        if date_value is None:
+            continue
+
+        if not isinstance(date_value, str):
+            errors.append(f"Date {idx}: Date must be a string.")
+            continue
+
+        date_value = date_value.strip()
+        if not date_value:
+            continue
+
+        try:
+            if isinstance(date_type, str) and date_type.strip().lower() == "coverage":
+                _validate_coverage_date(date_value)
+            else:
+                _validate_single_date(date_value)
+        except tk.Invalid as e:
+            errors.append(f"Date {idx}: {e.error}")
+
+    if errors:
+        raise tk.Invalid("; ".join(errors))
+
+    return original_value
 
 
 @scheming_validator
@@ -829,7 +891,7 @@ def get_validators():
         "resource_url_validator": resource_url_validator,
         "json_list_or_string": json_list_or_string,
         "json_list_output": json_list_output,
-        "flexible_date_validator": flexible_date_validator,
+        "pidinst_date_repeating_validator": pidinst_date_repeating_validator,
         "related_instruments_validator": related_instruments_validator,
         "merge_related_instruments": merge_related_instruments,
     }

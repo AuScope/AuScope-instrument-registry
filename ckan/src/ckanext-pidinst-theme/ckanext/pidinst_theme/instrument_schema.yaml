@@ -268,7 +268,7 @@ dataset_fields:
   - field_name: date
     label: Date
     preset: composite_repeating
-    validators: composite_repeating_validator
+    validators: composite_repeating_validator pidinst_date_repeating_validator
     form_snippet: composite_repeating_field.html
     form_blanks: 1
     groupBy: About Instrument
@@ -276,10 +276,10 @@ dataset_fields:
       - field_name: date_value
         label: Date
         required: true
-        validators: not_empty flexible_date_validator
+        validators: not_empty
         form_attrs:
-          placeholder: "YYYY or YYYY-MM or YYYY-MM-DD"
-        help_text: Accepts YYYY, YYYY-MM, or YYYY-MM-DD
+          placeholder: "YYYY or YYYY-MM or YYYY-MM-DD; Coverage also supports start/end, start/, /end"
+        help_text: Accepts YYYY, YYYY-MM, or YYYY-MM-DD. Coverage also accepts ranges like 2020-01/ or 2020-01-01/2026-04-06
 
       - field_name: date_type
         label: Date Type
