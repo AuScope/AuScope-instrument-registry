@@ -19,20 +19,6 @@ dataset_fields:
     help_text: Version number of the PIDINST schema used in this record
     groupBy: About Instrument
 
-  # - field_name: identifierType
-  #   label: IdentifierType
-  #   form_placeholder: Type of the identifier
-  #   form_attrs:
-  #     disabled: true
-  #   help_text: Unique string that identifies the instrument instance
-  #   groupBy: About Instrument
-
-  # - field_name: landing_page
-  #   label: Landing Page URL
-  #   form_placeholder: A landing page that the identifier resolves to
-  #   help_text: A landing page that the identifier resolves to
-  #   groupBy: About Instrument
-
   - field_name: is_platform
     label: Is Platform
     required: true
