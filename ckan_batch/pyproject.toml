@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "bmotevalli", email = "b.motevalli@gmail.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
     "ckanapi>=4.9",
     "openpyxl>=3.1.5",

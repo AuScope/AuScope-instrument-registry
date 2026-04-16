@@ -114,7 +114,6 @@ class CKANClient(RemoteCKAN):
         *,
         record_type: str = "instrument",
         dry_run: bool = False,
-        allow_update_if_exists: bool = False,
     ) -> CreateResult:
         """
         Create CKAN records using package_create (or package_update if enabled and exists).
@@ -174,43 +173,6 @@ class CKANClient(RemoteCKAN):
                 # If already exists and update allowed, try update.
                 # Note: CKAN typically errors on name collision; but your loader excludes name, so collision is unlikely.
                 msg = getattr(e, "error_dict", None) or str(e)
-
-                # Optional "exists → update" path, only if we can identify a target.
-                if allow_update_if_exists:
-                    # If server returns a name conflict, you can parse msg and attempt package_show+update.
-                    # Otherwise you need an external key; if you store one, include it in payload as an extra field.
-                    target_name = _extract_name_from_ckan_error(msg)  # best-effort helper below
-                    if target_name:
-                        try:
-                            existing = self.action.package_show(id=target_name)
-                            payload_to_send["id"] = existing["id"]
-                            resp2 = self.action.package_update(**payload_to_send)
-                            pkg_id2 = resp2.get("id")
-                            rr2 = self.create_resources_for_record(pkg_id2, resources, dry_run=dry_run)
-                            resource_results.append({"index": i, "package_id": pkg_id2, **rr2})
-                            created.append(
-                                {
-                                    "status": "updated",
-                                    "index": i,
-                                    "id": pkg_id2,
-                                    "name": resp2.get("name"),
-                                    "title": resp2.get("title"),
-                                    "doi": resp2.get("doi"),
-                                    "response": resp2,
-                                }
-                            )
-                            continue
-                        except Exception as e2:
-                            failed.append(
-                                {
-                                    "index": i,
-                                    "title": payload_to_send.get("title"),
-                                    "error": f"Create failed; update attempt failed: {e2}",
-                                    "ckan_error": msg,
-                                    "payload": payload_to_send,
-                                }
-                            )
-                            continue
 
                 failed.append(
                     {
@@ -588,8 +550,7 @@ class CKANClient(RemoteCKAN):
         self,
         parties: List[Dict[str, Any]],
         *,
-        dry_run: bool = False,
-        allow_update_if_exists: bool = False,
+        dry_run: bool = False
     ) -> CreateResult:
         """
         Create CKAN parties using group_create (or group_update if enabled and exists).
@@ -634,38 +595,6 @@ class CKANClient(RemoteCKAN):
 
             except CKANAPIError as e:
                 msg = getattr(e, "error_dict", None) or str(e)
-
-                if allow_update_if_exists and payload_to_send.get("name"):
-                    try:
-                        existing = self.action.group_show(
-                            id=payload_to_send["name"],
-                            type="party",
-                        )
-                        payload_to_send["id"] = existing["id"]
-                        resp2 = self.action.group_update(**payload_to_send)
-                        created.append(
-                            {
-                                "status": "updated",
-                                "index": i,
-                                "id": resp2.get("id"),
-                                "name": resp2.get("name"),
-                                "title": resp2.get("title"),
-                                "response": resp2,
-                            }
-                        )
-                        continue
-                    except Exception as e2:
-                        failed.append(
-                            {
-                                "index": i,
-                                "title": payload_to_send.get("title"),
-                                "name": payload_to_send.get("name"),
-                                "error": f"Create failed; update attempt failed: {e2}",
-                                "ckan_error": msg,
-                                "payload": payload_to_send,
-                            }
-                        )
-                        continue
 
                 failed.append(
                     {
@@ -961,26 +890,41 @@ class CKANClient(RemoteCKAN):
         self._doi_cache = cache
         return None
 
-    def find_public_instrument_by_attributes(
+    def find_instrument_by_attributes(
         self,
         manufacturer: str,
         model: str,
         alternate_identifier: str,
+        visibility: str = "public",
+        verbose: bool = False,
     ) -> Tuple[Optional[Dict[str, Any]], Optional[List[Dict[str, str]]]]:
         """
-        Search for a public instrument by manufacturer name, model name,
+        Search for an instrument by manufacturer name, model name,
         and alternate identifier.
+
+        Args:
+            manufacturer: Manufacturer name to match.
+            model: Model name to match.
+            alternate_identifier: Alternate identifier value to match.
+            visibility: One of 'public', 'private', or 'all'.
+                - 'public': only public, active records (original behaviour).
+                - 'private': only private records.
+                - 'all': both public and private records.
 
         Returns:
         (result_dict, None)         if exactly one match is found
         (None, [summaries])         if multiple matches are found
         (None, None)                if no match is found
         """
-        import json
+        if visibility not in ("public", "private", "all"):
+            raise ValueError(f"visibility must be 'public', 'private', or 'all'; got {visibility!r}")
 
         manuf_norm = manufacturer.strip()
         model_norm = model.strip()
         alt_norm = alternate_identifier.strip()
+
+        include_private = visibility in ("private", "all")
+        include_drafts = visibility in ("private", "all")
 
         try:
             results = self.action.package_search(
@@ -990,8 +934,8 @@ class CKANClient(RemoteCKAN):
                     f'AND alternate_identifier_search:"{alt_norm}"'
                 ),
                 fq="type:instrument",
-                include_private=False,
-                include_drafts=False,
+                include_private=include_private,
+                include_drafts=include_drafts,
                 rows=100,
             )
         except Exception as exc:
@@ -1011,7 +955,14 @@ class CKANClient(RemoteCKAN):
         matches: List[Dict[str, Any]] = []
 
         for pkg in results.get("results", []):
-            if pkg.get("state") != "active" or pkg.get("private"):
+            if pkg.get("state") != "active":
+                continue
+
+            # Apply visibility filter
+            is_private = pkg.get("private")
+            if visibility == "public" and is_private:
+                continue
+            if visibility == "private" and not is_private:
                 continue
 
             manufacturers = _load_list(pkg.get("manufacturer"))
@@ -1045,6 +996,8 @@ class CKANClient(RemoteCKAN):
 
         if len(matches) == 1:
             pkg = matches[0]
+            if verbose:
+                return pkg, None
             return {
                 "id": pkg["id"],
                 "title": pkg.get("title", ""),
@@ -1064,6 +1017,511 @@ class CKANClient(RemoteCKAN):
             return None, summaries
 
         return None, None
+
+    # ------------------------------------------------------------------ #
+    #  Export records                                                      #
+    # ------------------------------------------------------------------ #
+
+    def export_records(
+        self,
+        pkg_ids: List[str],
+        export_format: str = "Excel",
+        output_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Export CKAN records by package IDs to Excel or JSON.
+
+        Args:
+            pkg_ids: List of CKAN package IDs to export.
+            export_format: 'Excel' or 'JSON'.
+            output_path: Optional output file path. If None, auto-generated.
+
+        Returns:
+            {"exported": [...], "not_found": [...], "output_path": str}
+        """
+        if export_format not in ("Excel", "JSON"):
+            raise ValueError(f"export_format must be 'Excel' or 'JSON'; got {export_format!r}")
+
+        exported: List[Dict[str, Any]] = []
+        not_found: List[str] = []
+
+        for pid in pkg_ids:
+            try:
+                pkg = self.action.package_show(id=pid)
+                exported.append(pkg)
+            except NotFound:
+                logger.warning("Export: package %s not found", pid)
+                not_found.append(pid)
+            except CKANAPIError as e:
+                logger.warning("Export: CKANAPIError for %s: %s", pid, getattr(e, "error_dict", None) or str(e))
+                not_found.append(pid)
+            except Exception:
+                logger.exception("Export: unexpected error for %s", pid)
+                not_found.append(pid)
+
+        logger.info("Exported %d packages, %d not found", len(exported), len(not_found))
+
+        if export_format == "JSON":
+            if output_path is None:
+                output_path = "export.json"
+            with open(output_path, "w", encoding="utf-8") as fh:
+                json.dump(exported, fh, ensure_ascii=False, indent=2)
+
+        elif export_format == "Excel":
+            if output_path is None:
+                output_path = "export.xlsx"
+
+            self._export_to_excel(exported, output_path)
+            logger.info("Exported data saved to %s", output_path)
+
+        return {"exported": [p.get("id") for p in exported], "not_found": not_found, "output_path": output_path}
+
+    # ---- Excel export helpers ---- #
+
+    @staticmethod
+    def _load_list(value: Any) -> List[Dict[str, Any]]:
+        if not value:
+            return []
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return value if isinstance(value, list) else []
+
+    def _export_to_excel(self, packages: List[Dict[str, Any]], output_path: str) -> None:
+        import openpyxl
+        from copy import copy
+
+        template_path = str(Path(__file__).parent / "reader" / "templates" / "PIDINST.xlsx")
+        wb = openpyxl.load_workbook(template_path)
+
+        # Ensure both worksheets exist (create Platforms by copying Instruments structure)
+        if "Platforms" not in wb.sheetnames:
+            src_ws = wb["Instruments"]
+            plat_ws = wb.create_sheet("Platforms")
+            for row in src_ws.iter_rows(min_row=1, max_row=6, max_col=src_ws.max_column):
+                for cell in row:
+                    new_cell = plat_ws.cell(row=cell.row, column=cell.column, value=cell.value)
+                    if cell.has_style:
+                        new_cell.font = copy(cell.font)
+                        new_cell.border = copy(cell.border)
+                        new_cell.fill = copy(cell.fill)
+                        new_cell.number_format = copy(cell.number_format)
+                        new_cell.protection = copy(cell.protection)
+                        new_cell.alignment = copy(cell.alignment)
+            for i, dim in src_ws.column_dimensions.items():
+                plat_ws.column_dimensions[i].width = dim.width
+            # Update title cell
+            plat_ws.cell(1, 1, "PIDINST Batch Platform Upload Template (single-sheet, arrays via repeated rows)")
+
+        instruments: List[Dict[str, Any]] = []
+        platforms: List[Dict[str, Any]] = []
+
+        for pkg in packages:
+            is_platform = str(pkg.get("is_platform", "false")).strip().lower() in ("true", "1", "yes")
+            if is_platform:
+                platforms.append(pkg)
+            else:
+                instruments.append(pkg)
+
+        self._write_packages_to_sheet(wb["Instruments"], instruments)
+        self._write_packages_to_sheet(wb["Platforms"], platforms)
+
+        wb.save(output_path)
+
+    def _write_packages_to_sheet(self, ws: Any, packages: List[Dict[str, Any]]) -> None:
+        """Write package data rows into the given worksheet starting at row 7."""
+
+        def _cell(value: Any) -> Any:
+            """Coerce a value to something openpyxl can write."""
+            if value is None:
+                return ""
+            if isinstance(value, list):
+                return ", ".join(str(v) for v in value if v is not None)
+            return value
+
+        first_data_row = 7
+        record_num = 0
+
+        for pkg in packages:
+            record_num += 1
+            record_label = str(record_num)
+
+            manufacturers  = self._load_list(pkg.get("manufacturer"))
+            owners         = self._load_list(pkg.get("owner"))
+            models         = self._load_list(pkg.get("model"))
+            dates          = self._load_list(pkg.get("date"))
+            alt_ids        = self._load_list(pkg.get("alternate_identifier_obj"))
+            funders        = self._load_list(pkg.get("funder"))
+            related_ids    = self._load_list(pkg.get("related_identifier_obj"))
+            instrument_types = self._load_list(pkg.get("instrument_type"))
+            measured_vars  = self._load_list(pkg.get("measured_variable"))
+            resources      = pkg.get("resources") or []
+            if not isinstance(resources, list):
+                resources = []
+
+            related_instruments_raw = pkg.get("related_instruments")
+            if isinstance(related_instruments_raw, str) and related_instruments_raw.strip():
+                try:
+                    related_instruments = json.loads(related_instruments_raw)
+                except (json.JSONDecodeError, TypeError):
+                    related_instruments = []
+            elif isinstance(related_instruments_raw, list):
+                related_instruments = related_instruments_raw
+            else:
+                related_instruments = []
+
+            spatial = pkg.get("spatial")
+            if isinstance(spatial, str):
+                try:
+                    spatial = json.loads(spatial)
+                except (json.JSONDecodeError, TypeError):
+                    spatial = None
+
+            # --- Scalar fields written to the first row only ---
+            # user_keywords: list or CSV string → CSV string
+            kw_raw = pkg.get("user_keywords", "")
+            if isinstance(kw_raw, list):
+                user_keywords_str = ", ".join(str(v) for v in kw_raw if v is not None)
+            else:
+                user_keywords_str = str(kw_raw) if kw_raw else ""
+
+            # Instrument type: split stored list into GCMD (col 16) vs custom (col 17)
+            # Use pre-computed instrument_type_gcmd if present; derive custom from list.
+            GCMD_HOST = "gcmd.earthdata.nasa.gov"
+            it_gcmd_str = pkg.get("instrument_type_gcmd") or ", ".join(
+                it.get("instrument_type_name", "") for it in instrument_types
+                if GCMD_HOST in (it.get("instrument_type_identifier") or "")
+            )
+            it_custom_str = ", ".join(
+                it.get("instrument_type_name", "") for it in instrument_types
+                if GCMD_HOST not in (it.get("instrument_type_identifier") or "")
+                and (it.get("instrument_type_identifier") or "")
+            )
+
+            # Measured variable: same split
+            mv_gcmd_str = pkg.get("measured_variable_gcmd") or ", ".join(
+                mv.get("measured_variable_name", "") for mv in measured_vars
+                if GCMD_HOST in (mv.get("measured_variable_identifier") or "")
+            )
+            mv_custom_str = ", ".join(
+                mv.get("measured_variable_name", "") for mv in measured_vars
+                if GCMD_HOST not in (mv.get("measured_variable_identifier") or "")
+                and (mv.get("measured_variable_identifier") or "")
+            )
+
+            # Geolocation
+            loc_choice = pkg.get("location_choice", "noLocation") or "noLocation"
+            lon = lat = min_lng = min_lat = max_lng = max_lat = ""
+            if loc_choice == "point" and spatial:
+                coords = spatial.get("coordinates") or []
+                if len(coords) >= 2:
+                    lon, lat = coords[0], coords[1]
+            elif loc_choice == "area" and spatial:
+                ring = (spatial.get("coordinates") or [[]])[0] or []
+                if len(ring) >= 4:
+                    min_lng, min_lat = ring[0][0], ring[0][1]
+                    max_lng, max_lat = ring[2][0], ring[2][1]
+
+            # Determine total rows needed for this record
+            max_rows = max(
+                1,
+                len(manufacturers),
+                len(owners),
+                len(models),
+                len(dates),
+                len(alt_ids),
+                len(funders),
+                len(related_ids),
+                len(related_instruments),
+                len(resources),
+            )
+
+            for row_idx in range(max_rows):
+                r = first_data_row
+
+                # col 1: Record (every row)
+                ws.cell(r, 1, record_label)
+
+                # --- First-row-only scalar fields ---
+                if row_idx == 0:
+                    ws.cell(r,  2, pkg.get("id", ""))                      # PKG_ID
+                    ws.cell(r,  3, _cell(pkg.get("title", "")))             # Title
+                    ws.cell(r,  4, _cell(pkg.get("instrument_classification", "")))  # Class
+                    ws.cell(r, 16, _cell(it_gcmd_str))                     # instrumentTypeGCMD
+                    ws.cell(r, 17, _cell(it_custom_str))                   # instrumentTypeCustom
+                    ws.cell(r, 27, _cell(mv_gcmd_str))                     # MeasuredVariableGCMD
+                    ws.cell(r, 28, _cell(mv_custom_str))                   # MeasuredVariableCustom
+                    ws.cell(r, 29, _cell(pkg.get("description", "")))      # Description
+                    ws.cell(r, 34, user_keywords_str)                      # UserKeywords
+                    ws.cell(r, 35, _cell(pkg.get("credit", "")))           # Credit
+                    ws.cell(r, 36, _cell(pkg.get("locality", "")))         # Locality
+                    ws.cell(r, 37, loc_choice)                             # Location Type
+                    ws.cell(r, 38, _cell(lon))                             # Longitude
+                    ws.cell(r, 39, _cell(lat))                             # Latitude
+                    ws.cell(r, 40, _cell(min_lng))                         # min_lng
+                    ws.cell(r, 41, _cell(min_lat))                         # min_lat
+                    ws.cell(r, 42, _cell(max_lng))                         # max_lng
+                    ws.cell(r, 43, _cell(max_lat))                         # max_lat
+                    ws.cell(r, 44, _cell(pkg.get("epsg_code", "")))        # EPSG
+
+                # col 5: Manufacturer Name
+                if row_idx < len(manufacturers):
+                    m = manufacturers[row_idx]
+                    ws.cell(r, 5, _cell(m.get("manufacturer_name")))
+
+                # col 6-8: Model
+                if row_idx < len(models):
+                    mdl = models[row_idx]
+                    ws.cell(r, 6, _cell(mdl.get("model_name")))
+                    ws.cell(r, 7, _cell(mdl.get("model_identifier")))
+                    ws.cell(r, 8, _cell(mdl.get("model_identifier_type")))
+
+                # col 9-11: Alternate Identifier
+                if row_idx < len(alt_ids):
+                    alt = alt_ids[row_idx]
+                    ws.cell(r,  9, _cell(alt.get("alternate_identifier")))
+                    ws.cell(r, 10, _cell(alt.get("alternate_identifier_type")))
+                    ws.cell(r, 11, _cell(alt.get("alternate_identifier_name")))
+
+                # col 12-13: Owner
+                if row_idx < len(owners):
+                    ow = owners[row_idx]
+                    ws.cell(r, 12, _cell(ow.get("owner_name")))
+                    ws.cell(r, 13, _cell(ow.get("owner_contact")))
+
+                # col 14-15: Dates
+                if row_idx < len(dates):
+                    dt = dates[row_idx]
+                    ws.cell(r, 14, _cell(dt.get("date_value")))
+                    ws.cell(r, 15, _cell(dt.get("date_type")))
+
+                # col 18-22: Related Resources (external)
+                if row_idx < len(related_ids):
+                    ri = related_ids[row_idx]
+                    ws.cell(r, 18, _cell(ri.get("related_identifier")))
+                    ws.cell(r, 19, _cell(ri.get("related_identifier_type")))
+                    ws.cell(r, 20, _cell(ri.get("related_resource_type")))
+                    ws.cell(r, 21, _cell(ri.get("relation_type")))
+                    ws.cell(r, 22, _cell(ri.get("related_identifier_name")))
+
+                # col 23: Related Instrument Components (DOI only in export)
+                if row_idx < len(related_instruments):
+                    rc = related_instruments[row_idx]
+                    ws.cell(r, 23, _cell(rc.get("identifier")))
+                    # cols 24-26 (Manufacturer/Model/AlternateIdentifier) not stored in relation
+
+                # col 30-33: Funder
+                if row_idx < len(funders):
+                    fu = funders[row_idx]
+                    ws.cell(r, 30, _cell(fu.get("funder_name")))
+                    ws.cell(r, 31, _cell(fu.get("award_number")))
+                    ws.cell(r, 32, _cell(fu.get("award_uri")))
+                    ws.cell(r, 33, _cell(fu.get("award_title")))
+
+                # col 45-49: Resources (use URL as path since we're exporting from CKAN)
+                if row_idx < len(resources):
+                    res = resources[row_idx]
+                    ws.cell(r, 45, _cell(res.get("url")))
+                    ws.cell(r, 46, _cell(res.get("name")))
+                    is_cover = res.get("pidinst_is_cover_image")
+                    if is_cover is True or str(is_cover).lower() in ("true", "1", "yes"):
+                        ws.cell(r, 47, "Yes")
+                    else:
+                        ws.cell(r, 47, "No")
+                    ws.cell(r, 48, _cell(res.get("format")))
+                    ws.cell(r, 49, _cell(res.get("description")))
+
+                first_data_row += 1
+
+    # ------------------------------------------------------------------ #
+    #  Update records                                                    #
+    # ------------------------------------------------------------------ #
+    def update_records(
+        self,
+        records: List[Dict[str, Any]],
+        convert_to_public: bool = False,
+        *,
+        dry_run: bool = False,
+    ) -> CreateResult:
+        """
+        Update existing CKAN records.
+
+        Privacy behavior:
+        - If convert_to_public=True, force private=False.
+        - If convert_to_public=False, preserve the existing package privacy
+        unless the incoming payload explicitly includes "private".
+        """
+        updated: List[Dict[str, Any]] = []
+        failed: List[Dict[str, Any]] = []
+
+        for i, payload in enumerate(records, start=1):
+            payload_to_send = dict(payload)
+            payload_to_send.pop("__resources__", None)
+
+            pkg_id = payload_to_send.pop("pkg_id", None)
+
+            if not pkg_id:
+                pkg_id = self._resolve_package_id(payload_to_send, i, failed)
+                if pkg_id is None:
+                    continue
+
+            try:
+                existing = self.action.package_show(id=pkg_id)
+            except NotFound:
+                failed.append({
+                    "index": i,
+                    "title": payload_to_send.get("title"),
+                    "error": "NotFound",
+                    "ckan_error": f"Package {pkg_id!r} not found in database",
+                    "payload": payload_to_send,
+                })
+                continue
+            except CKANAPIError as e:
+                failed.append({
+                    "index": i,
+                    "title": payload_to_send.get("title"),
+                    "error": "CKANAPIError",
+                    "ckan_error": getattr(e, "error_dict", None) or str(e),
+                    "payload": payload_to_send,
+                })
+                continue
+
+            # Privacy handling
+            if convert_to_public:
+                payload_to_send["private"] = False
+            elif "private" not in payload_to_send:
+                payload_to_send["private"] = existing.get("private", True)
+
+            payload_to_send["id"] = pkg_id
+            payload_to_send.setdefault("type", existing.get("type", "instrument"))
+
+            if dry_run:
+                updated.append({
+                    "status": "dry_run",
+                    "index": i,
+                    "id": pkg_id,
+                    "title": payload_to_send.get("title"),
+                    "payload": payload_to_send,
+                })
+                continue
+
+            try:
+                payload_to_send = _to_ckan_payload(payload_to_send)
+                resp = self.action.package_update(**payload_to_send)
+                updated.append({
+                    "status": "updated",
+                    "index": i,
+                    "id": resp.get("id"),
+                    "name": resp.get("name"),
+                    "title": resp.get("title"),
+                    "doi": resp.get("doi"),
+                    "response": resp,
+                })
+            except CKANAPIError as e:
+                msg = getattr(e, "error_dict", None) or str(e)
+                failed.append({
+                    "index": i,
+                    "title": payload_to_send.get("title"),
+                    "error": "CKANAPIError",
+                    "ckan_error": msg,
+                    "payload": payload_to_send,
+                })
+            except Exception as e:
+                failed.append({
+                    "index": i,
+                    "title": payload_to_send.get("title"),
+                    "error": f"Unexpected error: {e}",
+                    "payload": payload_to_send,
+                })
+
+        return CreateResult(created=updated, failed=failed, resource_results=[])
+
+    def _resolve_package_id(
+        self,
+        payload: Dict[str, Any],
+        index: int,
+        failed: List[Dict[str, Any]],
+    ) -> Optional[str]:
+        """
+        Attempt to resolve a package ID from manufacturer, model, and
+        alternate_identifier fields in the payload.
+        Appends to *failed* and returns None on error.
+        """
+        manufacturers = payload.get("manufacturer")
+        if isinstance(manufacturers, str):
+            try:
+                manufacturers = json.loads(manufacturers)
+            except (json.JSONDecodeError, TypeError):
+                manufacturers = []
+        manufacturers = manufacturers if isinstance(manufacturers, list) else []
+
+        models = payload.get("model")
+        if isinstance(models, str):
+            try:
+                models = json.loads(models)
+            except (json.JSONDecodeError, TypeError):
+                models = []
+        models = models if isinstance(models, list) else []
+
+        alt_ids = payload.get("alternate_identifier_obj")
+        if isinstance(alt_ids, str):
+            try:
+                alt_ids = json.loads(alt_ids)
+            except (json.JSONDecodeError, TypeError):
+                alt_ids = []
+        alt_ids = alt_ids if isinstance(alt_ids, list) else []
+
+        manuf_name = (manufacturers[0].get("manufacturer_name") or "").strip() if manufacturers else ""
+        model_name = (models[0].get("model_name") or "").strip() if models else ""
+        alt_id = (alt_ids[0].get("alternate_identifier") or "").strip() if alt_ids else ""
+
+        if not manuf_name or not model_name or not alt_id:
+            failed.append({
+                "index": index,
+                "title": payload.get("title"),
+                "error": "NotFound",
+                "ckan_error": (
+                    "No pkg_id provided and insufficient attributes for lookup "
+                    f"(manufacturer={manuf_name!r}, model={model_name!r}, "
+                    f"alternate_identifier={alt_id!r})"
+                ),
+                "payload": payload,
+            })
+            return None
+
+        found, duplicates = self.find_instrument_by_attributes(
+            manuf_name, model_name, alt_id, visibility="all",
+        )
+
+        if found:
+            return found["id"]
+
+        if duplicates:
+            failed.append({
+                "index": index,
+                "title": payload.get("title"),
+                "error": "MultipleMatches",
+                "ckan_error": (
+                    f"Multiple packages match manufacturer={manuf_name!r}, "
+                    f"model={model_name!r}, alternate_identifier={alt_id!r}: {duplicates}"
+                ),
+                "payload": payload,
+            })
+            return None
+
+        failed.append({
+            "index": index,
+            "title": payload.get("title"),
+            "error": "NotFound",
+            "ckan_error": (
+                f"No package found for manufacturer={manuf_name!r}, "
+                f"model={model_name!r}, alternate_identifier={alt_id!r}"
+            ),
+            "payload": payload,
+        })
+        return None
 
     # ------------------------------------------------------------------ #
     #  EPSG code resolution (cached)                                      #
