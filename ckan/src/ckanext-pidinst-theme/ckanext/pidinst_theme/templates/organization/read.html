@@ -1,7 +1,23 @@
 {% ckan_extends %}
 
+{# Fix the Add Instrument button to route to instrument.new (not dataset.new) #}
+{% block page_primary_action %}
+  {% if h.check_access('package_create', {'owner_org': group_dict.id}) %}
+    {% snippet 'snippets/add_dataset.html', group=group_dict.id, dataset_type='instrument' %}
+  {% endif %}
+{% endblock %}
+
+{# Replace the 'Datasets' nav tab with 'Instruments' #}
+{% block content_primary_nav %}
+  {{ h.build_nav_icon(group_type + '.read', _('Instruments'), id=group_dict.name, icon='sitemap') }}
+  {{ h.build_nav_icon(group_type + '.members', _('Members'), id=group_dict.name, icon='users') }}
+  {{ h.build_nav_icon(group_type + '.about', _('About'), id=group_dict.name, icon='info-circle') }}
+{% endblock %}
+
 {% block groups_search_form %}
   {# Use 'dataset-search-form' so the spatial query JS can append ext_bbox #}
+  {# Set dataset_type explicitly so search type, placeholder, and result count all use instrument terminology #}
+  {% set dataset_type = 'instrument' %}
   {% set facets = {
     'fields': fields_grouped,
     'search': search_facets,
@@ -16,7 +32,7 @@
     (_('Last Modified'), 'metadata_modified desc')
     ]
   %}
-  {% snippet 'snippets/search_form.html', form_id='dataset-search-form', type=dataset_type, query=q, sorting=sorting, sorting_selected=sort_by_selected, count=page.item_count, facets=facets, placeholder=h.humanize_entity_type('package', dataset_type, 'search_placeholder') or _('Search datasets...'), show_empty=request.args, fields=fields %}
+  {% snippet 'snippets/search_form.html', form_id='dataset-search-form', type=dataset_type, query=q, sorting=sorting, sorting_selected=sort_by_selected, count=page.item_count, facets=facets, placeholder=h.humanize_entity_type('package', dataset_type, 'search_placeholder') or _('Search instruments...'), show_empty=request.args, fields=fields %}
 {% endblock %}
 
 {% block organization_facets %}

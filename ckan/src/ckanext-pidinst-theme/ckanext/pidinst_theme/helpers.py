@@ -614,13 +614,32 @@ _PARTY_LABELS = {
     'no label found': 'Party',
 }
 
+# Labels for the 'instrument' package type, keyed by the 'purpose' argument
+# used in h.humanize_entity_type('package', 'instrument', purpose).
+_INSTRUMENT_LABELS = {
+    'add link': 'Add Instrument',
+    'breadcrumb': 'Instruments',
+    'content tab': 'Instruments',
+    'create label': 'Create Instrument',
+    'delete confirmation': 'Are you sure you want to delete this instrument?',
+    'facet label': 'Instruments',
+    'my label': 'My Instruments',
+    'no description': 'There is no description for this instrument',
+    'page title': 'Instruments',
+    'search placeholder': 'Search instruments...',
+    'search_placeholder': 'Search instruments...',
+}
+
 
 def humanize_entity_type(entity_type, object_type, purpose):
     """Override CKAN's core humanize_entity_type to return proper labels for
-    the 'party' group type (avoiding the naive 'partys' pluralization).
+    the 'party' group type (avoiding the naive 'partys' pluralization) and
+    for the 'instrument' package type.
     Falls through to CKAN's own implementation for all other types."""
     if object_type == 'party':
         return _PARTY_LABELS.get(purpose, 'Party')
+    if entity_type == 'package' and object_type == 'instrument':
+        return _INSTRUMENT_LABELS.get(purpose)
     # Let CKAN's built-in helper handle everything else
     from ckan.lib.helpers import humanize_entity_type as _core
     return _core(entity_type, object_type, purpose)
