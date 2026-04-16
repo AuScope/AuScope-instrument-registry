@@ -689,6 +689,16 @@ def pidinst_parse_related_instruments(raw):
     return items
 
 
+def taxonomy_term_packages(term_id):
+    """Return packages referencing a taxonomy term, for use in templates."""
+    from ckanext.pidinst_theme import taxonomy_protection
+    try:
+        term = toolkit.get_action('taxonomy_term_show')({'ignore_auth': True}, {'id': term_id})
+        return taxonomy_protection.find_packages_referencing_term(term)
+    except Exception:
+        return []
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -717,4 +727,5 @@ def get_helpers():
         "get_taxonomy_name": get_taxonomy_name,
         "pidinst_parse_related_instruments": pidinst_parse_related_instruments,
         "pidinst_row_category": pidinst_row_category,
+        "taxonomy_term_packages": taxonomy_term_packages,
     }

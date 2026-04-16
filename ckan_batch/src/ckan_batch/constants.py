@@ -44,3 +44,18 @@ CUSTOM_TAXONOMY_NAMES = {
     "platforms": "platforms",
     "measured_variables": "measured-variables",
 }
+
+# Canonical subfield mapping for taxonomy-backed composite fields.
+# Mirrors the server-side _FIELD_MAP in ckanext.pidinst_theme.taxonomy_protection.
+TAXONOMY_FIELD_MAP = {
+    "instrument_type": {
+        "name_key": "instrument_type_name",
+        "identifier_key": "instrument_type_identifier",
+        "identifier_type_key": "instrument_type_identifier_type",
+    },
+    "measured_variable": {
+        "name_key": "measured_variable_name",
+        "identifier_key": "measured_variable_identifier",
+        "identifier_type_key": "measured_variable_identifier_type",
+    },
+}

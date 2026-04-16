@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional
 import json
 import re
 from datetime import datetime, date
-from ckan_batch.constants import COMPOSITE_FIELDS, TAG_FIELDS, PIDINST_SITE_DEFAULTS
+from ckan_batch.constants import COMPOSITE_FIELDS, TAG_FIELDS, PIDINST_SITE_DEFAULTS, TAXONOMY_FIELD_MAP
 
 _ALLOWED_PIDINST_DATE_RE = re.compile(
     r"^(?P<year>\d{4})"
@@ -161,6 +161,28 @@ def apply_site_defaults(payload: Dict[str, Any], *, override: bool = False) -> D
         if override or (k not in p) or (p[k] is None) or (isinstance(p[k], str) and p[k].strip() == ""):
             p[k] = v
     return p
+
+
+def term_to_composite_entry(
+    term_dict: Dict[str, Any],
+    field_name: str,
+    field_map: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, str]]:
+    """Build a composite entry dict from a resolved taxonomy term.
+
+    Uses TAXONOMY_FIELD_MAP by default; pass *field_map* to override.
+    Returns None if *field_name* is not in the map.
+    """
+    if field_map is None:
+        field_map = TAXONOMY_FIELD_MAP
+    cfg = field_map.get(field_name)
+    if cfg is None:
+        return None
+    return {
+        cfg["name_key"]: term_dict.get("label") or term_dict.get("name") or "",
+        cfg["identifier_key"]: term_dict.get("uri") or "",
+        cfg["identifier_type_key"]: "URL",
+    }
 
 def _to_ckan_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     p = dict(payload)

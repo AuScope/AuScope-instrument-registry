@@ -15,7 +15,7 @@ from ckanext.pidinst_theme.logic import (
 )
 from ckanext.pidinst_theme.helpers import doi_resolver_url
 from ckanext.pidinst_theme.logic.auth import _is_doi_published, _package_extra_value
-from ckanext.pidinst_theme import party_propagation
+from ckanext.pidinst_theme import party_propagation, taxonomy_protection
 from ckanext.doi.lib.api import DataciteClient
 from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 from ckanext.doi.model.crud import DOIQuery
@@ -511,6 +511,51 @@ def package_withdraw(context, data_dict):
 
 
 # ---------------------------------------------------------------------------
+# Taxonomy term – update propagation & delete guard
+# ---------------------------------------------------------------------------
+
+@tk.chained_action
+def taxonomy_term_update(next_action, context, data_dict):
+    """Propagate taxonomy term metadata changes into referencing instruments."""
+    try:
+        old_term = tk.get_action('taxonomy_term_show')(
+            {'ignore_auth': True}, data_dict
+        )
+    except Exception:
+        old_term = None
+
+    result = next_action(context, data_dict)
+
+    if old_term:
+        try:
+            new_term = tk.get_action('taxonomy_term_show')(
+                {'ignore_auth': True},
+                {'id': result.get('id', data_dict.get('id', ''))},
+            )
+            taxonomy_protection.propagate_term_update(new_term, old_term=old_term)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                'Taxonomy term update propagation failed for %s',
+                result.get('label', '?'),
+            )
+
+    return result
+
+
+@tk.chained_action
+def taxonomy_term_delete(next_action, context, data_dict):
+    """Block deletion of a taxonomy term that is still referenced by instruments."""
+    term = tk.get_action('taxonomy_term_show')({'ignore_auth': True}, data_dict)
+    check = taxonomy_protection.check_term_deletable(term)
+    if not check['deletable']:
+        raise ValidationError({
+            'message': [check['message']],
+            'packages': check['packages'],
+        })
+    return next_action(context, data_dict)
+
+
+# ---------------------------------------------------------------------------
 # Party (group) lifecycle – update propagation & delete guard
 # ---------------------------------------------------------------------------
 
@@ -591,4 +636,6 @@ def get_actions():
         'package_mark_duplicate': package_mark_duplicate,
         'group_update': group_update,
         'group_delete': group_delete,
+        'taxonomy_term_update': taxonomy_term_update,
+        'taxonomy_term_delete': taxonomy_term_delete,
     }

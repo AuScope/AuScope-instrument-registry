@@ -8,8 +8,8 @@ import math
 
 import openpyxl
 
-from ckan_batch.constants import COMPOSITE_FIELDS
-from ckan_batch.helpers import validate_pidinst_date_text
+from ckan_batch.constants import COMPOSITE_FIELDS, TAXONOMY_FIELD_MAP
+from ckan_batch.helpers import validate_pidinst_date_text, term_to_composite_entry
 from ckan_batch.client import CKANClient
 
 
@@ -154,15 +154,17 @@ def _resolve_vocab_items(
     errors: List[str],
     record: str,
     *,
-    name_field: str,
-    id_field: str,
-    id_type_field: str,
+    field_name: str,
     field_label: str,
 ) -> Tuple[List[Dict[str, Any]], Optional[str], Optional[str]]:
     """
     Resolve GCMD + custom taxonomy terms for a controlled-vocab field.
     Returns (items_list, gcmd_codes_csv, gcmd_labels_csv).
     """
+    cfg = TAXONOMY_FIELD_MAP[field_name]
+    name_field = cfg["name_key"]
+    id_field = cfg["identifier_key"]
+    id_type_field = cfg["identifier_type_key"]
     items: List[Dict[str, Any]] = []
     gcmd_codes: List[str] = []
     gcmd_labels: List[str] = []
@@ -195,11 +197,7 @@ def _resolve_vocab_items(
                     f"[Record {record}] Custom taxonomy term not found ({field_label}): {token}"
                 )
             else:
-                items.append({
-                    name_field: term.get("label") or term.get("name") or token,
-                    id_field: term.get("uri", ""),
-                    id_type_field: "URL",
-                })
+                items.append(term_to_composite_entry(term, field_name))
 
     codes_str = ", ".join(gcmd_codes) if gcmd_codes else None
     labels_str = ", ".join(gcmd_labels) if gcmd_labels else None
@@ -802,9 +800,7 @@ def read_pidinst_template(
             it_items, it_gcmd_codes, it_gcmd_labels = _resolve_vocab_items(
                 gcmd_joined, custom_joined,
                 gcmd_ep, tax_name, client, errors, record,
-                name_field="instrument_type_name",
-                id_field="instrument_type_identifier",
-                id_type_field="instrument_type_identifier_type",
+                field_name="instrument_type",
                 field_label="instrument type",
             )
             if it_items:
@@ -821,9 +817,7 @@ def read_pidinst_template(
             mv_items, mv_gcmd_codes, mv_gcmd_labels = _resolve_vocab_items(
                 gcmd_joined, custom_joined,
                 "measured_variables", "measured-variables", client, errors, record,
-                name_field="measured_variable_name",
-                id_field="measured_variable_identifier",
-                id_type_field="measured_variable_identifier_type",
+                field_name="measured_variable",
                 field_label="measured variable",
             )
             if mv_items:
