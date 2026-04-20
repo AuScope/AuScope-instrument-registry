@@ -682,15 +682,20 @@ class CKANClient(RemoteCKAN):
             else:
                 identifier = (p.get("party_identifier") or "").strip()
 
-            result[title.lower()] = {
+            p_short = {
                 "name": p.get("name"),
                 "title": title,
                 "roles": roles,
                 "party_identifier_type": id_type,
                 "party_identifier": identifier,
                 "party_contact": (p.get("party_contact") or "").strip(),
+                # "aliases": p.get("aliases", []),
             }
 
+            result[title.lower()] = p_short
+            aliases = [x.strip().lower() for x in p.get("aliases", "").split(',')]
+            for al in aliases:
+                result[al] = p_short
         self._party_cache = result
         return result
 
