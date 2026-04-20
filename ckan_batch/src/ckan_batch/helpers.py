@@ -1,8 +1,13 @@
+from __future__ import annotations
 from typing import Any, Dict, Optional
 import json
 import re
 from datetime import datetime, date
-from ckan_batch.constants import COMPOSITE_FIELDS, TAG_FIELDS, PIDINST_SITE_DEFAULTS, TAXONOMY_FIELD_MAP
+import shutil
+from importlib import resources
+from pathlib import Path
+
+from ckan_batch.constants import COMPOSITE_FIELDS, TAG_FIELDS, PIDINST_SITE_DEFAULTS
 
 _ALLOWED_PIDINST_DATE_RE = re.compile(
     r"^(?P<year>\d{4})"
@@ -221,3 +226,70 @@ def _to_ckan_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     p = apply_site_defaults(p)
 
     return p
+
+
+def get_excel_template(target_path: Optional[str] = None) -> Path:
+    """
+    Copy the bundled PIDINST.xlsx template to a target location.
+
+    If target_path is not provided, the template is copied into the current
+    working directory with the name 'PIDINST.xlsx'.
+
+    Args:
+        target_path: Optional destination path. This can be either:
+            - a full file path, e.g. "my_template.xlsx"
+            - a directory path, e.g. "output/templates"
+
+    Returns:
+        Path to the copied template file.
+    """
+    template_resource = resources.files("ckan_batch.reader.templates").joinpath("PIDINST.xlsx")
+
+    if target_path is None:
+        destination = Path.cwd() / "PIDINST.xlsx"
+    else:
+        destination = Path(target_path)
+        # If user passed a directory path, put the file inside it
+        if destination.exists() and destination.is_dir():
+            destination = destination / "PIDINST.xlsx"
+        elif destination.suffix == "":
+            destination.mkdir(parents=True, exist_ok=True)
+            destination = destination / "PIDINST.xlsx"
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    with resources.as_file(template_resource) as src_path:
+        shutil.copy2(src_path, destination)
+
+    return destination
+
+
+def get_notebooks(target_dir: Optional[str] = None) -> list[Path]:
+    """
+    Copy all bundled notebook templates (*.ipynb) from
+    ckan_batch.reader.templates to a target directory.
+
+    If target_dir is not provided, notebooks are copied into the current
+    working directory.
+
+    Args:
+        target_dir: Optional destination directory.
+
+    Returns:
+        List of paths to the copied notebooks.
+    """
+    templates_dir = resources.files("ckan_batch.reader.templates")
+
+    destination_dir = Path(target_dir) if target_dir else Path.cwd()
+    destination_dir.mkdir(parents=True, exist_ok=True)
+
+    copied_files: list[Path] = []
+
+    for item in templates_dir.iterdir():
+        if item.is_file() and item.name.endswith(".ipynb"):
+            destination = destination_dir / item.name
+            with resources.as_file(item) as src_path:
+                shutil.copy2(src_path, destination)
+            copied_files.append(destination)
+
+    return copied_files

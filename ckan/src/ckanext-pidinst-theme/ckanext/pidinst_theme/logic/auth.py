@@ -48,6 +48,41 @@ def _is_doi_published(package):
     return doi_record is not None and doi_record.published is not None
 
 
+# ---------------------------------------------------------------------------
+# Admin orgs configuration helpers
+# Reads from config key ``ckanext.admin.orgs``
+# (env var: ``CKANEXT__ADMIN__ORGS``, comma-separated org names/IDs).
+# ---------------------------------------------------------------------------
+
+def _get_configured_admin_orgs():
+    """Return a list of org names/IDs from the ``ckanext.admin.orgs`` config key.
+
+    Corresponds to the ``CKANEXT__ADMIN__ORGS`` environment variable.
+    Comma-separated; whitespace trimmed; empty items ignored.
+    """
+    raw = tk.config.get('ckanext.admin.orgs') or ''
+    return [o.strip() for o in raw.split(',') if o.strip()]
+
+
+def _user_is_admin_of_org(user_name, org_id_or_name):
+    """Return True if *user_name* holds the ``admin`` role in *org_id_or_name*."""
+    try:
+        role = authz.users_role_for_group_or_org(org_id_or_name, user_name)
+        return role == 'admin'
+    except Exception:
+        return False
+
+
+def _user_is_admin_of_any_configured_admin_org(user_name):
+    """Return True if *user_name* is an admin of at least one org listed in
+    ``ckanext.admin.orgs`` (env: ``CKANEXT__ADMIN__ORGS``).
+    """
+    configured_orgs = _get_configured_admin_orgs()
+    if not configured_orgs:
+        return False
+    return any(_user_is_admin_of_org(user_name, org) for org in configured_orgs)
+
+
 @tk.auth_allow_anonymous_access
 def pidinst_theme_get_sum(context, data_dict):
     return {"success": True}
@@ -318,6 +353,40 @@ def package_withdraw(context, data_dict):
     return _require_org_admin_or_editor(context, data_dict, 'withdraw a record')
 
 
+# ---------------------------------------------------------------------------
+# Group auth functions
+# Allow sysadmins (handled by core), any user already allowed by core auth,
+# and users who are admins of at least one ``CKANEXT__ADMIN__ORGS`` org.
+# ---------------------------------------------------------------------------
+
+def _group_auth(next_auth, context, data_dict, action_label):
+    """Shared logic for group_create and group_update."""
+    user = context.get('auth_user_obj')
+    if not user:
+        return {'success': False, 'msg': f'Must be logged in to {action_label} a group.'}
+
+    # Let core auth decide first (covers sysadmin and any other defaults).
+    core_result = next_auth(context, data_dict)
+    if core_result.get('success'):
+        return core_result
+
+    # Extend: allow if user is admin of any configured admin org.
+    if _user_is_admin_of_any_configured_admin_org(user.name):
+        return {'success': True}
+
+    return {'success': False, 'msg': f'Not authorized to {action_label} groups.'}
+
+
+@tk.chained_auth_function
+def group_create(next_auth, context, data_dict):
+    return _group_auth(next_auth, context, data_dict, 'create')
+
+
+@tk.chained_auth_function
+def group_update(next_auth, context, data_dict):
+    return _group_auth(next_auth, context, data_dict, 'update')
+
+
 def get_auth_functions():
     return {
         "pidinst_theme_get_sum": pidinst_theme_get_sum,
@@ -333,5 +402,7 @@ def get_auth_functions():
         "package_show": package_show,
         "package_list": package_list,
         "package_withdraw": package_withdraw,
-        "package_mark_duplicate": package_mark_duplicate
+        "package_mark_duplicate": package_mark_duplicate,
+        "group_create": group_create,
+        "group_update": group_update,
     }

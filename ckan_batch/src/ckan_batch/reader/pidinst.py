@@ -540,6 +540,10 @@ def read_pidinst_template(
         for row in grp:
             # Base scalar fields
             ds["owner_org"] = org_own  # CKAN owner organization (not required in your template, but if present on any row in the group, use it)
+            pkg_id = _clean(row.get("PKG_ID.Id"))
+            if pkg_id and _is_blank(ds.get("pkg_id")):
+                ds["pkg_id"] = pkg_id
+
             title = _clean(row.get("TITLE.Name"))
             if title and _is_blank(ds.get("title")):
                 ds["title"] = title  # CKAN title
@@ -751,7 +755,7 @@ def read_pidinst_template(
                     )
             elif comp_manf and comp_model and comp_alt:
                 # Search by Manufacturer + Model + AlternateIdentifier combo
-                found, duplicates = client.find_public_instrument_by_attributes(
+                found, duplicates = client.find_instrument_by_attributes(
                     comp_manf, comp_model, comp_alt,
                 )
                 if found:

@@ -320,6 +320,14 @@
   font-weight: 500;
 }
 
+.gcmd-search-item .gcmd-search-definition {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .gcmd-load-more-item {
   list-style: none;
   padding: 6px 0;
