@@ -6,10 +6,11 @@ logger = logging.getLogger(__name__)
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Mapping
 import json
 import urllib.parse
 import urllib.request
+import requests
 
 from ckanapi import RemoteCKAN
 from ckanapi.errors import CKANAPIError, NotFound
@@ -43,9 +44,156 @@ def _extract_name_from_ckan_error(err: Any) -> Optional[str]:
 
 class CKANClient(RemoteCKAN):
     """
-    CKAN API client for managing records (instruments, etc.).
-    Inherits from RemoteCKAN and provides convenient methods for batch operations.
+    CKAN API client for both:
+    - CKAN Action API calls (via RemoteCKAN)
+    - Custom CKAN endpoints / blueprint routes (via request_api)
+
+    Example:
+        client = CKANClient("https://my-ckan.example", apikey="xxx")
+
+        # Action API
+        pkg = client.action.package_show(id="my-dataset")
+
+        # Custom endpoint
+        parties = client.get_api("/api/instrument_parties")
     """
+
+    def _build_url(self, path: str) -> str:
+        """
+        Build an absolute URL from a relative CKAN path.
+        Accepts either:
+        - '/api/instrument_parties'
+        - 'api/instrument_parties'
+        - full absolute URL
+        """
+        if path.startswith("http://") or path.startswith("https://"):
+            return path
+
+        base = self.address.rstrip("/") + "/"
+        return urllib.parse.urljoin(base, path.lstrip("/"))
+
+    def _get_headers(
+        self,
+        headers: Optional[Mapping[str, str]] = None,
+        apikey: Optional[str] = None,
+        json_request: bool = False,
+    ) -> Dict[str, str]:
+        """
+        Build request headers consistent with RemoteCKAN settings.
+        """
+        final_headers: Dict[str, str] = {
+            "User-Agent": self.user_agent,
+        }
+
+        key = apikey or self.apikey
+        if key:
+            # CKAN commonly accepts Authorization; RemoteCKAN itself documents
+            # X-CKAN-API-Key for action calls.
+            final_headers["Authorization"] = key
+            final_headers["X-CKAN-API-Key"] = key
+
+        if json_request:
+            final_headers["Accept"] = "application/json"
+            final_headers["Content-Type"] = "application/json"
+
+        if headers:
+            final_headers.update(headers)
+
+        return final_headers
+
+    @property
+    def _http(self) -> requests.Session:
+        """
+        Reuse the provided session if RemoteCKAN was initialized with one.
+        Otherwise create a lightweight session on demand.
+        """
+        return self.session if self.session is not None else requests.Session()
+
+    def request_api(
+        self,
+        path: str,
+        *,
+        method: str = "GET",
+        params: Optional[Mapping[str, Any]] = None,
+        json: Optional[Any] = None,
+        data: Optional[Any] = None,
+        files: Optional[Any] = None,
+        headers: Optional[Mapping[str, str]] = None,
+        apikey: Optional[str] = None,
+        timeout: int | float = 60,
+        allow_redirects: bool = True,
+        raw_response: bool = False,
+        **request_kwargs: Any,
+    ) -> Any:
+        """
+        Call a custom CKAN endpoint or any non-Action API route.
+
+        Args:
+            path: Relative path like '/api/instrument_parties'
+            method: GET, POST, PUT, PATCH, DELETE, etc.
+            params: Query string parameters
+            json: JSON body
+            data: Form body
+            files: Files for multipart requests
+            headers: Extra headers
+            apikey: Override API key for this call
+            timeout: Request timeout in seconds
+            allow_redirects: Passed to requests
+            raw_response: If True, return requests.Response directly
+            **request_kwargs: Any extra requests kwargs
+
+        Returns:
+            Parsed JSON if possible, otherwise text, unless raw_response=True.
+        """
+        url = self._build_url(path)
+        method = method.upper()
+
+        json_request = json is not None
+        req_headers = self._get_headers(
+            headers=headers,
+            apikey=apikey,
+            json_request=json_request,
+        )
+
+        response = self._http.request(
+            method=method,
+            url=url,
+            params=params,
+            json=json,
+            data=data,
+            files=files,
+            headers=req_headers,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            **request_kwargs,
+        )
+
+        response.raise_for_status()
+
+        if raw_response:
+            return response
+
+        content_type = response.headers.get("Content-Type", "")
+        if "application/json" in content_type:
+            return response.json()
+
+        return response.text
+
+    # Convenience wrappers
+    def get_api(self, path: str, **kwargs: Any) -> Any:
+        return self.request_api(path, method="GET", **kwargs)
+
+    def post_api(self, path: str, **kwargs: Any) -> Any:
+        return self.request_api(path, method="POST", **kwargs)
+
+    def put_api(self, path: str, **kwargs: Any) -> Any:
+        return self.request_api(path, method="PUT", **kwargs)
+
+    def patch_api(self, path: str, **kwargs: Any) -> Any:
+        return self.request_api(path, method="PATCH", **kwargs)
+
+    def delete_api(self, path: str, **kwargs: Any) -> Any:
+        return self.request_api(path, method="DELETE", **kwargs)
 
 
     def create_resources_for_record(

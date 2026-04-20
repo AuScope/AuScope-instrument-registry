@@ -262,8 +262,17 @@
             li.className = 'list-group-item gcmd-search-item';
             var label = item.prefLabel ? item.prefLabel._value : '';
             var uri = item._about || '';
-            li.innerHTML = '<span class="gcmd-search-label">' + escapeHtml(label) + '</span>' +
-              (uri ? '<br><small class="text-muted">' + escapeHtml(uri) + '</small>' : '');
+            var definition = '';
+            if (item.definition) {
+              definition = (typeof item.definition === 'object' && item.definition._value)
+                ? item.definition._value
+                : (typeof item.definition === 'string' ? item.definition : '');
+            }
+            var labelHtml = uri
+              ? '<a class="gcmd-search-label" href="' + escapeHtml(uri) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + '</a>'
+              : '<span class="gcmd-search-label">' + escapeHtml(label) + '</span>';
+            li.innerHTML = labelHtml +
+              (definition ? '<br><small class="text-muted gcmd-search-definition">' + escapeHtml(definition) + '</small>' : '');
             list.appendChild(li);
           });
         }
