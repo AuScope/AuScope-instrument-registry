@@ -424,13 +424,37 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
 
 
     def dataset_facets(self, facets_dict, package_type):
-        facets_dict['instrument_type'] = toolkit._('Instrument Type')
-        facets_dict['locality'] = toolkit._('Locality')
+        facets_dict.pop('instrument_type', None)
+        facets_dict.pop('vocab_instrument_type', None)
+        facets_dict['vocab_instrument_type_gcmd'] = toolkit._('Instrument Type (GCMD)')
+        facets_dict['vocab_instrument_type_custom'] = toolkit._('Instrument Type (Custom)')
+        facets_dict['vocab_measured_variable_gcmd'] = toolkit._('Measured Variable (GCMD)')
+        facets_dict['vocab_measured_variable_custom'] = toolkit._('Measured Variable (Custom)')
+        facets_dict['vocab_instrument_classification'] = toolkit._('Instrument Class')
+        facets_dict['vocab_manufacturer_party'] = toolkit._('Manufacturers')
         return facets_dict
 
     def organization_facets(self, facets_dict, organization_type, package_type):
-        facets_dict['instrument_type'] = toolkit._('Instrument Type')
-        facets_dict['locality'] = toolkit._('Locality')
+        facets_dict.clear()
+        facets_dict['vocab_owner_party'] = toolkit._('Owners')
+        facets_dict['vocab_funder_party'] = toolkit._('Funders')
+        facets_dict['vocab_manufacturer_party'] = toolkit._('Manufacturers')
+        facets_dict['vocab_instrument_classification'] = toolkit._('Instrument Class')
+        facets_dict['vocab_instrument_type_gcmd'] = toolkit._('Instrument Type (GCMD)')
+        facets_dict['vocab_instrument_type_custom'] = toolkit._('Instrument Type (Custom)')
+        facets_dict['vocab_measured_variable_gcmd'] = toolkit._('Measured Variable (GCMD)')
+        facets_dict['vocab_measured_variable_custom'] = toolkit._('Measured Variable (Custom)')
+        return facets_dict
+
+    def group_facets(self, facets_dict, group_type, package_type):
+        if group_type == 'party':
+            facets_dict.clear()
+            facets_dict['vocab_instrument_classification'] = toolkit._('Instrument Class')
+            facets_dict['vocab_instrument_type_gcmd'] = toolkit._('Instrument Type (GCMD)')
+            facets_dict['vocab_instrument_type_custom'] = toolkit._('Instrument Type (Custom)')
+            facets_dict['vocab_measured_variable_gcmd'] = toolkit._('Measured Variable (GCMD)')
+            facets_dict['vocab_measured_variable_custom'] = toolkit._('Measured Variable (Custom)')
+            facets_dict['vocab_manufacturer_party'] = toolkit._('Manufacturers')
         return facets_dict
 
     # IDatasetForm

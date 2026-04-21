@@ -1,0 +1,53 @@
+{# Date range filter (Commissioned / Decommissioned).  Accepts YYYY, YYYY-MM, or YYYY-MM-DD.
+   Params: commissioned_from, commissioned_to, decommissioned_from, decommissioned_to #}
+{% set rows = [
+  {'label': _('Commissioned'),   'from_param': 'commissioned_from',   'to_param': 'commissioned_to',
+   'from_value': commissioned_from,   'to_value': commissioned_to},
+  {'label': _('Decommissioned'), 'from_param': 'decommissioned_from', 'to_param': 'decommissioned_to',
+   'from_value': decommissioned_from, 'to_value': decommissioned_to},
+] %}
+
+{% set has_any = commissioned_from or commissioned_to or
+                 decommissioned_from or decommissioned_to %}
+
+<section class="module module-narrow module-shallow"
+         data-module="date-filters-module">
+  <h2 class="module-heading">
+    <i class="fa fa-calendar fa-fw"></i> {{ _('Dates') }}
+  </h2>
+  <div class="pf-body">
+    {% for row in rows %}
+    <div class="date-filter-row">
+      <div class="pf-subsection-label">{{ row.label }}</div>
+      <div class="pf-date-inputs">
+        <input type="text"
+               class="pf-date-input df-input"
+               data-param="{{ row.from_param }}"
+               placeholder="{{ _('From') }}"
+               pattern="\d{4}(-\d{2}(-\d{2})?)?"
+               title="YYYY, YYYY-MM, or YYYY-MM-DD"
+               value="{{ row.from_value or '' }}">
+        <input type="text"
+               class="pf-date-input df-input"
+               data-param="{{ row.to_param }}"
+               placeholder="{{ _('To') }}"
+               pattern="\d{4}(-\d{2}(-\d{2})?)?"
+               title="YYYY, YYYY-MM, or YYYY-MM-DD"
+               value="{{ row.to_value or '' }}">
+        <button type="button"
+                class="btn btn-sm btn-default pf-date-go df-apply"
+                data-from="{{ row.from_param }}"
+                data-to="{{ row.to_param }}">
+          {{ _('Go') }}
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+    {% if has_any %}
+    <a href="{{ h.remove_url_param(['commissioned_from','commissioned_to','decommissioned_from','decommissioned_to']) }}"
+       class="pf-clear-dates btn btn-sm btn-link">
+      {{ _('Clear all dates') }}
+    </a>
+    {% endif %}
+  </div>
+</section>

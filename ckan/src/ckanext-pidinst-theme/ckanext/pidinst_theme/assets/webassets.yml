@@ -16,6 +16,7 @@ pidinst_theme-js:
     - js/duplicate-of-module.js
     - js/facet-select-module.js
     - js/party-tree-module.js
+    - js/facet-checkboxes-module.js
     - js/ror-party-lookup-module.js
     - js/owner-party-select-module.js
     - js/ror-owner-module.js

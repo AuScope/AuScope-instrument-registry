@@ -1,0 +1,56 @@
+{# Combined Owners + Funders checkbox facet.  Used on org/party pages where
+   these are Solr facets.  Params: search_facets, fields_grouped #}
+{% set owner_items  = h.get_facet_items_dict('vocab_owner_party',  search_facets) %}
+{% set funder_items = h.get_facet_items_dict('vocab_funder_party', search_facets) %}
+
+{% if owner_items or funder_items %}
+<section class="module module-narrow module-shallow">
+  <h2 class="module-heading">
+    <i class="fa fa-sitemap fa-fw"></i> {{ _('Owners and Funders') }}
+  </h2>
+
+  <div class="pf-body pidinst-filter-body--scroll">
+
+    {% if owner_items %}
+    <div data-module="facet-checkboxes-module" data-param="vocab_owner_party">
+      <div class="pf-subsection-label">{{ _('Owners') }}</div>
+      <ul class="pf-check-list">
+        {% for item in owner_items %}
+        <li>
+          <label class="pf-check-row">
+            <input type="checkbox"
+                   class="facet-cb"
+                   data-value="{{ item.name }}"
+                   {% if item.active %}checked{% endif %}>
+            <span class="pf-check-name">{{ item.display_name }}</span>
+            <span class="pf-count">({{ item.count }})</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if funder_items %}
+    <div data-module="facet-checkboxes-module" data-param="vocab_funder_party">
+      <div class="pf-subsection-label">{{ _('Funders') }}</div>
+      <ul class="pf-check-list">
+        {% for item in funder_items %}
+        <li>
+          <label class="pf-check-row">
+            <input type="checkbox"
+                   class="facet-cb"
+                   data-value="{{ item.name }}"
+                   {% if item.active %}checked{% endif %}>
+            <span class="pf-check-name">{{ item.display_name }}</span>
+            <span class="pf-count">({{ item.count }})</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endif %}

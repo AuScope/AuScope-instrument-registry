@@ -1,13 +1,11 @@
 {% ckan_extends %}
 
-{# Fix the Add Instrument button to route to instrument.new (not dataset.new) #}
 {% block page_primary_action %}
   {% if h.check_access('package_create', {'owner_org': group_dict.id}) %}
     {% snippet 'snippets/add_dataset.html', group=group_dict.id, dataset_type='instrument' %}
   {% endif %}
 {% endblock %}
 
-{# Replace the 'Datasets' nav tab with 'Instruments' #}
 {% block content_primary_nav %}
   {{ h.build_nav_icon(group_type + '.read', _('Instruments'), id=group_dict.name, icon='sitemap') }}
   {{ h.build_nav_icon(group_type + '.members', _('Members'), id=group_dict.name, icon='users') }}
@@ -15,8 +13,7 @@
 {% endblock %}
 
 {% block groups_search_form %}
-  {# Use 'dataset-search-form' so the spatial query JS can append ext_bbox #}
-  {# Set dataset_type explicitly so search type, placeholder, and result count all use instrument terminology #}
+  {# Use 'dataset-search-form' so spatial query JS can append ext_bbox #}
   {% set dataset_type = 'instrument' %}
   {% set facets = {
     'fields': fields_grouped,
@@ -36,15 +33,11 @@
 {% endblock %}
 
 {% block organization_facets %}
-  <div class="filters">
-    <div>
-      {% for facet in facet_titles %}
-        {% if facet != 'organization' %}
-          {{ h.snippet('snippets/facet_list.html', title=facet_titles[facet], name=facet, extras={'id':group_dict.id}, search_facets=search_facets) }}
-        {% endif %}
-      {% endfor %}
-      {% snippet "spatial/snippets/spatial_query.html" , default_extent="[[-44, 112], [-10, 154]]" %}
-    </div>
-    <a class="close no-text hide-filters"><i class="fa fa-times-circle"></i><span class="text">close</span></a>
+  <div class="pidinst-search-filters">
+    {% snippet 'snippets/instrument_filter_sidebar.html',
+        is_platform='false',
+        active_party_filters=active_party_filters,
+        search_facets=search_facets,
+        fields_grouped=fields_grouped %}
   </div>
 {% endblock %}

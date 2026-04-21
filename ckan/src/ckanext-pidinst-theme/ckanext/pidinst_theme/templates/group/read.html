@@ -1,0 +1,62 @@
+{% ckan_extends %}
+
+{# Party-group overrides.  CKAN always renders group/read.html for custom
+   group types, so all party-specific blocks are guarded by group_type. #}
+
+{% block content_primary_nav %}
+  {% if group_type == 'party' %}
+    {{ h.build_nav_icon(group_type + '.read', _('Instruments'), id=group_dict.name, icon='sitemap') }}
+    {{ h.build_nav_icon(group_type + '.about', _('About'), id=group_dict.name, icon='info-circle') }}
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block groups_search_form %}
+  {% if group_type == 'party' %}
+    {# Use 'dataset-search-form' id so spatial JS can find the form #}
+    {% set dataset_type = 'instrument' %}
+    {% set facets = {
+      'fields': fields_grouped,
+      'search': search_facets,
+      'titles': facet_titles,
+      'translated_fields': translated_fields,
+      'remove_field': remove_field }
+    %}
+    {% set sorting = [
+      (_('Relevance'), 'score desc, metadata_modified desc'),
+      (_('Name Ascending'), 'title_string asc'),
+      (_('Name Descending'), 'title_string desc'),
+      (_('Last Modified'), 'metadata_modified desc')
+      ]
+    %}
+    {% snippet 'snippets/search_form.html',
+        form_id='dataset-search-form',
+        type=dataset_type,
+        query=q,
+        sorting=sorting,
+        sorting_selected=sort_by_selected,
+        count=page.item_count,
+        facets=facets,
+        placeholder=_('Search instruments...'),
+        show_empty=request.args,
+        fields=fields %}
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block secondary_content %}
+  {% if group_type == 'party' %}
+    {% snippet "group/snippets/info.html", group=group_dict, show_nums=true %}
+    <div class="pidinst-search-filters">
+      {% snippet 'snippets/instrument_filter_sidebar.html',
+          is_platform='false',
+          active_party_filters=active_party_filters,
+          search_facets=search_facets,
+          fields_grouped=fields_grouped %}
+    </div>
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}

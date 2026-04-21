@@ -1,0 +1,61 @@
+{# Grouped checkbox facet with GCMD / Custom subsections.
+   Params: title, gcmd_name, custom_name, search_facets, fields_grouped #}
+{% set gcmd_items   = h.get_facet_items_dict(gcmd_name,   search_facets) %}
+{% set custom_items = h.get_facet_items_dict(custom_name, search_facets) %}
+
+<section class="module module-narrow module-shallow">
+  <h2 class="module-heading">
+    <i class="fa fa-filter fa-fw"></i> {{ title }}
+  </h2>
+
+  {% if gcmd_items or custom_items %}
+  <div class="pf-body pidinst-filter-body--scroll">
+
+    {% if gcmd_items %}
+    <div data-module="facet-checkboxes-module" data-param="{{ gcmd_name }}">
+      <div class="pf-subsection-label">{{ _('GCMD') }}</div>
+      <ul class="pf-check-list">
+        {% for item in gcmd_items %}
+        <li>
+          <label class="pf-check-row">
+            <input type="checkbox"
+                   class="facet-cb"
+                   data-param="{{ gcmd_name }}"
+                   data-value="{{ item.name }}"
+                   {% if item.active %}checked{% endif %}>
+            <span class="pf-check-name">{{ item.display_name }}</span>
+            <span class="pf-count">({{ item.count }})</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if custom_items %}
+    <div data-module="facet-checkboxes-module" data-param="{{ custom_name }}">
+      <div class="pf-subsection-label">{{ _('Custom') }}</div>
+      <ul class="pf-check-list">
+        {% for item in custom_items %}
+        <li>
+          <label class="pf-check-row">
+            <input type="checkbox"
+                   class="facet-cb"
+                   data-param="{{ custom_name }}"
+                   data-value="{{ item.name }}"
+                   {% if item.active %}checked{% endif %}>
+            <span class="pf-check-name">{{ item.display_name }}</span>
+            <span class="pf-count">({{ item.count }})</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+  {% else %}
+  <p class="module-content empty">{{ _('There are no') }} {{ title }} {{ _('that match this search.') }}</p>
+  {% endif %}
+
+</section>
