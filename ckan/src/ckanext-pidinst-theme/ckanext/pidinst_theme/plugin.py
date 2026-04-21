@@ -133,7 +133,6 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     # def process_doi_metadata(self, pkg_dict):
     #     pkg_dict['language_code'] = 'en'
     def before_dataset_index(self, pkg_dict):
-        import json
 
         def _load_list(value):
             if not value:
@@ -145,29 +144,77 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                     return []
             return value if isinstance(value, list) else []
 
+        def _get_party_alias(party):
+            if not party:
+                return ""
+
+            extras = getattr(party, "extras", None) or {}
+            if isinstance(extras, dict):
+                return extras.get("alias", "").strip()
+
+            if party.extras and "alias" in party.extras:
+                return (party.extras["alias"] or "").strip()
+
+            return ""
+
+        def _get_first_party_fields(items, name_key, party_id_key):
+            if not items:
+                return "", ""
+
+            first_item = items[0]
+            if not isinstance(first_item, dict):
+                return "", ""
+
+            name = (first_item.get(name_key) or "").strip()
+            alias = ""
+
+            party_id = first_item.get(party_id_key)
+            if party_id:
+                party = model.Group.get(party_id)
+                alias = _get_party_alias(party)
+
+            return name, alias
+
         manufacturers = _load_list(pkg_dict.get("manufacturer"))
-        manufacturer_names = [
-            item.get("manufacturer_name")
-            for item in manufacturers
-            if isinstance(item, dict) and item.get("manufacturer_name")
-        ]
-        pkg_dict["manufacturer_name_search"] = " | ".join(manufacturer_names)
+        manufacturer_name, manufacturer_alias = _get_first_party_fields(
+            manufacturers,
+            name_key="manufacturer_name",
+            party_id_key="manufacturer_party_id",
+        )
+        pkg_dict["manufacturer_name_search"] = manufacturer_name
+        pkg_dict["manufacturer_name_search_alias"] = manufacturer_alias
+
+        owners = _load_list(pkg_dict.get("owner"))
+        owner_name, owner_alias = _get_first_party_fields(
+            owners,
+            name_key="owner_name",
+            party_id_key="owner_party_id",
+        )
+        pkg_dict["owner_name_search"] = owner_name
+        pkg_dict["owner_name_search_alias"] = owner_alias
+
+        funders = _load_list(pkg_dict.get("funder"))
+        funder_name, funder_alias = _get_first_party_fields(
+            funders,
+            name_key="funder_name",
+            party_id_key="funder_party_id",
+        )
+        pkg_dict["funder_name_search"] = funder_name
+        pkg_dict["funder_name_search_alias"] = funder_alias
 
         models = _load_list(pkg_dict.get("model"))
-        model_names = [
-            item.get("model_name")
-            for item in models
-            if isinstance(item, dict) and item.get("model_name")
-        ]
-        pkg_dict["model_name_search"] = " | ".join(model_names)
+        first_model = models[0] if models and isinstance(models[0], dict) else {}
+        pkg_dict["model_name_search"] = (first_model.get("model_name") or "").strip()
 
         alternate_id_objs = _load_list(pkg_dict.get("alternate_identifier_obj"))
-        alternate_ids = [
-            item.get("alternate_identifier")
-            for item in alternate_id_objs
-            if isinstance(item, dict) and item.get("alternate_identifier")
-        ]
-        pkg_dict["alternate_identifier_search"] = " | ".join(alternate_ids)
+        first_alt_id = (
+            alternate_id_objs[0]
+            if alternate_id_objs and isinstance(alternate_id_objs[0], dict)
+            else {}
+        )
+        pkg_dict["alternate_identifier_search"] = (
+            first_alt_id.get("alternate_identifier") or ""
+        ).strip()
 
         return pkg_dict
 

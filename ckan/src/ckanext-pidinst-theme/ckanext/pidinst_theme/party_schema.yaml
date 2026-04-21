@@ -131,9 +131,9 @@ fields:
     label: Short Description
     form_snippet: markdown.html
 
-  - field_name: aliases
-    label: Aliases
-    help_text: Optional alternate names for this party
+  - field_name: alias
+    label: Alias
+    help_text: Optional alternate name for this party
     validators: ignore_missing unicode_safe
 
   # Parent Party – visible only for non-ROR parties.

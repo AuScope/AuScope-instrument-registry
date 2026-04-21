@@ -7,7 +7,7 @@ import shutil
 from importlib import resources
 from pathlib import Path
 
-from ckan_batch.constants import COMPOSITE_FIELDS, TAG_FIELDS, PIDINST_SITE_DEFAULTS
+from ckan_batch.constants import COMPOSITE_FIELDS, TAG_FIELDS, PIDINST_SITE_DEFAULTS, TAXONOMY_FIELD_MAP
 
 _ALLOWED_PIDINST_DATE_RE = re.compile(
     r"^(?P<year>\d{4})"

@@ -688,14 +688,13 @@ class CKANClient(RemoteCKAN):
                 "roles": roles,
                 "party_identifier_type": id_type,
                 "party_identifier": identifier,
-                "party_contact": (p.get("party_contact") or "").strip(),
-                # "aliases": p.get("aliases", []),
+                "party_contact": (p.get("party_contact") or "").strip()
             }
 
             result[title.lower()] = p_short
-            aliases = [x.strip().lower() for x in p.get("aliases", "").split(',')]
-            for al in aliases:
-                result[al] = p_short
+            alias = p.get("alias", "")
+            if alias:
+                result[alias.lower()] = p_short
         self._party_cache = result
         return result
 
@@ -863,6 +862,8 @@ class CKANClient(RemoteCKAN):
 
     def get_all_parties(
         self,
+        q: str = "*:*",
+        fq: Optional[str] = None,
         *,
         verbose: bool = False,
     ) -> List[Dict[str, Any]]:
@@ -870,6 +871,8 @@ class CKANClient(RemoteCKAN):
         Return all party groups.
         """
         results = self.action.group_list(
+            q=q,
+            fq=fq,
             all_fields=True,
             include_extras=True,
             type="party",
