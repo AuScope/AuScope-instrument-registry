@@ -1,0 +1,34 @@
+{# Checkbox-list facet.  Params: name, title, search_facets, fields_grouped #}
+{% with items = h.get_facet_items_dict(name, search_facets) %}
+<section class="module module-narrow module-shallow facet-checkboxes"
+         data-module="facet-checkboxes-module"
+         data-param="{{ name }}">
+  <h2 class="module-heading">
+    <i class="fa fa-filter fa-fw"></i> {{ title }}
+  </h2>
+  <nav aria-label="{{ title }}">
+    {% if items %}
+    <div class="pf-body pidinst-filter-body--scroll">
+      <ul class="pf-check-list">
+        {% for item in items %}
+          {% set is_active = item.active %}
+          <li>
+            <label class="pf-check-row">
+              <input type="checkbox"
+                     class="facet-cb"
+                     data-param="{{ name }}"
+                     data-value="{{ item.name }}"
+                     {% if is_active %}checked{% endif %}>
+              <span class="pf-check-name">{{ item.display_name }}</span>
+              <span class="pf-count">({{ item.count }})</span>
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% else %}
+    <p class="module-content empty">{{ _('There are no') }} {{ title }} {{ _('that match this search.') }}</p>
+    {% endif %}
+  </nav>
+</section>
+{% endwith %}

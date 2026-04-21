@@ -1,0 +1,24 @@
+{#
+  Manufacturer tree facet.  Reuses party-tree-module with filter param
+  vocab_manufacturer_party (node ids are party titles matching Solr facet values).
+
+  Parameters:
+    is_platform              – 'true' or 'false'
+    fields_grouped           – active filters dict
+    manufacturer_party_nodes – pre-built nodes (optional)
+#}
+<section class="module module-narrow module-shallow party-tree-facet"
+         data-module="party-tree-module"
+         data-filter-param="vocab_manufacturer_party"
+         data-api-url="/api/manufacturer_parties?is_platform={{ is_platform or 'false' }}"
+         data-select-all-label="{{ _('All') }}"
+         data-active-filters='{{ (fields_grouped.get("vocab_manufacturer_party") or []) | tojson }}'
+         {% if manufacturer_party_nodes is defined and manufacturer_party_nodes %}data-nodes='{{ manufacturer_party_nodes | tojson }}'{% endif %}>
+  <h2 class="module-heading">
+    <i class="fa fa-industry fa-fw"></i> {{ _('Manufacturers') }}
+  </h2>
+  <div class="party-tree-loading pf-body">
+    <i class="fa fa-spinner fa-spin"></i> Loading&hellip;
+  </div>
+  <div class="party-tree-container pf-body pidinst-filter-body--scroll" style="display:none;"></div>
+</section>

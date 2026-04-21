@@ -1,0 +1,52 @@
+{#
+  Shared filter sidebar for instrument/platform search pages.
+
+  Parameters:
+    is_platform             – 'true' or 'false'
+    show_classification     – show Instrument Class facet (default true)
+    type_title              – heading for the type facet (default 'Instrument Type')
+    active_party_filters    – list of active owner_party filter values
+    owner_party_nodes       – pre-built owner tree nodes (optional)
+    manufacturer_party_nodes – pre-built manufacturer tree nodes (optional)
+    search_facets           – search_facets dict from search context
+    fields_grouped          – fields_grouped dict from search context
+#}
+{% snippet 'snippets/party_tree_facet.html',
+    is_platform=is_platform,
+    active_party_filters=active_party_filters,
+    owner_party_nodes=owner_party_nodes|default(None) %}
+
+{% snippet 'snippets/manufacturer_facet.html',
+    is_platform=is_platform,
+    fields_grouped=fields_grouped,
+    manufacturer_party_nodes=manufacturer_party_nodes|default(None) %}
+
+{% if show_classification|default(true) %}
+{% snippet 'snippets/facet_checkboxes.html',
+    name='vocab_instrument_classification',
+    title=_('Instrument Class'),
+    search_facets=search_facets,
+    fields_grouped=fields_grouped %}
+{% endif %}
+
+{% snippet 'snippets/facet_checkboxes_grouped.html',
+    title=type_title|default(_('Instrument Type')),
+    gcmd_name='vocab_instrument_type_gcmd',
+    custom_name='vocab_instrument_type_custom',
+    search_facets=search_facets,
+    fields_grouped=fields_grouped %}
+
+{% snippet 'snippets/facet_checkboxes_grouped.html',
+    title=_('Measured Variable'),
+    gcmd_name='vocab_measured_variable_gcmd',
+    custom_name='vocab_measured_variable_custom',
+    search_facets=search_facets,
+    fields_grouped=fields_grouped %}
+
+{% snippet 'snippets/date_filters.html',
+    commissioned_from=request.args.get('commissioned_from', ''),
+    commissioned_to=request.args.get('commissioned_to', ''),
+    decommissioned_from=request.args.get('decommissioned_from', ''),
+    decommissioned_to=request.args.get('decommissioned_to', '') %}
+
+{% snippet "spatial/snippets/spatial_query.html", default_extent="[[-44, 112], [-10, 154]]" %}

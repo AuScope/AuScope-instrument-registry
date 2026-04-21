@@ -1,44 +1,79 @@
 /**
  * Party Tree Module
  *
- * Renders a hierarchical checkbox tree of parties (CKAN groups of type
- * "party") in the search page sidebar.  Checking items filters the
- * result set via the `owner_party` URL parameter (multi-value, OR logic).
+ * Renders a hierarchical checkbox tree of parties in the search sidebar.
  *
- * Nodes are fetched from /api/instrument_parties which now reads from
- * CKAN groups, returning {id, title, parent_id, contact, count}.
+ * Modes:
+ *   1. Embedded: data-nodes attribute contains pre-rendered JSON nodes.
+ *   2. API: fetches nodes from data-api-url (default /api/instrument_parties).
+ *      Results cached in sessionStorage.
+ *
+ * Common attributes:
+ *   data-filter-param      URL param to toggle (default: owner_party)
+ *   data-is-platform       passed to API
+ *   data-select-all-label  label for the "All" checkbox
+ *   data-active-filters    JSON array of active filter values
  */
 this.ckan.module('party-tree-module', function ($, _) {
   'use strict';
 
   return {
     /* ------------------------------------------------------------------ */
-    /* Initialisation                                                       */
+    /* Initialisation                                                      */
     /* ------------------------------------------------------------------ */
     initialize: function () {
       var self = this;
 
-      self._isPlatform = (self.el.data('is-platform') || 'false').toString();
+      self._isPlatform      = (self.el.data('is-platform') || 'false').toString();
+      self._filterParam     = self.el.data('filter-param') || 'owner_party';
+      self._selectAllLabel  = self.el.data('select-all-label') || 'All';
 
-      // Active filters from the server-rendered data attribute
+      // Parse active filters from data attribute, with URL params as override
+      var rawFilters = [];
       try {
-        self._activeFilters = JSON.parse(self.el.attr('data-active-filters') || '[]');
+        rawFilters = self.el.data('active-filters') || [];
+        if (!Array.isArray(rawFilters)) {
+          rawFilters = JSON.parse(rawFilters);
+        }
       } catch (e) {
-        self._activeFilters = [];
+        rawFilters = [];
       }
 
-      // Also read directly from the current URL in case of client navigation
+      // URL params override server-rendered value
       var urlParams = new URLSearchParams(window.location.search);
-      var urlFilters = urlParams.getAll('owner_party');
+      var urlFilters = urlParams.getAll(self._filterParam);
       if (urlFilters.length > 0) {
-        self._activeFilters = urlFilters;
+        rawFilters = urlFilters;
       }
 
-      var apiUrl = '/api/instrument_parties?is_platform=' + encodeURIComponent(self._isPlatform);
+      // Use a Set for O(1) membership checks
+      self._activeFilterSet = new Set(rawFilters);
+
+      // Embedded-nodes mode: server rendered the tree data into the HTML
+      var embeddedNodes = self.el.data('nodes');
+      if (embeddedNodes !== undefined) {
+        self._render(Array.isArray(embeddedNodes) ? embeddedNodes : []);
+        return;
+      }
+
+      // API mode — try sessionStorage cache first
+      var apiUrl = self.el.data('api-url') ||
+                   '/api/instrument_parties?is_platform=' + encodeURIComponent(self._isPlatform);
+      var cacheKey = 'party-tree:' + apiUrl;
+
+      try {
+        var cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          self._render(JSON.parse(cached));
+          return;
+        }
+      } catch (e) { /* storage unavailable or corrupt — fall through to fetch */ }
 
       $.getJSON(apiUrl)
         .done(function (data) {
-          self._render(data.nodes || []);
+          var nodes = data.nodes || [];
+          try { sessionStorage.setItem(cacheKey, JSON.stringify(nodes)); } catch (e) { /* quota */ }
+          self._render(nodes);
         })
         .fail(function () {
           self.el.find('.party-tree-loading').text('Could not load parties.');
@@ -55,7 +90,6 @@ this.ckan.module('party-tree-module', function ($, _) {
         return;
       }
 
-      // Store nodeMap on self for _totalCount
       self._nodeMap = {};
       nodes.forEach(function (n) { self._nodeMap[n.id] = n; });
 
@@ -67,56 +101,80 @@ this.ckan.module('party-tree-module', function ($, _) {
         childrenMap[pid].push(n);
       });
 
-      // Sort children alphabetically by title
       Object.keys(childrenMap).forEach(function (pid) {
         childrenMap[pid].sort(function (a, b) {
           return (a.title || a.id).localeCompare(b.title || b.id);
         });
       });
 
+      // Precompute total counts and active-descendant flags
+      var totalCountMap = {};      // nodeId → cumulative count
+      var hasActiveDescMap = {};   // nodeId → boolean
+
+      function precompute(nodeId) {
+        var node = self._nodeMap[nodeId];
+        var own  = node ? (node.count || 0) : 0;
+        var children = childrenMap[nodeId] || [];
+        var childSum = 0;
+        var anyActive = false;
+        children.forEach(function (c) {
+          precompute(c.id);
+          childSum += totalCountMap[c.id];
+          if (self._activeFilterSet.has(c.id) || hasActiveDescMap[c.id]) {
+            anyActive = true;
+          }
+        });
+        totalCountMap[nodeId] = own + childSum;
+        hasActiveDescMap[nodeId] = anyActive;
+      }
+
+      // Run precompute from every root
+      (childrenMap['__root__'] || []).forEach(function (n) { precompute(n.id); });
+
       var $container = self.el.find('.party-tree-container');
+      $container.empty();                       // guard against duplicate init
 
-      // ---- "Select All" root checkbox --------------------------------- //
-      var allChecked = self._activeFilters.length === 0;
+      // Build all DOM into a detached fragment
+      var $frag = $(document.createDocumentFragment());
+
+      // "Select All" checkbox
+      var allChecked   = self._activeFilterSet.size === 0;
+      var cbAllId      = 'party-tree-select-all-' + self._filterParam;
       var $selectAllRow = $('<div class="party-tree-select-all"></div>');
-      var $selectAllCb  = $('<input type="checkbox" id="party-tree-select-all">');
-      $selectAllCb.prop('checked', allChecked);
-      var $selectAllLbl = $('<label for="party-tree-select-all">All Parties</label>');
+      var $selectAllCb  = $('<input type="checkbox">').attr('id', cbAllId).prop('checked', allChecked);
+      var $selectAllLbl = $('<label>').attr('for', cbAllId).text(self._selectAllLabel);
       $selectAllRow.append($selectAllCb).append($selectAllLbl);
-      $container.append($selectAllRow);
+      $frag.append($selectAllRow);
 
-      // ---- Render root nodes ------------------------------------------ //
+      // Render root nodes
       var roots = childrenMap['__root__'] || [];
       roots.forEach(function (node) {
-        $container.append(self._buildNode(node, childrenMap, 0));
+        $frag.append(self._buildNode(node, childrenMap, totalCountMap, hasActiveDescMap));
       });
 
-      // Show container, hide loader
+      $container.append($frag);
       self.el.find('.party-tree-loading').hide();
       $container.show();
 
-      // ---- Wire up events --------------------------------------------- //
       self._bindEvents($container, $selectAllCb, childrenMap);
     },
 
     /* ------------------------------------------------------------------ */
-    /* Build a single tree node element (recursive)                        */
+    /* Build a single tree node (recursive)                                */
     /* ------------------------------------------------------------------ */
-    _buildNode: function (node, childrenMap, depth) {
+    _buildNode: function (node, childrenMap, totalCountMap, hasActiveDescMap) {
       var self = this;
       var children    = childrenMap[node.id] || [];
       var hasChildren = children.length > 0;
-      var total       = self._totalCount(node.id, childrenMap);
+      var total       = totalCountMap[node.id] || 0;
       var cbId        = 'fac-' + node.id.replace(/[^a-zA-Z0-9_-]/g, '_');
-      var isChecked   = self._activeFilters.indexOf(node.id) !== -1;
+      var isChecked   = self._activeFilterSet.has(node.id);
 
       var $wrapper = $('<div class="party-tree-node"></div>').attr('data-node-id', node.id);
       if (isChecked) { $wrapper.addClass('checked'); }
 
-      // Row: toggle + checkbox + label + count
       var $row = $('<div class="party-tree-row"></div>');
 
-      // Expand/collapse toggle
       var $toggle = $('<span class="party-tree-toggle"></span>');
       if (hasChildren) {
         $toggle.html('&#9658;'); // ▶
@@ -138,16 +196,15 @@ this.ckan.module('party-tree-module', function ($, _) {
       $row.append($cb).append($lbl);
       $wrapper.append($row);
 
-      // Children container (collapsed by default unless a child is active)
       if (hasChildren) {
         var $childContainer = $('<div class="party-tree-children" style="display:none;"></div>');
         children.forEach(function (child) {
-          $childContainer.append(self._buildNode(child, childrenMap, depth + 1));
+          $childContainer.append(self._buildNode(child, childrenMap, totalCountMap, hasActiveDescMap));
         });
         $wrapper.append($childContainer);
 
-        // Auto-expand if any descendant is in active filters
-        if (self._anyDescendantActive(node.id, childrenMap)) {
+        // Auto-expand if any descendant is active
+        if (hasActiveDescMap[node.id]) {
           $childContainer.show();
           $toggle.html('&#9660;'); // ▼
         }
@@ -157,42 +214,17 @@ this.ckan.module('party-tree-module', function ($, _) {
     },
 
     /* ------------------------------------------------------------------ */
-    /* Recursive total-count helper                                        */
-    /* ------------------------------------------------------------------ */
-    _totalCount: function (nodeId, childrenMap) {
-      var self = this;
-      var node = self._nodeMap && self._nodeMap[nodeId];
-      var own  = node ? (node.count || 0) : 0;
-      var children = childrenMap[nodeId] || [];
-      var childSum = 0;
-      children.forEach(function (c) {
-        childSum += self._totalCount(c.id, childrenMap);
-      });
-      return own + childSum;
-    },
-
-    /* ------------------------------------------------------------------ */
-    /* Check whether any descendant is in active filters                   */
-    /* ------------------------------------------------------------------ */
-    _anyDescendantActive: function (nodeId, childrenMap) {
-      var self = this;
-      var children = childrenMap[nodeId] || [];
-      for (var i = 0; i < children.length; i++) {
-        var child = children[i];
-        if (self._activeFilters.indexOf(child.id) !== -1) { return true; }
-        if (self._anyDescendantActive(child.id, childrenMap)) { return true; }
-      }
-      return false;
-    },
-
-    /* ------------------------------------------------------------------ */
     /* Event binding                                                       */
     /* ------------------------------------------------------------------ */
     _bindEvents: function ($container, $selectAllCb, childrenMap) {
       var self = this;
+      var ns = '.partyTree';
 
-      // ---- Toggle expand/collapse for nodes with children ------------- //
-      $container.on('click', '.party-tree-toggle.has-children', function () {
+      // Remove previous handlers to prevent stacking on re-init
+      $container.off(ns);
+      $selectAllCb.off(ns);
+
+      $container.on('click' + ns, '.party-tree-toggle.has-children', function () {
         var $toggle     = $(this);
         var $childCont  = $toggle.closest('.party-tree-node').children('.party-tree-children');
         var isOpen      = $childCont.is(':visible');
@@ -200,8 +232,7 @@ this.ckan.module('party-tree-module', function ($, _) {
         $toggle.html(isOpen ? '&#9658;' : '&#9660;');
       });
 
-      // ---- Individual checkbox change --------------------------------- //
-      $container.on('change', 'input[type="checkbox"][data-node-id]', function () {
+      $container.on('change' + ns, 'input[type="checkbox"][data-node-id]', function () {
         var $cb       = $(this);
         var nodeId    = $cb.attr('data-node-id');
         var checked   = $cb.prop('checked');
@@ -215,16 +246,12 @@ this.ckan.module('party-tree-module', function ($, _) {
         $nodeDiv.toggleClass('checked', checked);
         $childCbs.closest('.party-tree-node').toggleClass('checked', checked);
 
-        // Uncheck "Select All" if anything is individually checked
         $selectAllCb.prop('checked', false);
-
         self._applyFilters($container);
       });
 
-      // ---- Select All checkbox ---------------------------------------- //
-      $selectAllCb.on('change', function () {
+      $selectAllCb.on('change' + ns, function () {
         if ($selectAllCb.prop('checked')) {
-          // Uncheck everything and remove filter
           $container.find('input[type="checkbox"][data-node-id]').prop('checked', false);
           $container.find('.party-tree-node.checked').removeClass('checked');
           self._navigateTo([]);
@@ -236,11 +263,13 @@ this.ckan.module('party-tree-module', function ($, _) {
     /* Collect checked IDs and navigate                                    */
     /* ------------------------------------------------------------------ */
     _applyFilters: function ($container) {
-      var self  = this;
-      var ids = [];
+      var self = this;
+      var seen = {};
+      var ids  = [];
       $container.find('input[type="checkbox"][data-node-id]:checked').each(function () {
         var nid = $(this).attr('data-node-id');
-        if (nid && ids.indexOf(nid) === -1) {
+        if (nid && !seen[nid]) {
+          seen[nid] = true;
           ids.push(nid);
         }
       });
@@ -251,10 +280,11 @@ this.ckan.module('party-tree-module', function ($, _) {
     /* Build URL and reload                                                */
     /* ------------------------------------------------------------------ */
     _navigateTo: function (ids) {
+      // Full page reload; AJAX-only filtering could be a future enhancement.
       var params = new URLSearchParams(window.location.search);
-      params.delete('owner_party');
+      params.delete(this._filterParam);
       params.delete('page'); // reset pagination when filter changes
-      ids.forEach(function (id) { params.append('owner_party', id); });
+      ids.forEach(function (id) { params.append(this._filterParam, id); }, this);
       window.location.search = params.toString();
     }
   };

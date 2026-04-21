@@ -3,6 +3,7 @@ from flask.views import MethodView
 from functools import partial
 import requests
 import os
+import time
 from werkzeug.utils import secure_filename
 from ckan.plugins.toolkit import get_action, h
 import ckan.plugins.toolkit as toolkit
@@ -20,6 +21,7 @@ import re
 from ckanext.pidinst_theme.logic import (
     email_notifications
 )
+from ckanext.pidinst_theme.logic.schema import _parse_date_bound, _DATE_FILTER_DEFS
 from ckanext.pidinst_theme import analytics_views
 
 check_access = logic.check_access
@@ -484,89 +486,200 @@ def ror_search():
         return jsonify({'results': [], 'error': 'Internal error'}), 500
 
 
+# --- Party tree cache (TTL = 5 min) ---
+# TODO: Invalidate on party or ownership changes via IPackageController hooks.
+_party_cache = {}
+_PARTY_CACHE_TTL = 300  # seconds
+
+
+def _party_cache_get(key):
+    entry = _party_cache.get(key)
+    if entry and (time.time() - entry[0]) < _PARTY_CACHE_TTL:
+        return entry[1]
+    return None
+
+
+def _party_cache_set(key, value):
+    _party_cache[key] = (time.time(), value)
+
+
+def invalidate_party_cache():
+    """Clear the party tree cache.  Call after party or ownership changes."""
+    _party_cache.clear()
+
+
+def _load_all_party_metadata():
+    """Load all party groups with merged extras.  Returns {slug: merged_dict}."""
+    cached = _party_cache_get('_party_metadata')
+    if cached is not None:
+        return cached
+
+    context = {'ignore_auth': True}
+    groups = toolkit.get_action('group_list')(context, {
+        'type': 'party',
+        'all_fields': True,
+        'include_extras': True,
+    })
+
+    parties = {}
+    for grp in groups:
+        merged = dict(grp)
+        for e in grp.get('extras', []):
+            merged.setdefault(e['key'], e['value'])
+        parties[grp['name']] = merged
+
+    _party_cache_set('_party_metadata', parties)
+    return parties
+
+
+def _parse_party_roles(merged):
+    """Parse party_role field into a list of lowercase role strings."""
+    role_raw = merged.get('party_role') or []
+    if isinstance(role_raw, str) and role_raw.strip():
+        try:
+            role_raw = json.loads(role_raw) if role_raw.strip().startswith('[') else [role_raw]
+        except Exception:
+            role_raw = [role_raw]
+    return [
+        str(r).strip().lower()
+        for r in (role_raw if isinstance(role_raw, list) else [])
+        if str(r).strip()
+    ]
+
+
+def _build_party_trees(is_platform, is_logged_in):
+    """Build owner and manufacturer party node lists.
+
+    Returns (owner_nodes, manufacturer_nodes).  Uses a single
+    package_search call to count both.  Cached for _PARTY_CACHE_TTL seconds.
+    """
+    cache_key = ('party_trees', is_platform, is_logged_in)
+    cached = _party_cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    all_parties = _load_all_party_metadata()
+
+    # Pre-parse roles once for all parties
+    roles_by_slug = {slug: _parse_party_roles(m) for slug, m in all_parties.items()}
+
+    # --- Owner party map (exclude manufacturer-only parties) ---
+    owner_map = {}
+    for slug, merged in all_parties.items():
+        roles = roles_by_slug[slug]
+        if roles and all(r == 'manufacturer' for r in roles):
+            continue
+        owner_map[slug] = {
+            'id':        slug,
+            'title':     merged.get('title') or slug,
+            'parent_id': merged.get('parent_party') or None,
+            'contact':   merged.get('party_contact', ''),
+            'count':     0,
+        }
+
+    # --- Manufacturer party map ---
+    title_map = {slug: (m.get('title') or slug) for slug, m in all_parties.items()}
+    parent_slug_map = {slug: (m.get('parent_party') or None) for slug, m in all_parties.items()}
+    mfr_slugs = {slug for slug, roles in roles_by_slug.items() if 'manufacturer' in roles}
+
+    mfr_map = {}
+    for slug in mfr_slugs:
+        title = title_map[slug]
+        parent_slug = parent_slug_map.get(slug)
+        parent_title = title_map[parent_slug] if parent_slug in mfr_slugs else None
+        mfr_map[slug] = {
+            'id':        title,
+            'title':     title,
+            'parent_id': parent_title,
+            'count':     0,
+        }
+
+    # --- Single package_search for counting both owners and manufacturers ---
+    context = {'ignore_auth': True}
+    fq = f'dataset_type:instrument AND extras_is_platform:{is_platform}'
+    search_params = {
+        'q': '*:*',
+        'fq': fq,
+        'rows': 2000,
+        'include_private': is_logged_in,
+        'fl': 'id,owner,manufacturer',
+    }
+
+    all_pkgs = []
+    start = 0
+    while True:
+        search_params['start'] = start
+        result = toolkit.get_action('package_search')(context, search_params)
+        all_pkgs.extend(result.get('results', []))
+        if start + search_params['rows'] >= result.get('count', 0):
+            break
+        start += search_params['rows']
+
+    def _parse_json_list(raw):
+        """Parse a JSON-encoded list field (string or list)."""
+        if isinstance(raw, list):
+            return raw
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+                return parsed if isinstance(parsed, list) else []
+            except (json.JSONDecodeError, ValueError):
+                return []
+        return []
+
+    for pkg in all_pkgs:
+        for entry in _parse_json_list(pkg.get('owner')):
+            fac_id = (entry.get('owner_party_id') or '').strip()
+            if fac_id and fac_id in owner_map:
+                owner_map[fac_id]['count'] += 1
+
+        for entry in _parse_json_list(pkg.get('manufacturer')):
+            mfr_id = (entry.get('manufacturer_party_id') or '').strip()
+            if mfr_id and mfr_id in mfr_map:
+                mfr_map[mfr_id]['count'] += 1
+
+    result_pair = (list(owner_map.values()), list(mfr_map.values()))
+    _party_cache_set(cache_key, result_pair)
+    return result_pair
+
+
+def _build_instrument_party_nodes(is_platform, is_logged_in):
+    """Build the nodes list for the instrument parties (Owners/Funders) tree."""
+    return _build_party_trees(is_platform, is_logged_in)[0]
+
+
+def _build_manufacturer_party_nodes(is_platform, is_logged_in):
+    """Build the nodes list for the manufacturer parties tree."""
+    return _build_party_trees(is_platform, is_logged_in)[1]
+
+
 @pidinst_theme.route('/api/instrument_parties')
 def instrument_parties():
-    """Return a flat list of party nodes for the parties tree widget.
-
-    Each node: {id, name, title, parent_id, contact, count}
-      - id/name   = CKAN group name (URL slug)
-      - title     = human-readable name
-      - parent_id = name of the parent party group, or null
-      - contact   = party_contact value
-      - count     = number of instruments/platforms that list this party as owner
-
-    Query params:
-        is_platform – 'true' or 'false' (default 'false')
+    """Return party nodes for the owner/funder tree widget.
+    Query param: is_platform ('true'/'false', default 'false').
     """
     try:
         is_platform = request.args.get('is_platform', 'false')
-        context = {
-            'user': toolkit.c.user,
-            'auth_user_obj': toolkit.c.userobj,
-        }
-
-        # 1) Fetch all parties (CKAN groups of type "party")
-        # Use group_show per party — group_list with include_extras is
-        # unreliable in some CKAN versions, and ckanext-scheming promotes
-        # custom fields to top-level keys on group_show anyway.
-        group_names = toolkit.get_action('group_list')(context, {
-            'type': 'party',
-        })
-
-        # Build a quick lookup  name -> party dict
-        party_map = {}
-        for gname in group_names:
-            try:
-                g = toolkit.get_action('group_show')(context, {
-                    'id': gname,
-                    'include_extras': True,
-                })
-            except Exception:
-                continue
-            # Merge top-level keys + extras (scheming fields are top-level)
-            merged = dict(g)
-            for e in g.get('extras', []):
-                merged.setdefault(e['key'], e['value'])
-            party_map[g['name']] = {
-                'id':       g['name'],
-                'title':    g.get('title') or g['name'],
-                'parent_id': merged.get('parent_party') or None,
-                'contact':  merged.get('party_contact', ''),
-                'count':    0,
-            }
-
-        # 2) Count instruments per party via owner field
-        fq = f'dataset_type:instrument AND extras_is_platform:{is_platform}'
-        result = toolkit.get_action('package_search')(context, {
-            'q': '*:*',
-            'fq': fq,
-            'rows': 2000,
-            'include_private': bool(toolkit.c.user),
-        })
-
-        for pkg in result.get('results', []):
-            owner_raw = pkg.get('owner')
-            if not owner_raw:
-                continue
-            if isinstance(owner_raw, str):
-                try:
-                    owner_list = json.loads(owner_raw)
-                except (json.JSONDecodeError, ValueError):
-                    continue
-            elif isinstance(owner_raw, list):
-                owner_list = owner_raw
-            else:
-                continue
-
-            for entry in owner_list:
-                fac_id = (entry.get('owner_party_id') or '').strip()
-                if fac_id and fac_id in party_map:
-                    party_map[fac_id]['count'] += 1
-
-        return jsonify({'nodes': list(party_map.values())})
-
+        is_logged_in = bool(toolkit.c.user)
+        nodes = _build_instrument_party_nodes(is_platform, is_logged_in)
+        return jsonify({'nodes': nodes})
     except Exception as e:
         log.error('instrument_parties error: %s', e)
+        return jsonify({'nodes': [], 'error': str(e)}), 500
+
+
+@pidinst_theme.route('/api/manufacturer_parties')
+def manufacturer_parties():
+    """Return manufacturer party nodes for the manufacturer tree widget.
+    Query param: is_platform ('true'/'false', default 'false').
+    """
+    try:
+        is_platform = request.args.get('is_platform', 'false')
+        is_logged_in = bool(toolkit.c.user)
+        nodes = _build_manufacturer_party_nodes(is_platform, is_logged_in)
+        return jsonify({'nodes': nodes})
+    except Exception as e:
+        log.error('manufacturer_parties error: %s', e)
         return jsonify({'nodes': [], 'error': str(e)}), 500
 
 
@@ -1144,22 +1257,23 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     sort_by = toolkit.request.args.get('sort', 'score desc, metadata_modified desc')
     limit = int(toolkit.config.get('ckan.datasets_per_page', 20))
 
-    # Forced server-side filter — cannot be overridden by query params
-    # Anonymous users only see public packages; logged-in users see public + their own private ones
-    # capacity_filter = '' if toolkit.c.user else ' +capacity:public'
     forced_fq = f'dataset_type:instrument AND extras_is_platform:{is_platform_value}'
 
     is_logged_in = bool(toolkit.c.user)
 
-    # Collect facet field filters and search extras from request args
-    # owner_party is handled specially – maps to CKAN group membership
-    reserved = {'q', 'page', 'sort', 'owner_party'}
+    # Params handled explicitly (not forwarded as Solr FQ)
+    reserved = {
+        'q', 'page', 'sort',
+        'owner_party',
+        'commissioned_from', 'commissioned_to',
+        'decommissioned_from', 'decommissioned_to'
+    }
     fields = []
     fields_grouped = {}
     extra_fq_parts = []
     search_extras = {}
 
-    # --- party owner filter: OR logic across CKAN group membership ---
+    # --- party owner filter: OR across CKAN group membership ---
     owner_parties = toolkit.request.args.getlist('owner_party')
     if owner_parties:
         for fac in owner_parties:
@@ -1171,6 +1285,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         else:
             extra_fq_parts.append('+(' + ' OR '.join(or_clauses) + ')')
 
+    # --- standard facet / search-extras filters ---
     for param, value in toolkit.request.args.items(multi=True):
         if param in reserved or not value or param.startswith('_'):
             continue
@@ -1181,12 +1296,29 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
             fields_grouped.setdefault(param, []).append(value)
             extra_fq_parts.append(f'+{param}:"{value}"')
 
+    # --- date interval overlap filters ---
+    for from_param, to_param, start_field, end_field in _DATE_FILTER_DEFS:
+        from_val = toolkit.request.args.get(from_param, '').strip()
+        to_val = toolkit.request.args.get(to_param, '').strip()
+        q_start = _parse_date_bound(from_val, is_end=False)
+        q_end = _parse_date_bound(to_val, is_end=True)
+        if q_start is not None:
+            extra_fq_parts.append(f'+{end_field}:[{q_start} TO *]')
+        if q_end is not None:
+            extra_fq_parts.append(f'+{start_field}:[* TO {q_end}]')
+
     fq = forced_fq
     if extra_fq_parts:
         fq += ' ' + ' '.join(extra_fq_parts)
 
-    # organization removed – replaced by parties tree widget
-    facet_fields = ['tags', 'instrument_type', 'locality']
+    facet_fields = [
+        'vocab_instrument_type_gcmd',
+        'vocab_instrument_type_custom',
+        'vocab_measured_variable_gcmd',
+        'vocab_measured_variable_custom',
+        'vocab_instrument_classification',
+        'vocab_manufacturer_party',
+    ]
 
     data_dict = {
         'q': q or '*:*',
@@ -1231,12 +1363,25 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
 
     search_facets = query.get('search_facets', {})
     facet_titles = {
-        'tags': toolkit._('Tags'),
-        'instrument_type': toolkit._('Instrument Type'),
-        'locality': toolkit._('Locality'),
+        'vocab_instrument_type_gcmd': toolkit._('Instrument Type (GCMD)'),
+        'vocab_instrument_type_custom': toolkit._('Instrument Type (Custom)'),
+        'vocab_measured_variable_gcmd': toolkit._('Measured Variable (GCMD)'),
+        'vocab_measured_variable_custom': toolkit._('Measured Variable (Custom)'),
+        'vocab_instrument_classification': toolkit._('Instrument Class'),
+        'vocab_manufacturer_party': toolkit._('Manufacturers'),
     }
 
     remove_field = partial(h.remove_url_param, alternative_url=toolkit.url_for(named_route))
+
+    # Embed party tree data so JS renders without an API round-trip
+    try:
+        owner_party_nodes = _build_instrument_party_nodes(is_platform_value, is_logged_in)
+    except Exception:
+        owner_party_nodes = []
+    try:
+        manufacturer_party_nodes = _build_manufacturer_party_nodes(is_platform_value, is_logged_in)
+    except Exception:
+        manufacturer_party_nodes = []
 
     extra_vars = {
         'dataset_type': display_type,
@@ -1252,6 +1397,8 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'query_error': query_error,
         'is_platform': is_platform_value,
         'active_party_filters': owner_parties,
+        'owner_party_nodes': owner_party_nodes,
+        'manufacturer_party_nodes': manufacturer_party_nodes,
     }
 
     return base.render(template, extra_vars=extra_vars)

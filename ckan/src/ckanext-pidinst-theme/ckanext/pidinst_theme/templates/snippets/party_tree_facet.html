@@ -1,12 +1,15 @@
 <section class="module module-narrow module-shallow party-tree-facet"
          data-module="party-tree-module"
          data-is-platform="{{ is_platform }}"
-         data-active-filters="{{ (active_party_filters or []) | tojson }}">
+         data-filter-param="owner_party"
+         data-select-all-label="{{ _('All') }}"
+         data-active-filters='{{ (active_party_filters or []) | tojson }}'
+         {% if owner_party_nodes is defined and owner_party_nodes %}data-nodes='{{ owner_party_nodes | tojson }}'{% endif %}>
   <h2 class="module-heading">
-    <i class="fa fa-sitemap fa-fw"></i> Parties
+    <i class="fa fa-sitemap fa-fw"></i> {{ title or _('Owners and Funders') }}
   </h2>
-  <div class="party-tree-loading" style="padding:8px 12px;">
+  <div class="party-tree-loading pf-body">
     <i class="fa fa-spinner fa-spin"></i> Loading&hellip;
   </div>
-  <div class="party-tree-container" style="display:none; padding:6px 8px;"></div>
+  <div class="party-tree-container pf-body pidinst-filter-body--scroll" style="display:none;"></div>
 </section>

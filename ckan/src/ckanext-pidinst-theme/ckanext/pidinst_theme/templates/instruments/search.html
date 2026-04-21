@@ -17,6 +17,13 @@
 {% endblock %}
 
 {% block secondary_content %}
-  {% snippet 'snippets/party_tree_facet.html', is_platform='false', active_party_filters=active_party_filters %}
-  {{ super() }}
+<div class="pidinst-search-filters">
+  {% snippet 'snippets/instrument_filter_sidebar.html',
+      is_platform='false',
+      active_party_filters=active_party_filters,
+      owner_party_nodes=owner_party_nodes,
+      manufacturer_party_nodes=manufacturer_party_nodes,
+      search_facets=search_facets,
+      fields_grouped=fields_grouped %}
+</div>
 {% endblock %}

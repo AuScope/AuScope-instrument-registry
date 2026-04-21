@@ -145,29 +145,165 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                     return []
             return value if isinstance(value, list) else []
 
+        def _extract_names(items, key):
+            """Extract non-empty values for key from a list of dicts."""
+            return [
+                item.get(key)
+                for item in items
+                if isinstance(item, dict) and item.get(key)
+            ]
+
+        # --- text-search fields ---
         manufacturers = _load_list(pkg_dict.get("manufacturer"))
-        manufacturer_names = [
-            item.get("manufacturer_name")
-            for item in manufacturers
-            if isinstance(item, dict) and item.get("manufacturer_name")
-        ]
+        manufacturer_names = _extract_names(manufacturers, "manufacturer_name")
         pkg_dict["manufacturer_name_search"] = " | ".join(manufacturer_names)
 
         models = _load_list(pkg_dict.get("model"))
-        model_names = [
-            item.get("model_name")
-            for item in models
-            if isinstance(item, dict) and item.get("model_name")
-        ]
-        pkg_dict["model_name_search"] = " | ".join(model_names)
+        pkg_dict["model_name_search"] = " | ".join(_extract_names(models, "model_name"))
 
         alternate_id_objs = _load_list(pkg_dict.get("alternate_identifier_obj"))
-        alternate_ids = [
-            item.get("alternate_identifier")
-            for item in alternate_id_objs
-            if isinstance(item, dict) and item.get("alternate_identifier")
-        ]
-        pkg_dict["alternate_identifier_search"] = " | ".join(alternate_ids)
+        pkg_dict["alternate_identifier_search"] = " | ".join(
+            _extract_names(alternate_id_objs, "alternate_identifier"))
+
+        # --- multi-valued facet fields ---
+
+        def _is_gcmd(item):
+            """True if the entry came from a GCMD/ARDC vocabulary (by identifier URI)."""
+            ident = (item.get("instrument_type_identifier")
+                     or item.get("measured_variable_identifier") or "")
+            return (
+                'cmr.earthdata.nasa.gov' in ident
+                or 'gcmd.earthdata.nasa.gov' in ident
+                or 'vocabs.ardc.edu.au' in ident
+            )
+
+        def _split_by_source(items, name_key):
+            """Split items into (all, gcmd_only, custom_only) name lists."""
+            all_names = _extract_names(items, name_key)
+            gcmd = [n for n, it in zip(all_names, items) if _is_gcmd(it)]
+            custom = [n for n, it in zip(all_names, items) if not _is_gcmd(it)]
+            return all_names, gcmd, custom
+
+        instrument_types = _load_list(pkg_dict.get("instrument_type"))
+        all_it, gcmd_it, custom_it = _split_by_source(instrument_types, "instrument_type_name")
+        pkg_dict["vocab_instrument_type"] = all_it
+        pkg_dict["vocab_instrument_type_gcmd"] = gcmd_it
+        pkg_dict["vocab_instrument_type_custom"] = custom_it
+
+        # Instrument classification (simple select field)
+        classification = (pkg_dict.get("instrument_classification") or "").strip()
+        pkg_dict["vocab_instrument_classification"] = [classification] if classification else []
+
+        owners = _load_list(pkg_dict.get("owner"))
+        pkg_dict["vocab_owner_party"] = _extract_names(owners, "owner_name")
+
+        pkg_dict["vocab_manufacturer_party"] = list(manufacturer_names)
+
+        funders = _load_list(pkg_dict.get("funder"))
+        pkg_dict["vocab_funder_party"] = _extract_names(funders, "funder_name")
+
+        measured_vars = _load_list(pkg_dict.get("measured_variable"))
+        all_mv, gcmd_mv, custom_mv = _split_by_source(measured_vars, "measured_variable_name")
+        pkg_dict["vocab_measured_variable"] = all_mv
+        pkg_dict["vocab_measured_variable_gcmd"] = gcmd_mv
+        pkg_dict["vocab_measured_variable_custom"] = custom_mv
+
+        # User-specified keywords (stored as a JSON list string)
+        user_kw_raw = pkg_dict.get("user_keywords")
+        if isinstance(user_kw_raw, list):
+            pkg_dict["vocab_user_keyword"] = [str(k).strip() for k in user_kw_raw if str(k).strip()]
+        elif isinstance(user_kw_raw, str):
+            try:
+                kw_list = json.loads(user_kw_raw)
+                pkg_dict["vocab_user_keyword"] = (
+                    [str(k).strip() for k in kw_list if str(k).strip()]
+                    if isinstance(kw_list, list) else []
+                )
+            except Exception:
+                pkg_dict["vocab_user_keyword"] = []
+        else:
+            pkg_dict["vocab_user_keyword"] = []
+
+        # --- Date indexing (tokens + integer interval bounds for overlap queries) ---
+        def _date_tokens(date_str):
+            parts = date_str.strip().split('-')
+            return {'-'.join(parts[:i]) for i in range(1, len(parts) + 1) if parts[0]}
+
+        def _date_to_int_range(date_str):
+            """Convert date string to (start, end) YYYYMMDD integers."""
+            import calendar
+            parts = date_str.strip().split('-')
+            try:
+                if len(parts) == 1:
+                    y = int(parts[0])
+                    return (y * 10000 + 101, y * 10000 + 1231)
+                elif len(parts) == 2:
+                    y, m = int(parts[0]), int(parts[1])
+                    last_day = calendar.monthrange(y, m)[1]
+                    return (y * 10000 + m * 100 + 1, y * 10000 + m * 100 + last_day)
+                elif len(parts) == 3:
+                    y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+                    val = y * 10000 + m * 100 + d
+                    return (val, val)
+            except (ValueError, TypeError):
+                pass
+            return (None, None)
+
+        dates = _load_list(pkg_dict.get("date"))
+        commissioned_tokens = set()
+        decommissioned_tokens = set()
+        commissioned_year = None
+        decommissioned_year = None
+
+        # Track earliest start / latest end for interval bounds
+        comm_starts, comm_ends = [], []
+        decomm_starts, decomm_ends = [], []
+
+        for entry in dates:
+            if not isinstance(entry, dict):
+                continue
+            date_type = entry.get("date_type", "")
+            date_val = (entry.get("date_value") or "").strip()
+            if not date_val:
+                continue
+
+            if date_type == "Commissioned":
+                commissioned_tokens.update(_date_tokens(date_val))
+                s, e = _date_to_int_range(date_val)
+                if s is not None:
+                    comm_starts.append(s)
+                    comm_ends.append(e)
+                year_str = date_val[:4]
+                if year_str.isdigit() and commissioned_year is None:
+                    commissioned_year = int(year_str)
+
+            elif date_type == "DeCommissioned":
+                decommissioned_tokens.update(_date_tokens(date_val))
+                s, e = _date_to_int_range(date_val)
+                if s is not None:
+                    decomm_starts.append(s)
+                    decomm_ends.append(e)
+                year_str = date_val[:4]
+                if year_str.isdigit() and decommissioned_year is None:
+                    decommissioned_year = int(year_str)
+
+        pkg_dict["vocab_commissioned_date"] = list(commissioned_tokens)
+        pkg_dict["vocab_decommissioned_date"] = list(decommissioned_tokens)
+        # Keep year integers for backward compat
+        if commissioned_year is not None:
+            pkg_dict["commissioned_year_i"] = commissioned_year
+        if decommissioned_year is not None:
+            pkg_dict["decommissioned_year_i"] = decommissioned_year
+
+        # Integer interval bounds for overlap queries
+        if comm_starts:
+            pkg_dict["commissioned_start_i"] = min(comm_starts)
+        if comm_ends:
+            pkg_dict["commissioned_end_i"] = max(comm_ends)
+        if decomm_starts:
+            pkg_dict["decommissioned_start_i"] = min(decomm_starts)
+        if decomm_ends:
+            pkg_dict["decommissioned_end_i"] = max(decomm_ends)
 
         return pkg_dict
 
@@ -377,13 +513,37 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
 
 
     def dataset_facets(self, facets_dict, package_type):
-        facets_dict['instrument_type'] = toolkit._('Instrument Type')
-        facets_dict['locality'] = toolkit._('Locality')
+        facets_dict.pop('instrument_type', None)
+        facets_dict.pop('vocab_instrument_type', None)
+        facets_dict['vocab_instrument_type_gcmd'] = toolkit._('Instrument Type (GCMD)')
+        facets_dict['vocab_instrument_type_custom'] = toolkit._('Instrument Type (Custom)')
+        facets_dict['vocab_measured_variable_gcmd'] = toolkit._('Measured Variable (GCMD)')
+        facets_dict['vocab_measured_variable_custom'] = toolkit._('Measured Variable (Custom)')
+        facets_dict['vocab_instrument_classification'] = toolkit._('Instrument Class')
+        facets_dict['vocab_manufacturer_party'] = toolkit._('Manufacturers')
         return facets_dict
 
     def organization_facets(self, facets_dict, organization_type, package_type):
-        facets_dict['instrument_type'] = toolkit._('Instrument Type')
-        facets_dict['locality'] = toolkit._('Locality')
+        facets_dict.clear()
+        facets_dict['vocab_owner_party'] = toolkit._('Owners')
+        facets_dict['vocab_funder_party'] = toolkit._('Funders')
+        facets_dict['vocab_manufacturer_party'] = toolkit._('Manufacturers')
+        facets_dict['vocab_instrument_classification'] = toolkit._('Instrument Class')
+        facets_dict['vocab_instrument_type_gcmd'] = toolkit._('Instrument Type (GCMD)')
+        facets_dict['vocab_instrument_type_custom'] = toolkit._('Instrument Type (Custom)')
+        facets_dict['vocab_measured_variable_gcmd'] = toolkit._('Measured Variable (GCMD)')
+        facets_dict['vocab_measured_variable_custom'] = toolkit._('Measured Variable (Custom)')
+        return facets_dict
+
+    def group_facets(self, facets_dict, group_type, package_type):
+        if group_type == 'party':
+            facets_dict.clear()
+            facets_dict['vocab_instrument_classification'] = toolkit._('Instrument Class')
+            facets_dict['vocab_instrument_type_gcmd'] = toolkit._('Instrument Type (GCMD)')
+            facets_dict['vocab_instrument_type_custom'] = toolkit._('Instrument Type (Custom)')
+            facets_dict['vocab_measured_variable_gcmd'] = toolkit._('Measured Variable (GCMD)')
+            facets_dict['vocab_measured_variable_custom'] = toolkit._('Measured Variable (Custom)')
+            facets_dict['vocab_manufacturer_party'] = toolkit._('Manufacturers')
         return facets_dict
 
     # IDatasetForm
