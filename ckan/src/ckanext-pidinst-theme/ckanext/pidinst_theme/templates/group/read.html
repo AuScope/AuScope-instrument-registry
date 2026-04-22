@@ -49,7 +49,7 @@
 {% block secondary_content %}
   {% if group_type == 'party' %}
     {% snippet "group/snippets/info.html", group=group_dict, show_nums=true %}
-    <div class="pidinst-search-filters">
+    <div class="pidinst-search-filters" data-module="facet-collapse-module">
       {% snippet 'snippets/instrument_filter_sidebar.html',
           is_platform='false',
           active_party_filters=active_party_filters,

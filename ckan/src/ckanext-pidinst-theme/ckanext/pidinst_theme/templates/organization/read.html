@@ -33,7 +33,7 @@
 {% endblock %}
 
 {% block organization_facets %}
-  <div class="pidinst-search-filters">
+  <div class="pidinst-search-filters" data-module="facet-collapse-module">
     {% snippet 'snippets/instrument_filter_sidebar.html',
         is_platform='false',
         active_party_filters=active_party_filters,
