@@ -32,6 +32,28 @@ this.ckan.module('facet-checkboxes-module', function ($, _) {
 });
 
 /**
+ * Facet Filter Search Module – client-side text filter for checkbox facets.
+ * Attach to the facet <section>. Expects a .pf-facet-search input and
+ * .pf-check-list <ul> elements containing <li> rows with .pf-check-name.
+ */
+this.ckan.module('facet-filter-search', function ($, _) {
+  'use strict';
+
+  return {
+    initialize: function () {
+      var self = this;
+      self.el.on('input', '.pf-facet-search', function () {
+        var q = $(this).val().toLowerCase().trim();
+        self.el.find('.pf-check-list li').each(function () {
+          var label = $(this).find('.pf-check-name').text().toLowerCase();
+          $(this).toggle(q === '' || label.indexOf(q) !== -1);
+        });
+      });
+    }
+  };
+});
+
+/**
  * Date Filters Module – handles the combined Dates facet (From/To inputs).
  * Accepts YYYY, YYYY-MM, or YYYY-MM-DD.
  */

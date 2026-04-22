@@ -3,12 +3,16 @@
 {% set gcmd_items   = h.get_facet_items_dict(gcmd_name,   search_facets) %}
 {% set custom_items = h.get_facet_items_dict(custom_name, search_facets) %}
 
-<section class="module module-narrow module-shallow">
+<section class="module module-narrow module-shallow"
+         data-module="facet-filter-search">
   <h2 class="module-heading">
     <i class="fa fa-filter fa-fw"></i> {{ title }}
   </h2>
 
   {% if gcmd_items or custom_items %}
+  <div class="pf-body pf-search-wrap">
+    <input type="search" class="pf-facet-search" placeholder="{{ _('Filter…') }}" aria-label="{{ _('Filter') }} {{ title }}">
+  </div>
   <div class="pf-body pidinst-filter-body--scroll">
 
     {% if gcmd_items %}
