@@ -56,7 +56,11 @@ this.ckan.module('party-tree-module', function ($, _) {
         return;
       }
 
-      // API mode — try sessionStorage cache first
+      // API mode — try sessionStorage cache first.
+      // Cache entries are keyed by URL and validated against a server-side
+      // version number (cache_version) returned by the API.  When a party is
+      // created/updated/deleted the server increments the version, so the
+      // stored entry is treated as a miss and fresh data is fetched.
       var apiUrl = self.el.data('api-url') ||
                    '/api/instrument_parties?is_platform=' + encodeURIComponent(self._isPlatform);
       var cacheKey = 'party-tree:' + apiUrl;
@@ -64,18 +68,64 @@ this.ckan.module('party-tree-module', function ($, _) {
       try {
         var cached = sessionStorage.getItem(cacheKey);
         if (cached) {
-          self._render(JSON.parse(cached));
-          return;
+          var _ss0 = Date.now();
+          var entry = JSON.parse(cached);
+          // entry must have {version, nodes}; plain node arrays from old
+          // cache format are intentionally treated as misses.
+          if (entry && typeof entry.version !== 'undefined' && Array.isArray(entry.nodes)) {
+            // Validate the stored version against the server before using.
+            $.getJSON('/api/party_cache_version')
+              .done(function (versionData) {
+                if (versionData.version === entry.version) {
+                  console.log('[PERF party-tree] ' + self._filterParam + ': sessionStorage HIT (v' + entry.version + ', ' + entry.nodes.length + ' nodes), parse: ' + (Date.now() - _ss0) + 'ms');
+                  var _r0 = Date.now();
+                  self._render(entry.nodes);
+                  console.log('[PERF party-tree] ' + self._filterParam + ': render from cache: ' + (Date.now() - _r0) + 'ms');
+                } else {
+                  // Server version changed — stale cache; fetch fresh.
+                  console.log('[PERF party-tree] ' + self._filterParam + ': sessionStorage STALE (stored v' + entry.version + ', server v' + versionData.version + ') — refetching');
+                  self._fetchAndRender(apiUrl, cacheKey);
+                }
+              })
+              .fail(function () {
+                // Version check failed — fall back to fetching fresh data.
+                self._fetchAndRender(apiUrl, cacheKey);
+              });
+            return;
+          }
         }
       } catch (e) { /* storage unavailable or corrupt — fall through to fetch */ }
 
+      self._fetchAndRender(apiUrl, cacheKey);
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Fetch from API, cache, and render                                   */
+    /* ------------------------------------------------------------------ */
+    _fetchAndRender: function (apiUrl, cacheKey) {
+      var self = this;
+      var _fetchStart = Date.now();
+      console.log('[PERF party-tree] ' + self._filterParam + ': sessionStorage MISS — fetching ' + apiUrl);
+
       $.getJSON(apiUrl)
         .done(function (data) {
+          var _fetchMs = Date.now() - _fetchStart;
           var nodes = data.nodes || [];
-          try { sessionStorage.setItem(cacheKey, JSON.stringify(nodes)); } catch (e) { /* quota */ }
+          console.log('[PERF party-tree] ' + self._filterParam + ': API fetch done in ' + _fetchMs + 'ms (' + nodes.length + ' nodes)');
+          // Store nodes alongside the server version so we can validate on
+          // the next page load without fetching the full data set again.
+          try {
+            sessionStorage.setItem(cacheKey, JSON.stringify({
+              version: data.cache_version,
+              nodes: nodes
+            }));
+          } catch (e) { /* quota */ }
+          var _r0 = Date.now();
           self._render(nodes);
+          console.log('[PERF party-tree] ' + self._filterParam + ': render: ' + (Date.now() - _r0) + 'ms');
         })
-        .fail(function () {
+        .fail(function (jqXHR, textStatus) {
+          console.error('[PERF party-tree] ' + self._filterParam + ': API fetch FAILED after ' + (Date.now() - _fetchStart) + 'ms — status: ' + textStatus + ' (' + jqXHR.status + ')');
           self.el.find('.party-tree-loading').text('Could not load parties.');
         });
     },

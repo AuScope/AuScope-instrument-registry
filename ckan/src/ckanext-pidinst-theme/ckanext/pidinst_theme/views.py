@@ -486,49 +486,83 @@ def ror_search():
         return jsonify({'results': [], 'error': 'Internal error'}), 500
 
 
-# --- Party tree cache (TTL = 5 min) ---
-# TODO: Invalidate on party or ownership changes via IPackageController hooks.
-_party_cache = {}
-_PARTY_CACHE_TTL = 300  # seconds
+# --- Party tree cache ---
+# State lives in party_cache.py so action.py can import it without circular deps.
+from ckanext.pidinst_theme import party_cache as _party_cache_mod
 
 
 def _party_cache_get(key):
-    entry = _party_cache.get(key)
-    if entry and (time.time() - entry[0]) < _PARTY_CACHE_TTL:
-        return entry[1]
-    return None
+    return _party_cache_mod.cache_get(key)
 
 
 def _party_cache_set(key, value):
-    _party_cache[key] = (time.time(), value)
+    _party_cache_mod.cache_set(key, value)
 
 
 def invalidate_party_cache():
     """Clear the party tree cache.  Call after party or ownership changes."""
-    _party_cache.clear()
+    _party_cache_mod.invalidate()
 
 
 def _load_all_party_metadata():
-    """Load all party groups with merged extras.  Returns {slug: merged_dict}."""
+    """Load all party groups with merged extras.  Returns {slug: merged_dict}.
+
+    Uses two raw SQL queries total, bypassing the CKAN group_list action
+    layer which computes package counts, member counts and image URLs for
+    every group — a significant source of latency we don't need here.
+    """
     cached = _party_cache_get('_party_metadata')
     if cached is not None:
+        log.info('[PERF] _load_all_party_metadata: cache HIT')
         return cached
 
-    context = {'ignore_auth': True}
-    groups = toolkit.get_action('group_list')(context, {
-        'type': 'party',
-        'all_fields': True,
-        'include_extras': True,
-    })
+    import ckan.model as _model  # local import to keep module-level imports clean
+
+    _t0 = time.time()
+
+    # Query 1: only the three columns we actually use — no computed fields.
+    group_rows = (
+        _model.Session.query(
+            _model.Group.id,
+            _model.Group.name,
+            _model.Group.title,
+        )
+        .filter(_model.Group.type == 'party')
+        .filter(_model.Group.state == 'active')
+        .all()
+    )
+    _t1 = time.time()
+    log.info('[PERF] _load_all_party_metadata: SQL group query returned %d parties in %.3fs',
+             len(group_rows), _t1 - _t0)
+
+    # Query 2: all extras for those groups in a single IN(...) query.
+    group_ids = [row.id for row in group_rows]
+    extras_by_group = {}
+    if group_ids:
+        extra_rows = (
+            _model.Session.query(_model.GroupExtra)
+            .filter(_model.GroupExtra.group_id.in_(group_ids))
+            .filter(_model.GroupExtra.state == 'active')
+            .all()
+        )
+        for row in extra_rows:
+            extras_by_group.setdefault(row.group_id, {})[row.key] = row.value
+    _t2 = time.time()
+    log.info('[PERF] _load_all_party_metadata: batched extras query returned %d rows in %.3fs',
+             sum(len(v) for v in extras_by_group.values()), _t2 - _t1)
 
     parties = {}
-    for grp in groups:
-        merged = dict(grp)
-        for e in grp.get('extras', []):
-            merged.setdefault(e['key'], e['value'])
-        parties[grp['name']] = merged
+    for row in group_rows:
+        merged = {
+            'id':    row.id,
+            'name':  row.name,
+            'title': row.title or row.name,
+        }
+        merged.update(extras_by_group.get(row.id, {}))
+        parties[row.name] = merged
 
     _party_cache_set('_party_metadata', parties)
+    log.info('[PERF] _load_all_party_metadata: total MISS path %.3fs', time.time() - _t0)
     return parties
 
 
@@ -550,15 +584,23 @@ def _parse_party_roles(merged):
 def _build_party_trees(is_platform, is_logged_in):
     """Build owner and manufacturer party node lists.
 
-    Returns (owner_nodes, manufacturer_nodes).  Uses a single
-    package_search call to count both.  Cached for _PARTY_CACHE_TTL seconds.
+    Returns (owner_nodes, manufacturer_nodes).  Uses a single rows=0 Solr
+    facet query to count both trees; Solr computes counts server-side without
+    transferring package documents.  Cached for _PARTY_CACHE_TTL seconds.
     """
     cache_key = ('party_trees', is_platform, is_logged_in)
     cached = _party_cache_get(cache_key)
     if cached is not None:
+        log.info('[PERF] _build_party_trees(is_platform=%s): cache HIT', is_platform)
         return cached
 
+    _t0 = time.time()
+    log.info('[PERF] _build_party_trees(is_platform=%s): cache MISS — building', is_platform)
+
     all_parties = _load_all_party_metadata()
+    _t1 = time.time()
+    log.info('[PERF] _build_party_trees: _load_all_party_metadata done in %.3fs (%d parties)',
+             _t1 - _t0, len(all_parties))
 
     # Pre-parse roles once for all parties
     roles_by_slug = {slug: _parse_party_roles(m) for slug, m in all_parties.items()}
@@ -593,53 +635,55 @@ def _build_party_trees(is_platform, is_logged_in):
             'parent_id': parent_title,
             'count':     0,
         }
+    _t2 = time.time()
+    log.info('[PERF] _build_party_trees: maps built (%d owners, %d mfrs) in %.3fs',
+             len(owner_map), len(mfr_map), _t2 - _t1)
 
-    # --- Single package_search for counting both owners and manufacturers ---
+    # --- Single rows=0 Solr facet query for counting both owners and manufacturers ---
+    # Solr computes the aggregated counts server-side in one round-trip without
+    # transferring any package documents, replacing the previous paginated while-loop.
     context = {'ignore_auth': True}
     fq = f'dataset_type:instrument AND extras_is_platform:{is_platform}'
-    search_params = {
-        'q': '*:*',
-        'fq': fq,
-        'rows': 2000,
-        'include_private': is_logged_in,
-        'fl': 'id,owner,manufacturer',
-    }
+    try:
+        facet_result = toolkit.get_action('package_search')(context, {
+            'q': '*:*',
+            'fq': fq,
+            'rows': 0,
+            'facet': 'true',
+            'facet.field': ['vocab_owner_party', 'vocab_manufacturer_party'],
+            'facet.limit': -1,    # return all values, not just top-N
+            'facet.mincount': 1,
+            'include_private': is_logged_in,
+        })
+    except Exception as e:
+        log.warning('Party count facet query failed: %s', e)
+        facet_result = {'search_facets': {}}
+    _t3 = time.time()
+    log.info('[PERF] _build_party_trees: Solr facet query done in %.3fs', _t3 - _t2)
 
-    all_pkgs = []
-    start = 0
-    while True:
-        search_params['start'] = start
-        result = toolkit.get_action('package_search')(context, search_params)
-        all_pkgs.extend(result.get('results', []))
-        if start + search_params['rows'] >= result.get('count', 0):
-            break
-        start += search_params['rows']
+    search_facets = facet_result.get('search_facets', {})
 
-    def _parse_json_list(raw):
-        """Parse a JSON-encoded list field (string or list)."""
-        if isinstance(raw, list):
-            return raw
-        if isinstance(raw, str):
-            try:
-                parsed = json.loads(raw)
-                return parsed if isinstance(parsed, list) else []
-            except (json.JSONDecodeError, ValueError):
-                return []
-        return []
+    # vocab_owner_party indexes owner_name (display title); map back to slug via
+    # a reverse title→slug lookup built from the same all_parties metadata.
+    title_to_slug = {(m.get('title') or slug): slug for slug, m in all_parties.items()}
+    for item in search_facets.get('vocab_owner_party', {}).get('items', []):
+        name = item.get('name', '')
+        slug = title_to_slug.get(name)
+        if slug and slug in owner_map:
+            owner_map[slug]['count'] = item['count']
 
-    for pkg in all_pkgs:
-        for entry in _parse_json_list(pkg.get('owner')):
-            fac_id = (entry.get('owner_party_id') or '').strip()
-            if fac_id and fac_id in owner_map:
-                owner_map[fac_id]['count'] += 1
-
-        for entry in _parse_json_list(pkg.get('manufacturer')):
-            mfr_id = (entry.get('manufacturer_party_id') or '').strip()
-            if mfr_id and mfr_id in mfr_map:
-                mfr_map[mfr_id]['count'] += 1
+    # vocab_manufacturer_party indexes the manufacturer title, which is also
+    # the node id in mfr_map, so the lookup is direct.
+    mfr_title_to_slug = {title_map[slug]: slug for slug in mfr_slugs}
+    for item in search_facets.get('vocab_manufacturer_party', {}).get('items', []):
+        name = item.get('name', '')
+        slug = mfr_title_to_slug.get(name)
+        if slug and slug in mfr_map:
+            mfr_map[slug]['count'] = item['count']
 
     result_pair = (list(owner_map.values()), list(mfr_map.values()))
     _party_cache_set(cache_key, result_pair)
+    log.info('[PERF] _build_party_trees(is_platform=%s): TOTAL %.3fs', is_platform, time.time() - _t0)
     return result_pair
 
 
@@ -653,18 +697,32 @@ def _build_manufacturer_party_nodes(is_platform, is_logged_in):
     return _build_party_trees(is_platform, is_logged_in)[1]
 
 
+@pidinst_theme.route('/api/party_cache_version')
+def party_cache_version():
+    """Return the current party cache version.
+
+    Lightweight endpoint used by the JS tree widget to detect when the
+    server-side party data has changed so the sessionStorage cache can
+    be invalidated.
+    """
+    return jsonify({'version': _party_cache_mod.get_version()})
+
+
 @pidinst_theme.route('/api/instrument_parties')
 def instrument_parties():
     """Return party nodes for the owner/funder tree widget.
     Query param: is_platform ('true'/'false', default 'false').
     """
+    _t0 = time.time()
     try:
         is_platform = request.args.get('is_platform', 'false')
         is_logged_in = bool(toolkit.c.user)
         nodes = _build_instrument_party_nodes(is_platform, is_logged_in)
-        return jsonify({'nodes': nodes})
+        log.info('[PERF] GET /api/instrument_parties?is_platform=%s -> %d nodes in %.3fs',
+                 is_platform, len(nodes), time.time() - _t0)
+        return jsonify({'nodes': nodes, 'cache_version': _party_cache_mod.get_version()})
     except Exception as e:
-        log.error('instrument_parties error: %s', e)
+        log.error('[PERF] instrument_parties error after %.3fs: %s', time.time() - _t0, e)
         return jsonify({'nodes': [], 'error': str(e)}), 500
 
 
@@ -673,13 +731,16 @@ def manufacturer_parties():
     """Return manufacturer party nodes for the manufacturer tree widget.
     Query param: is_platform ('true'/'false', default 'false').
     """
+    _t0 = time.time()
     try:
         is_platform = request.args.get('is_platform', 'false')
         is_logged_in = bool(toolkit.c.user)
         nodes = _build_manufacturer_party_nodes(is_platform, is_logged_in)
-        return jsonify({'nodes': nodes})
+        log.info('[PERF] GET /api/manufacturer_parties?is_platform=%s -> %d nodes in %.3fs',
+                 is_platform, len(nodes), time.time() - _t0)
+        return jsonify({'nodes': nodes, 'cache_version': _party_cache_mod.get_version()})
     except Exception as e:
-        log.error('manufacturer_parties error: %s', e)
+        log.error('[PERF] manufacturer_parties error after %.3fs: %s', time.time() - _t0, e)
         return jsonify({'nodes': [], 'error': str(e)}), 500
 
 
@@ -967,7 +1028,9 @@ def _reactivate_if_deleted(context, group_dict):
     if group_dict.get('state') == 'deleted':
         log.info('Reactivating soft-deleted party group: %s', group_dict['name'])
         group_dict['state'] = 'active'
-        return toolkit.get_action('group_update')(context, group_dict)
+        result = toolkit.get_action('group_update')(context, group_dict)
+        invalidate_party_cache()
+        return result
     return group_dict
 
 
@@ -993,6 +1056,7 @@ def _merge_party_roles(context, group_dict, new_roles):
         'id': group_dict['id'],
         'party_role': merged,
     })
+    invalidate_party_cache()
 
 
 def _get_extra(group_dict, key, default=''):
@@ -1248,6 +1312,7 @@ def new_version(id):
 
 def _instrument_platform_search(is_platform_value, template, named_route, display_type='instrument'):
     """Shared search handler for /instruments and /platforms routes."""
+    _page_t0 = time.time()
     q = toolkit.request.args.get('q', '')
     try:
         page = int(toolkit.request.args.get('page', 1))
@@ -1335,14 +1400,17 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     }
 
     query_error = False
+    _solr_t0 = time.time()
     try:
         context = {
             'user': toolkit.c.user,
             'auth_user_obj': toolkit.c.userobj,
         }
         query = toolkit.get_action('package_search')(context, data_dict)
+        log.info('[PERF] %s package_search returned %d results in %.3fs',
+                 template, query.get('count', 0), time.time() - _solr_t0)
     except Exception as e:
-        log.error('Search error on %s: %s', template, e)
+        log.error('[PERF] Search error on %s after %.3fs: %s', template, time.time() - _solr_t0, e)
         query = {'results': [], 'count': 0, 'search_facets': {}}
         query_error = True
 
@@ -1373,15 +1441,15 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
 
     remove_field = partial(h.remove_url_param, alternative_url=toolkit.url_for(named_route))
 
-    # Embed party tree data so JS renders without an API round-trip
-    try:
-        owner_party_nodes = _build_instrument_party_nodes(is_platform_value, is_logged_in)
-    except Exception:
-        owner_party_nodes = []
-    try:
-        manufacturer_party_nodes = _build_manufacturer_party_nodes(is_platform_value, is_logged_in)
-    except Exception:
-        manufacturer_party_nodes = []
+    # Do NOT embed party nodes in the page HTML.  The JS party-tree-module
+    # uses sessionStorage to cache tree data across filter-change reloads in
+    # the same tab, so embedding would force an expensive _build_party_trees
+    # call on EVERY page render — even when the data is already in the
+    # browser.  With empty lists the templates fall into async API mode;
+    # the first load fetches /api/instrument_parties (or /api/manufacturer_parties)
+    # and caches the result in sessionStorage for all subsequent reloads.
+    owner_party_nodes = []
+    manufacturer_party_nodes = []
 
     extra_vars = {
         'dataset_type': display_type,
@@ -1401,6 +1469,8 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'manufacturer_party_nodes': manufacturer_party_nodes,
     }
 
+    log.info('[PERF] %s page render ready in %.3fs (total handler time)',
+             template, time.time() - _page_t0)
     return base.render(template, extra_vars=extra_vars)
 
 

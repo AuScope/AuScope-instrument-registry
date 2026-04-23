@@ -15,7 +15,7 @@ from ckanext.pidinst_theme.logic import (
 )
 from ckanext.pidinst_theme.helpers import doi_resolver_url
 from ckanext.pidinst_theme.logic.auth import _is_doi_published, _package_extra_value
-from ckanext.pidinst_theme import party_propagation, taxonomy_protection
+from ckanext.pidinst_theme import party_propagation, taxonomy_protection, party_cache
 from ckanext.doi.lib.api import DataciteClient
 from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 from ckanext.doi.model.crud import DOIQuery
@@ -556,8 +556,17 @@ def taxonomy_term_delete(next_action, context, data_dict):
 
 
 # ---------------------------------------------------------------------------
-# Party (group) lifecycle – update propagation & delete guard
+# Party (group) lifecycle – cache invalidation, update propagation & delete guard
 # ---------------------------------------------------------------------------
+
+@tk.chained_action
+def group_create(next_action, context, data_dict):
+    """After a party group is created, invalidate the party tree cache."""
+    result = next_action(context, data_dict)
+    if isinstance(result, dict) and result.get('type') == 'party':
+        party_cache.invalidate()
+    return result
+
 
 @tk.chained_action
 def group_update(next_action, context, data_dict):
@@ -582,6 +591,8 @@ def group_update(next_action, context, data_dict):
     group_type = result.get('type') if isinstance(result, dict) else None
     if group_type != 'party':
         return result
+
+    party_cache.invalidate()
 
     try:
         # Use the stable UUID so the lookup works even when the slug changed
@@ -612,12 +623,16 @@ def group_delete(next_action, context, data_dict):
         # Let the core action handle the 404
         return next_action(context, data_dict)
 
-    if group_dict.get('type') == 'party':
+    is_party = group_dict.get('type') == 'party'
+    if is_party:
         check = party_propagation.check_party_deletable(group_dict['name'])
         if not check['deletable']:
             raise ValidationError({'message': check['message']})
 
-    return next_action(context, data_dict)
+    result = next_action(context, data_dict)
+    if is_party:
+        party_cache.invalidate()
+    return result
 
 
 def get_actions():
@@ -634,6 +649,7 @@ def get_actions():
         "organization_delete" : organization_delete,
         'package_withdraw': package_withdraw,
         'package_mark_duplicate': package_mark_duplicate,
+        'group_create': group_create,
         'group_update': group_update,
         'group_delete': group_delete,
         'taxonomy_term_update': taxonomy_term_update,
