@@ -1,5 +1,11 @@
-{# Checkbox-list facet.  Params: name, title, search_facets, fields_grouped #}
-{% with items = h.get_facet_items_dict(name, search_facets) %}
+{# Checkbox-list facet.
+   Params: name, title, filter_facet_items (instruments/platforms) OR search_facets (org/group), fields_grouped #}
+{# Use stable filter_facet_items when available; fall back to search_facets for org/group pages. #}
+{% if filter_facet_items is not none %}
+  {% set items = filter_facet_items.get(name, []) %}
+{% else %}
+  {% set items = h.get_facet_items_dict(name, search_facets) %}
+{% endif %}
 <section class="module module-narrow module-shallow facet-checkboxes"
          data-module="facet-checkboxes-module facet-filter-search"
          data-param="{{ name }}">
@@ -8,9 +14,6 @@
   </h2>
   <nav aria-label="{{ title }}">
     {% if items %}
-    <div class="pf-body pf-search-wrap">
-      <input type="search" class="pf-facet-search" placeholder="{{ _('Filter…') }}" aria-label="{{ _('Filter') }} {{ title }}">
-    </div>
     <div class="pf-body pidinst-filter-body--scroll">
       <ul class="pf-check-list">
         {% for item in items %}
@@ -34,4 +37,3 @@
     {% endif %}
   </nav>
 </section>
-{% endwith %}

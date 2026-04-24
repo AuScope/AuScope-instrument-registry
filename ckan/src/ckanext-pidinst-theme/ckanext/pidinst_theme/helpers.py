@@ -718,6 +718,33 @@ def taxonomy_term_packages(term_id):
         return []
 
 
+def pidinst_group_filter_facet_items(group_dict, group_type):
+    """Return stable filter_facet_items for an org or party read page.
+
+    Performs a rows=0 baseline Solr query (no checkbox filters) so the
+    checkbox lists stay stable when the user applies facet selections.
+    Active-but-absent values are injected with count=0.
+
+    Returns a dict  field -> [item dicts]  suitable for the sidebar
+    snippets, or None on error (templates fall back to search_facets).
+    """
+    from ckanext.pidinst_theme import views
+    try:
+        if group_type == 'organization':
+            forced_fq = 'owner_org:"{}"'.format(group_dict.get('id', ''))
+        else:
+            forced_fq = 'groups:"{}"'.format(group_dict.get('name', ''))
+        fields_grouped = {}
+        for field in views._CHECKBOX_FACET_FIELDS:
+            values = toolkit.request.args.getlist(field)
+            if values:
+                fields_grouped[field] = values
+        is_logged_in = bool(toolkit.c.user)
+        return views._build_group_stable_facets(forced_fq, fields_grouped, is_logged_in)
+    except Exception:
+        return None
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -747,4 +774,5 @@ def get_helpers():
         "pidinst_parse_related_instruments": pidinst_parse_related_instruments,
         "pidinst_row_category": pidinst_row_category,
         "taxonomy_term_packages": taxonomy_term_packages,
+        "pidinst_group_filter_facet_items": pidinst_group_filter_facet_items,
     }

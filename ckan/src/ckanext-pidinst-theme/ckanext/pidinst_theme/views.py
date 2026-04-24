@@ -1310,6 +1310,83 @@ def new_version(id):
         return toolkit.redirect_to('instrument.read', id=id)
 
 
+# Facet fields rendered as checkboxes on instrument/platform/org/party pages.
+# Shared between the search handler, the stable-facet baseline query, and the
+# group-page OR-within-block FQ rewrite.
+_CHECKBOX_FACET_FIELDS = [
+    'vocab_instrument_type_gcmd',
+    'vocab_instrument_type_custom',
+    'vocab_measured_variable_gcmd',
+    'vocab_measured_variable_custom',
+    'vocab_instrument_classification',
+    'vocab_manufacturer_party',
+]
+
+
+def _build_filter_facet_items(filter_facets, fields_grouped):
+    """
+    Build the stable facet-item dicts used by checkbox templates.
+
+    Uses the unfiltered baseline facets as the source of items so the list
+    never shrinks when filters are applied.  Each item's ``active`` flag is
+    set explicitly from ``fields_grouped`` (current request params) rather
+    than relying on CKAN's c.fields_grouped which is not set in Blueprint views.
+
+    Any selected value that is absent from the baseline facets is injected
+    with count=0 so it remains visible and checked (e.g. stale bookmarks).
+
+    Returns:  dict  field_name -> [{'name', 'display_name', 'count', 'active'}, ...]
+    """
+    result = {}
+    for field, facet_data in filter_facets.items():
+        active_values = set(fields_grouped.get(field, []))
+        items = []
+        seen = set()
+        for item in facet_data.get('items', []):
+            name = item.get('name', '')
+            if name:
+                seen.add(name)
+                items.append({
+                    'name': name,
+                    'display_name': item.get('display_name', name),
+                    'count': item.get('count', 0),
+                    'active': name in active_values,
+                })
+        for val in active_values:
+            if val not in seen:
+                items.append({
+                    'name': val,
+                    'display_name': val,
+                    'count': 0,
+                    'active': True,
+                })
+        result[field] = items
+    return result
+
+
+def _build_group_stable_facets(forced_fq, fields_grouped, is_logged_in):
+    """Perform a rows=0 baseline Solr query and return stable filter_facet_items.
+
+    Used by org/party group pages so checkboxes remain stable after filtering,
+    matching the behaviour of the instruments/platforms pages.
+    """
+    try:
+        baseline = toolkit.get_action('package_search')({'ignore_auth': True}, {
+            'q': '*:*',
+            'fq': forced_fq,
+            'rows': 0,
+            'facet': 'true',
+            'facet.field': _CHECKBOX_FACET_FIELDS,
+            'facet.limit': 200,
+            'facet.mincount': 1,
+            'include_private': is_logged_in,
+        })
+        return _build_filter_facet_items(baseline.get('search_facets', {}), fields_grouped)
+    except Exception as e:
+        log.warning('_build_group_stable_facets failed: %s', e)
+        return None
+
+
 def _instrument_platform_search(is_platform_value, template, named_route, display_type='instrument'):
     """Shared search handler for /instruments and /platforms routes."""
     _page_t0 = time.time()
@@ -1350,16 +1427,27 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         else:
             extra_fq_parts.append('+(' + ' OR '.join(or_clauses) + ')')
 
-    # --- standard facet / search-extras filters ---
+    # --- standard facet filters: group by field for OR-within / AND-between ---
+    # Collect all values per field first so that multiple selections in the
+    # same field become a single OR clause instead of separate AND clauses.
+    facet_param_values = {}  # field -> [values]
     for param, value in toolkit.request.args.items(multi=True):
         if param in reserved or not value or param.startswith('_'):
             continue
         if param.startswith('ext_'):
             search_extras[param] = value
         else:
+            facet_param_values.setdefault(param, []).append(value)
             fields.append((param, value))
             fields_grouped.setdefault(param, []).append(value)
-            extra_fq_parts.append(f'+{param}:"{value}"')
+
+    for field, values in facet_param_values.items():
+        if len(values) == 1:
+            extra_fq_parts.append(f'+{field}:"{values[0]}"')
+        else:
+            # Multiple selections in the same facet block → OR
+            or_parts = ' OR '.join(f'{field}:"{v}"' for v in values)
+            extra_fq_parts.append(f'+({or_parts})')
 
     # --- date interval overlap filters ---
     for from_param, to_param, start_field, end_field in _DATE_FILTER_DEFS:
@@ -1376,14 +1464,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     if extra_fq_parts:
         fq += ' ' + ' '.join(extra_fq_parts)
 
-    facet_fields = [
-        'vocab_instrument_type_gcmd',
-        'vocab_instrument_type_custom',
-        'vocab_measured_variable_gcmd',
-        'vocab_measured_variable_custom',
-        'vocab_instrument_classification',
-        'vocab_manufacturer_party',
-    ]
+    facet_fields = _CHECKBOX_FACET_FIELDS
 
     data_dict = {
         'q': q or '*:*',
@@ -1413,6 +1494,32 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         log.error('[PERF] Search error on %s after %.3fs: %s', template, time.time() - _solr_t0, e)
         query = {'results': [], 'count': 0, 'search_facets': {}}
         query_error = True
+
+    # --- Stable baseline facets for checkbox rendering ---
+    # A separate rows=0 query with only the scope filter (no checkbox / date
+    # filters) keeps the checkbox option list stable: items never disappear
+    # when filters are applied.  Active-but-missing values are injected below.
+    _baseline_t0 = time.time()
+    try:
+        baseline_query = toolkit.get_action('package_search')(context, {
+            'q': '*:*',
+            'fq': forced_fq,
+            'rows': 0,
+            'facet': 'true',
+            'facet.field': facet_fields,
+            'facet.limit': 200,
+            'facet.mincount': 1,
+            'include_private': is_logged_in,
+        })
+        _raw_filter_facets = baseline_query.get('search_facets', {})
+        log.info('[PERF] %s baseline facet query done in %.3fs',
+                 template, time.time() - _baseline_t0)
+    except Exception as _be:
+        log.warning('[PERF] %s baseline facet query failed (%.3fs): %s; using filtered facets',
+                    template, time.time() - _baseline_t0, _be)
+        _raw_filter_facets = query.get('search_facets', {})
+
+    filter_facet_items = _build_filter_facet_items(_raw_filter_facets, fields_grouped)
 
     def pager_url(q=None, page=None):
         params = dict(toolkit.request.args)
@@ -1457,6 +1564,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         'fields': fields,
         'fields_grouped': fields_grouped,
         'search_facets': search_facets,
+        'filter_facet_items': filter_facet_items,  # stable, unfiltered – for checkbox rendering
         'facet_titles': facet_titles,
         'translated_fields': {},
         'remove_field': remove_field,

@@ -2,15 +2,21 @@
   Shared filter sidebar for instrument/platform search pages.
 
   Parameters:
-    is_platform             – 'true' or 'false'
-    show_classification     – show Instrument Class facet (default true)
-    type_title              – heading for the type facet (default 'Instrument Type')
-    active_party_filters    – list of active owner_party filter values
-    owner_party_nodes       – pre-built owner tree nodes (optional)
+    is_platform              – 'true' or 'false'
+    show_classification      – show Instrument Class facet (default true)
+    type_title               – heading for the type facet (default 'Instrument Type')
+    active_party_filters     – list of active owner_party filter values
+    owner_party_nodes        – pre-built owner tree nodes (optional)
     manufacturer_party_nodes – pre-built manufacturer tree nodes (optional)
-    search_facets           – search_facets dict from search context
-    fields_grouped          – fields_grouped dict from search context
+    filter_facet_items       – stable (unfiltered) facet items dict (instruments/platforms pages)
+    search_facets            – CKAN search_facets dict (org/group pages, used as fallback)
+    fields_grouped           – fields_grouped dict from search context
 #}
+{# Resolve facet item source: instruments/platforms pages supply filter_facet_items
+   (stable, unfiltered); org/group pages only supply search_facets.  Pass both
+   down so each checkbox snippet can pick the right one. #}
+{% set _ffi = filter_facet_items if filter_facet_items is defined else none %}
+{% set _sf  = search_facets      if search_facets      is defined else {} %}
 {% snippet 'snippets/party_tree_facet.html',
     is_platform=is_platform,
     active_party_filters=active_party_filters,
@@ -25,7 +31,8 @@
 {% snippet 'snippets/facet_checkboxes.html',
     name='vocab_instrument_classification',
     title=_('Instrument Class'),
-    search_facets=search_facets,
+    filter_facet_items=_ffi,
+    search_facets=_sf,
     fields_grouped=fields_grouped %}
 {% endif %}
 
@@ -33,14 +40,16 @@
     title=type_title|default(_('Instrument Type')),
     gcmd_name='vocab_instrument_type_gcmd',
     custom_name='vocab_instrument_type_custom',
-    search_facets=search_facets,
+    filter_facet_items=_ffi,
+    search_facets=_sf,
     fields_grouped=fields_grouped %}
 
 {% snippet 'snippets/facet_checkboxes_grouped.html',
     title=_('Measured Variable'),
     gcmd_name='vocab_measured_variable_gcmd',
     custom_name='vocab_measured_variable_custom',
-    search_facets=search_facets,
+    filter_facet_items=_ffi,
+    search_facets=_sf,
     fields_grouped=fields_grouped %}
 
 {% snippet 'snippets/date_filters.html',

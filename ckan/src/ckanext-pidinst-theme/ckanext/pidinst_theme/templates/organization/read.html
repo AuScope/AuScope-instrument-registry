@@ -37,6 +37,7 @@
     {% snippet 'snippets/instrument_filter_sidebar.html',
         is_platform='false',
         active_party_filters=active_party_filters,
+        filter_facet_items=h.pidinst_group_filter_facet_items(group_dict, group_type),
         search_facets=search_facets,
         fields_grouped=fields_grouped %}
   </div>

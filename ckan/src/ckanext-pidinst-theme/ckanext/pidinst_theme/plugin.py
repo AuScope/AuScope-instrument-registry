@@ -48,6 +48,45 @@ def patched_build_metadata_dict(pkg_dict):
 doi_metadata.build_metadata_dict = patched_build_metadata_dict
 
 
+def _apply_or_within_block_for_group_page(fq):
+    """Replace per-value AND clauses with OR groups for multi-selected checkbox facets.
+
+    CKAN's group/org read view calls _get_search_details() which appends each
+    selected value as a separate  field:"value"  clause (always ANDed by Solr).
+    This function converts them to a single  +(field:"a" OR field:"b")  clause
+    so that matching either value is sufficient (OR within a facet block).
+
+    Uses request.args as the authoritative source of selected values rather than
+    parsing the fq string, so exact string replacement is used instead of regex.
+    The  new_fq != fq  guard means baseline queries (which don't contain these
+    clauses) are returned unchanged without any separate flag mechanism.
+    """
+    try:
+        request_args = toolkit.request.args
+    except RuntimeError:
+        return fq  # No active Flask request context (e.g. CLI or background job)
+
+    for field in views._CHECKBOX_FACET_FIELDS:
+        values = request_args.getlist(field)
+        if len(values) <= 1:
+            continue
+        # Remove each individual AND clause that CKAN's _get_search_details added.
+        # Format is always " field:\"value\"" (space-prefixed, no + sign).
+        new_fq = fq
+        for v in values:
+            new_fq = new_fq.replace(f' {field}:"{v}"', '')
+        if new_fq == fq:
+            # Nothing was replaced: this field is not in the fq (e.g. baseline
+            # query with only owner_org scope filter). Skip without modifying.
+            continue
+        fq = new_fq.rstrip()
+        # Re-add as a single required OR group so Solr returns docs matching any value.
+        or_parts = ' OR '.join(f'{field}:"{v}"' for v in values)
+        fq += f' +({or_parts})'
+
+    return fq.strip()
+
+
 class PidinstThemePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IPackageController, inherit=True)
@@ -483,8 +522,24 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     def after_dataset_show(self, *args, **kwargs):
         return schema.after_dataset_show(*args, **kwargs)
 
-    def before_dataset_search(self, *args, **kwargs):
-        return schema.before_dataset_search(*args, **kwargs)
+    def before_dataset_search(self, search_params):
+        search_params = schema.before_dataset_search(search_params)
+        path = '<no-request>'
+        is_group_page = False
+        try:
+            path = toolkit.request.path
+            is_group_page = path.startswith('/organization/') or path.startswith('/party/')
+        except RuntimeError:
+            pass
+        if is_group_page:
+            original_fq = search_params.get('fq', '')
+            rewritten_fq = _apply_or_within_block_for_group_page(original_fq)
+            log.debug(
+                '[pidinst] before_dataset_search path=%s fq_before=%r fq_after=%r',
+                path, original_fq, rewritten_fq,
+            )
+            search_params['fq'] = rewritten_fq
+        return search_params
 
     # IAuthFunctions
 

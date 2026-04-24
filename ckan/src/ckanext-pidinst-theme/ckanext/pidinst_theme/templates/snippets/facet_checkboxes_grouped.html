@@ -1,7 +1,13 @@
 {# Grouped checkbox facet with GCMD / Custom subsections.
-   Params: title, gcmd_name, custom_name, search_facets, fields_grouped #}
-{% set gcmd_items   = h.get_facet_items_dict(gcmd_name,   search_facets) %}
-{% set custom_items = h.get_facet_items_dict(custom_name, search_facets) %}
+   Params: title, gcmd_name, custom_name, filter_facet_items (instruments/platforms) OR search_facets (org/group), fields_grouped #}
+{# Use stable filter_facet_items when available; fall back to search_facets for org/group pages. #}
+{% if filter_facet_items is not none %}
+  {% set gcmd_items   = filter_facet_items.get(gcmd_name,   []) %}
+  {% set custom_items = filter_facet_items.get(custom_name, []) %}
+{% else %}
+  {% set gcmd_items   = h.get_facet_items_dict(gcmd_name,   search_facets) %}
+  {% set custom_items = h.get_facet_items_dict(custom_name, search_facets) %}
+{% endif %}
 
 <section class="module module-narrow module-shallow"
          data-module="facet-filter-search">
