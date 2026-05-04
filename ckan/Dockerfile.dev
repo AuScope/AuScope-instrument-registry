@@ -103,7 +103,7 @@ RUN pip install -r "https://raw.githubusercontent.com/ckan/ckanext-dcat/master/r
 RUN pip install -e "git+https://github.com/AuScope/ckanext-dcat.git@auscope_customise#egg=ckanext-dcat"
 
 ### Taxonomy extension ###
-RUN pip install -e "git+https://github.com/AuScope/ckanext-taxonomy.git@dev#egg=ckanext-taxonomy"
+RUN pip install -e "git+https://github.com/AuScope/ckanext-taxonomy.git@master#egg=ckanext-taxonomy"
 
 # Clone the extension(s) your are writing for your own project in the `src` folder
 # to get them mounted in this image at runtime
