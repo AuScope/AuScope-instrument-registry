@@ -89,7 +89,47 @@ def check_term_deletable(term_dict):
     }
 
 
-def propagate_term_update(term_dict, old_term=None):
+def check_terms_deletable(terms):
+    """Check whether a collection of taxonomy terms can all be safely deleted.
+
+    Used when a delete operation cascades to multiple terms (e.g. deleting a
+    parent term with children, or deleting an entire taxonomy).
+
+    Returns dict with deletable, reference_count, message, packages.
+    """
+    blocking_packages = {}   # keyed by package id to deduplicate
+    blocking_term_labels = []
+
+    for term in terms:
+        pkgs = find_packages_referencing_term(term)
+        if pkgs:
+            blocking_term_labels.append(term.get('label') or term.get('id', ''))
+            for pkg in pkgs:
+                blocking_packages[pkg['id']] = pkg
+
+    all_blocking = list(blocking_packages.values())
+    count = len(all_blocking)
+
+    if count == 0:
+        return {'deletable': True, 'reference_count': 0, 'message': '', 'packages': []}
+
+    noun = 'instrument' if count == 1 else 'instruments'
+    shown = blocking_term_labels[:3]
+    suffix = f' (and {len(blocking_term_labels) - 3} more)' if len(blocking_term_labels) > 3 else ''
+    term_labels_str = ', '.join(f'"{l}"' for l in shown) + suffix
+    return {
+        'deletable': False,
+        'reference_count': count,
+        'message': (
+            f'Cannot delete: term(s) {term_labels_str} '
+            f'are still referenced by {count} {noun}. '
+            f'Remove those terms from the instruments first.'
+        ),
+        'packages': all_blocking,
+    }
+
+
+def propagate_term_update(term_dict, old_term=None, _job_id=None):
     """Propagate changed term metadata into every referencing instrument.
 
     Returns summary dict with term_label, instruments_checked,
@@ -101,6 +141,7 @@ def propagate_term_update(term_dict, old_term=None):
         instruments,
         lambda pkg: _update_package_term_fields(pkg, term_dict, old_term=old_term),
         f'term={term_label}',
+        job_id=_job_id,
     )
     summary['term_label'] = term_label
     return summary
