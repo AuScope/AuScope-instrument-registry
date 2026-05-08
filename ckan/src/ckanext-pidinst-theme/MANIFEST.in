@@ -1,7 +1,11 @@
+include README.md
 include README.rst
 include LICENSE
 include requirements.txt
+
 recursive-include ckanext/pidinst_theme *.html *.json *.js *.less *.css *.mo *.yml *.yaml
-recursive-include ckanext/pidinst_theme/assets *.js *.css *.yml
-recursive-include ckanext/pidinst_theme/assets/css *.css
+recursive-include ckanext/pidinst_theme/assets *.js *.css *.yml *.yaml *.png *.jpg *.jpeg *.gif *.svg *.woff *.woff2 *.ttf *.eot
+recursive-include ckanext/pidinst_theme/public *
+recursive-include ckanext/pidinst_theme/templates *
+recursive-include ckanext/pidinst_theme/i18n *
 recursive-include ckanext/pidinst_theme/migration *.ini *.py *.mako
