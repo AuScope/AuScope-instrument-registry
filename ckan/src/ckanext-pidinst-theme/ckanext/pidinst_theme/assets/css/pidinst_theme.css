@@ -1,4 +1,22 @@
 
+/* =====================================================
+   Additional Info Table – 30/70 Field/Value split
+===================================================== */
+
+table.table .dataset-label,
+.dataset-label {
+  width: 30% !important;
+}
+
+table.table .dataset-details,
+.dataset-details {
+  width: 70% !important;
+}
+
+table.table:has(.dataset-label) {
+  table-layout: fixed;
+}
+
 .stages {
   margin: 0;
   list-style: none;

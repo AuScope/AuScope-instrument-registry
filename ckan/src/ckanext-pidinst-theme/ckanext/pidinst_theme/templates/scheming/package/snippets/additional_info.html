@@ -1,4 +1,4 @@
-{% extends "package/snippets/additional_info.html" %}
+{# Additional Info table for scheming-based instrument/platform packages #}
 
 {%- set exclude_fields = [
     'id',
@@ -12,6 +12,15 @@
 
 {% block package_additional_info %}
   {%- set is_platform = (pkg_dict.get('is_platform', 'false') | string | lower == 'true') -%}
+  <h3>{{ _('Additional Info') }}</h3>
+  <table class="table table-striped table-bordered table-condensed" style="table-layout: fixed; width: 100%;">
+    <thead>
+      <tr>
+        <th scope="col" style="width: 30%;">{{ _('Field') }}</th>
+        <th scope="col" style="width: 70%;">{{ _('Value') }}</th>
+      </tr>
+    </thead>
+    <tbody>
   {%- for field in schema.dataset_fields -%}
     {%- if field.field_name not in exclude_fields
         and field.display_snippet is not none -%}
@@ -24,9 +33,9 @@
         {%- set display_label = field.label -%}
       {%- endif -%}
       <tr>
-        <th scope="row" class="dataset-label">{{
+        <th scope="row" class="dataset-label" style="width: 30%;">{{
           h.scheming_language_text(display_label) }}</th>
-        <td class="dataset-details"{%
+        <td class="dataset-details" style="width: 70%;"{%
           if field.display_property %} property="{{ field.display_property
           }}"{% endif %}>{%- snippet 'scheming/snippets/display_field.html',
           field=field, data=pkg_dict, schema=schema -%}</td>
@@ -34,9 +43,11 @@
     {%- endif -%}
   {%- endfor -%}
   {% if h.check_access('package_update',{'id':pkg_dict.id}) %}
-    <tr>
-      <th scope="row" class="dataset-label">{{ _("State") }}</th>
-      <td class="dataset-details">{{ _(pkg_dict.state) }}</td>
-    </tr>
+      <tr>
+        <th scope="row" class="dataset-label" style="width: 30%;">{{ _("State") }}</th>
+        <td class="dataset-details" style="width: 70%;">{{ _(pkg_dict.state) }}</td>
+      </tr>
   {% endif %}
+    </tbody>
+  </table>
 {% endblock %}
