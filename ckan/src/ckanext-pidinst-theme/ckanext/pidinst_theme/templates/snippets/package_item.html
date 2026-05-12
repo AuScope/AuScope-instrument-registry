@@ -2,7 +2,11 @@
 
 {% block content %}
   {% set _ip = package.is_platform | string | lower %}
-  <div class="dataset-item-wrapper" data-is-platform="{{ 'true' if _ip in ('true', '1') else 'false' }}">
+  {% set _dtype = 'platform' if _ip in ('true', '1') else 'instrument' %}
+  <div class="dataset-item-wrapper"
+       data-is-platform="{{ 'true' if _ip in ('true', '1') else 'false' }}"
+       data-dataset-id="{{ package.id }}"
+       data-dataset-type="{{ _dtype }}">
     <div class="dataset-item-content">
       {{ super() }}
     </div>

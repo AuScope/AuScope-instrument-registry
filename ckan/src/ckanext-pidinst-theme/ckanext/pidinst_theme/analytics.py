@@ -10,13 +10,54 @@ from typing import Dict, Optional, Any
 
 log = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Event name constants — always use these; never hard-code event strings.
+# Names match the requirements table exactly.
+# ---------------------------------------------------------------------------
+EVENT_SEARCH = 'Search'
+EVENT_EMPTY_RESULT_SEARCH = 'Empty-Result Search'
+EVENT_SEARCH_RESULT_CLICK_THROUGH = 'Search Result Click-Through'
+EVENT_DATASET_PAGE_VIEW = 'Dataset Page View'
+EVENT_DOWNLOAD = 'Download'
+EVENT_TIME_TO_FIRST_DOWNLOAD = 'Time To First Download'
+EVENT_DATASET_CREATED = 'Dataset Created'
+EVENT_DATASET_PUBLISHED_WITH_DOI = 'Dataset Published With DOI'
+EVENT_UPDATE_EXISTING_DATASET = 'Update Existing Dataset'
+EVENT_DOI_BASED_CITATION = 'DOI-Based Citation'
+EVENT_RESOURCE_PREVIEW_OPENED = 'Resource Preview Opened'
+EVENT_DATASET_VIEW_DURATION = 'Dataset View Duration'
+EVENT_DATASET_REUSE_CREATED = 'Dataset Reuse Created'
+
+# ---------------------------------------------------------------------------
+# Known frontend event names — used to whitelist the /api/analytics/track
+# endpoint.  Only events defined above are accepted from the browser.
+# ---------------------------------------------------------------------------
+KNOWN_FRONTEND_EVENTS = frozenset({
+    EVENT_SEARCH,
+    EVENT_EMPTY_RESULT_SEARCH,
+    EVENT_SEARCH_RESULT_CLICK_THROUGH,
+    EVENT_DATASET_PAGE_VIEW,
+    EVENT_DOWNLOAD,
+    EVENT_TIME_TO_FIRST_DOWNLOAD,
+    EVENT_DATASET_CREATED,
+    EVENT_DATASET_PUBLISHED_WITH_DOI,
+    EVENT_UPDATE_EXISTING_DATASET,
+    EVENT_DOI_BASED_CITATION,
+    EVENT_RESOURCE_PREVIEW_OPENED,
+    EVENT_DATASET_VIEW_DURATION,
+})
+
 # Try to import RudderStack SDK
 try:
     from rudderstack.analytics import Client
     RUDDERSTACK_AVAILABLE = True
 except ImportError:
     RUDDERSTACK_AVAILABLE = False
-    log.warning("RudderStack Python SDK not available. Install with: pip install rudderstack-python")
+    log.error(
+        "RudderStack Python SDK not available — ALL backend analytics events will be "
+        "silently dropped. Fix: add 'rudder-sdk-python' to requirements.txt and rebuild "
+        "the Docker image."
+    )
 
 
 class AnalyticsTracker:
@@ -24,22 +65,33 @@ class AnalyticsTracker:
     
     _client = None
     _enabled = False
-    
+    _initialized = False  # guard: prevent repeated init attempts
+
     @classmethod
     def initialize(cls):
-        """Initialize RudderStack client from environment variables"""
-        if not RUDDERSTACK_AVAILABLE:
+        """Initialize RudderStack client from environment variables.
+        Safe to call multiple times; only runs once.
+        """
+        if cls._initialized:
             return
-        
+        cls._initialized = True
+
+        if not RUDDERSTACK_AVAILABLE:
+            log.error(
+                "AnalyticsTracker.initialize(): RudderStack SDK unavailable — "
+                "backend events will not be sent."
+            )
+            return
+
         write_key = os.environ.get('RUDDERSTACK_WRITE_KEY', '')
         data_plane_url = os.environ.get('RUDDERSTACK_DATA_PLANE_URL', '')
         enabled = os.environ.get('RUDDERSTACK_ENABLED', 'false').lower() == 'true'
-        
+
         if enabled and write_key and data_plane_url:
             try:
                 cls._client = Client(
                     write_key=write_key,
-                    data_plane_url=data_plane_url,
+                    host=data_plane_url,
                     gzip=True,
                     max_retries=3
                 )
@@ -48,59 +100,61 @@ class AnalyticsTracker:
             except Exception as e:
                 log.error(f"Failed to initialize RudderStack: {e}")
                 cls._enabled = False
+        elif not enabled:
+            log.warning(
+                "AnalyticsTracker.initialize(): RUDDERSTACK_ENABLED is not 'true' — "
+                "backend events will not be sent."
+            )
         else:
-            log.debug("RudderStack analytics not enabled or not configured")
-    
+            log.error(
+                "AnalyticsTracker.initialize(): RUDDERSTACK_ENABLED=true but "
+                "WRITE_KEY or DATA_PLANE_URL is missing — backend events will not be sent."
+            )
+
     @classmethod
     def is_enabled(cls) -> bool:
         """Check if analytics tracking is enabled"""
-        if cls._client is None:
+        if not cls._initialized:
             cls.initialize()
         return cls._enabled
     
     @classmethod
     def track(cls, user_id: Optional[str], event: str, properties: Dict[str, Any]) -> bool:
-        """
-        Track an event
-        
-        Args:
-            user_id: User identifier (can be None for anonymous events)
-            event: Event name
-            properties: Event properties dictionary
-            
-        Returns:
-            bool: True if event was tracked successfully
+        """Track an event. Returns True if the event was sent successfully.
+
+        A copy of properties is made before adding context fields so that
+        the caller's dict is never mutated (important when track() is called
+        twice with the same dict, e.g. Search + Empty-Result Search).
         """
         if not cls.is_enabled():
             log.debug(f"Analytics disabled, skipping event: {event}")
             return False
-        
+
         try:
-            # Add timestamp if not present
-            if 'timestamp' not in properties:
-                properties['timestamp'] = datetime.utcnow().isoformat()
-            
-            # Add environment context
-            properties['environment'] = os.environ.get('CKAN_SITE_URL', 'unknown')
-            
+            # Copy so the caller's dict is not mutated.
+            props = dict(properties)
+
+            if 'timestamp' not in props:
+                props['timestamp'] = datetime.utcnow().isoformat()
+            props['environment'] = os.environ.get('CKAN_SITE_URL', 'unknown')
+
             if user_id:
                 cls._client.track(
                     user_id=user_id,
                     event=event,
-                    properties=properties
+                    properties=props
                 )
             else:
-                # For anonymous events, use anonymous_id
-                anonymous_id = properties.get('anonymous_id', 'anonymous')
+                anonymous_id = props.get('anonymous_id', 'anonymous')
                 cls._client.track(
                     anonymous_id=anonymous_id,
                     event=event,
-                    properties=properties
+                    properties=props
                 )
-            
+
             log.debug(f"Tracked event: {event} for user: {user_id or 'anonymous'}")
             return True
-            
+
         except Exception as e:
             log.error(f"Failed to track event {event}: {e}")
             return False
@@ -132,82 +186,327 @@ class AnalyticsTracker:
             return False
 
 
+# ---------------------------------------------------------------------------
+# Property helpers
+# ---------------------------------------------------------------------------
+
+def _dataset_type_from_pkg(pkg_dict: Dict[str, Any]) -> str:
+    """Derive dataset_type from the is_platform field.
+
+    Returns 'platform', 'instrument', or 'unknown'.
+    Handles both boolean and string representations stored by CKAN extras.
+    """
+    val = pkg_dict.get('is_platform')
+    if val in (True, 'true', 'True', '1', 1):
+        return 'platform'
+    if val in (False, 'false', 'False', '0', 0):
+        return 'instrument'
+    return 'unknown'
+
+
+def _is_public_from_pkg(pkg_dict: Dict[str, Any]) -> Optional[bool]:
+    """Derive is_public from the private field.
+
+    Returns True, False, or None when the field is absent.
+    """
+    if 'private' not in pkg_dict:
+        return None
+    return not pkg_dict['private']
+
+
+def _has_doi_from_pkg(pkg_dict: Dict[str, Any]) -> bool:
+    """Return True only when a non-empty DOI value exists in the package dict."""
+    return bool(pkg_dict.get('doi'))
+
+
+def minimal_dataset_props(pkg_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the minimal analytics property dict for a dataset/package event.
+
+    Sends only: dataset_id, dataset_type, is_public, has_doi.
+    Never sends title, name, description, username, email, or the full DOI value.
+    """
+    return {
+        'dataset_id': pkg_dict.get('id'),
+        'dataset_type': _dataset_type_from_pkg(pkg_dict),
+        'is_public': _is_public_from_pkg(pkg_dict),
+        'has_doi': _has_doi_from_pkg(pkg_dict),
+    }
+
+
+def file_size_group(size_bytes: Optional[int]) -> str:
+    """Bucket a raw file size into a named group for analytics.
+
+    Returns 'small' (< 10 MB), 'medium' (< 500 MB), 'large' (>= 500 MB),
+    or 'unknown' when the size is not available or cannot be parsed.
+    The raw byte value must not be sent in the analytics payload.
+    """
+    if size_bytes is None:
+        return 'unknown'
+    try:
+        size_bytes = int(size_bytes)
+    except (TypeError, ValueError):
+        return 'unknown'
+    if size_bytes < 10 * 1024 * 1024:
+        return 'small'
+    if size_bytes < 500 * 1024 * 1024:
+        return 'medium'
+    return 'large'
+
+
+def get_safe_analytics_user_id(user_or_username) -> Optional[str]:
+    """Return the stable internal CKAN user UUID for analytics.
+
+    Accepts any of:
+    - A CKAN ``User`` model object  — returns ``user.id`` directly.
+    - A username string (e.g. ``'ckan_admin'``) — looks up the User record by
+      name and returns the UUID.
+    - ``None`` — returns ``None``; anonymous users remain anonymous.
+
+    The function **never** returns the username, email, display name, or any
+    other PII.  On any failure (missing model, DB error, user not found) it
+    returns ``None`` so that analytics tracking silently degrades rather than
+    raising.
+
+    Usage in plugin.py hooks:
+        user_id = get_safe_analytics_user_id(
+            context.get('auth_user_obj') or context.get('user')
+        )
+    ``context['auth_user_obj']`` is preferred because it avoids a DB lookup
+    when the User object is already in the request context.  The username
+    string fallback (``context['user']``) is used only when the object is
+    absent.
+    """
+    if user_or_username is None:
+        return None
+    # Already a User model object — use .id directly to avoid a DB round-trip.
+    if hasattr(user_or_username, 'id'):
+        uid = user_or_username.id
+        return str(uid) if uid else None
+    # Assume it's a username string; look up the User record.
+    username = str(user_or_username).strip()
+    if not username:
+        return None
+    try:
+        from ckan.model import User as _CKANUser  # noqa: PLC0415
+        user_obj = _CKANUser.by_name(username)
+        if user_obj and user_obj.id:
+            return str(user_obj.id)
+    except Exception:
+        pass
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Event tracking helper functions
+# ---------------------------------------------------------------------------
 
 def track_dataset_created(user_id: str, dataset_dict: Dict[str, Any]):
-    """Track dataset creation event"""
+    """Track dataset creation event (EVENT_DATASET_CREATED)."""
     AnalyticsTracker.track(
         user_id=user_id,
-        event='Dataset Created',
-        properties={
-            'dataset_id': dataset_dict.get('id'),
-            'dataset_name': dataset_dict.get('name'),
-            'dataset_title': dataset_dict.get('title'),
-            'organization_id': dataset_dict.get('owner_org'),
-            'private': dataset_dict.get('private', False),
-            'num_resources': len(dataset_dict.get('resources', [])),
-            'num_tags': len(dataset_dict.get('tags', [])),
-            'has_doi': 'doi' in dataset_dict,
-        }
+        event=EVENT_DATASET_CREATED,
+        properties=minimal_dataset_props(dataset_dict),
     )
 
 
 def track_dataset_updated(user_id: str, dataset_dict: Dict[str, Any]):
-    """Track dataset update event"""
+    """Track dataset update event (EVENT_UPDATE_EXISTING_DATASET)."""
     AnalyticsTracker.track(
         user_id=user_id,
-        event='Update Existing Dataset',
-        properties={
-            'dataset_id': dataset_dict.get('id'),
-            'dataset_name': dataset_dict.get('name'),
-            'dataset_title': dataset_dict.get('title'),
-            'organization_id': dataset_dict.get('owner_org'),
-            'private': dataset_dict.get('private', False),
-            'num_resources': len(dataset_dict.get('resources', [])),
-        }
+        event=EVENT_UPDATE_EXISTING_DATASET,
+        properties=minimal_dataset_props(dataset_dict),
     )
 
 
-def track_doi_created(user_id: str, dataset_dict: Dict[str, Any], doi: str):
-    """Track DOI creation/publication event"""
+def _doi_status_from_db(package_id: str):
+    """Query the ckanext-doi DB table for a package's DOI published status.
+
+    Returns a ``(is_published, status_str)`` tuple:
+
+    * ``(True,  'published')`` – ``doi.published`` timestamp is set.
+    * ``(False, 'minted')``    – DOI record exists but ``published`` is None.
+    * ``(False, 'none')``      – No DOI record found for this package.
+    * ``(False, 'unknown')``   – DOIQuery unavailable or query raised an exception.
+
+    The full DOI identifier value is intentionally never returned.
+
+    NOTE: requires ckanext-doi to be installed.  The import is deferred so
+    that analytics.py can be imported in environments where ckanext-doi is
+    absent (e.g. minimal unit-test setups).
+    """
+    try:
+        from ckanext.doi.model.crud import DOIQuery  # noqa: PLC0415
+        record = DOIQuery.read_package(package_id)
+        if record is None:
+            return False, 'none'
+        if record.published is not None:
+            return True, 'published'
+        return False, 'minted'
+    except Exception:
+        return False, 'unknown'
+
+
+def track_doi_published(user_id: str, dataset_dict: Dict[str, Any],
+                        doi_status: Optional[str] = None):
+    """Track DOI publication event (EVENT_DATASET_PUBLISHED_WITH_DOI).
+
+    The full DOI value is intentionally NOT sent in the payload.
+    Call this only when a confirmed transition from not-published to published
+    has been detected (see plugin.py Stage 3A logic and _doi_status_from_db).
+    """
+    props = minimal_dataset_props(dataset_dict)
+    props['doi_status'] = doi_status or 'unknown'
     AnalyticsTracker.track(
         user_id=user_id,
-        event='Dataset Published with DOI',
-        properties={
-            'dataset_id': dataset_dict.get('id'),
-            'dataset_name': dataset_dict.get('name'),
-            'dataset_title': dataset_dict.get('title'),
-            'doi': doi,
-            'organization_id': dataset_dict.get('owner_org'),
-        }
+        event=EVENT_DATASET_PUBLISHED_WITH_DOI,
+        properties=props,
     )
 
 
-def track_resource_download(user_id: Optional[str], resource_id: str, 
-                            dataset_id: str, resource_name: str, 
-                            resource_format: str):
-    """Track resource download event"""
+# ---------------------------------------------------------------------------
+# Stage 3B: Dataset Reuse Created helpers
+# ---------------------------------------------------------------------------
+
+def _reuse_source_from_pkg(pkg_dict: Dict[str, Any]) -> Optional[str]:
+    """Extract the source (predecessor) dataset ID from a new-version package.
+
+    Looks for the first ``IsNewVersionOf`` entry in ``related_identifier_obj``
+    and returns its ``related_instrument_package_id`` value, which is the CKAN
+    UUID of the immediate predecessor package.
+
+    Returns ``None`` when:
+    - ``related_identifier_obj`` is absent, empty, or unparseable.
+    - No ``IsNewVersionOf`` entry exists.
+    - The entry has no ``related_instrument_package_id``.
+
+    The related_identifier value (DOI / URL) is intentionally not returned.
+    """
+    import json as _json  # noqa: PLC0415
+
+    raw = pkg_dict.get('related_identifier_obj')
+    if not raw:
+        return None
+    if isinstance(raw, str):
+        try:
+            raw = _json.loads(raw)
+        except Exception:
+            return None
+    if not isinstance(raw, list):
+        return None
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get('relation_type') == 'IsNewVersionOf':
+            pkg_id = entry.get('related_instrument_package_id')
+            if pkg_id:
+                return str(pkg_id)
+    return None
+
+
+def _is_new_version_pkg(pkg_dict: Dict[str, Any]) -> bool:
+    """Return True when this package is a new version of an existing one.
+
+    Detection rule:
+    - ``version_handler_id`` is set (non-empty) AND differs from the
+      package's own ``id``.
+
+    ``version_handler_id`` is set to the original's ``version_handler_id``
+    (the root of the version chain) by ``prepare_dataset_for_cloning``.
+    For a brand-new dataset ``after_dataset_create`` sets it equal to
+    ``pkg_dict['id']``, so the two being different is the safe distinguisher.
+
+    This function is called AFTER the ``version_handler_id`` normalisation
+    block in ``after_dataset_create`` so the local ``pkg_dict`` copy is
+    always up-to-date.
+    """
+    vhid = pkg_dict.get('version_handler_id')
+    pkg_id = pkg_dict.get('id')
+    return bool(vhid and pkg_id and vhid != pkg_id)
+
+
+def track_dataset_reuse_created(user_id: str, dataset_dict: Dict[str, Any],
+                                 source_dataset_id: Optional[str] = None):
+    """Track dataset reuse event (EVENT_DATASET_REUSE_CREATED).
+
+    Fires only when a new dataset was explicitly created as a new version of
+    (or derived from) an existing dataset via the new_version workflow.
+
+    Allowed payload:
+        dataset_id, dataset_type, is_public, has_doi, source_dataset_id?,
+        reuse_type
+
+    Never sent:
+        full DOI, title, name, description, email, username, full metadata.
+    """
+    props = minimal_dataset_props(dataset_dict)
+    props['reuse_type'] = 'new_version'
+    if source_dataset_id:
+        props['source_dataset_id'] = source_dataset_id
     AnalyticsTracker.track(
         user_id=user_id,
-        event='Resource Download',
-        properties={
-            'resource_id': resource_id,
-            'dataset_id': dataset_id,
-            'resource_name': resource_name,
-            'resource_format': resource_format,
-        }
+        event=EVENT_DATASET_REUSE_CREATED,
+        properties=props,
     )
 
 
-def track_dataset_search(user_id: Optional[str], search_query: str, 
-                         num_results: int, sort_by: str = 'relevance'):
-    """Track dataset search event"""
+def track_resource_download(user_id: Optional[str], resource_id: str,
+                            dataset_id: str, resource_format: str,
+                            size_bytes: Optional[int] = None,
+                            dataset_type: Optional[str] = None):
+    """Track resource download event (EVENT_DOWNLOAD).
+
+    Raw file size is bucketed via file_size_group; the byte value is not sent.
+    resource_name is intentionally omitted from the payload.
+    """
+    props: Dict[str, Any] = {
+        'resource_id': resource_id,
+        'dataset_id': dataset_id,
+        'resource_format': resource_format,
+        'file_size_group': file_size_group(size_bytes),
+    }
+    if dataset_type is not None:
+        props['dataset_type'] = dataset_type
     AnalyticsTracker.track(
         user_id=user_id,
-        event='Dataset Search',
-        properties={
-            'search_query': search_query,
-            'num_results': num_results,
-            'sort_by': sort_by,
-        }
+        event=EVENT_DOWNLOAD,
+        properties=props,
     )
+
+
+def track_dataset_search(user_id: Optional[str], search_term: str,
+                         result_count: int,
+                         dataset_type: Optional[str] = None,
+                         page_number: Optional[int] = None,
+                         sort_by: Optional[str] = None):
+    """Track search event (EVENT_SEARCH).
+
+    Fires EVENT_SEARCH always.
+    Also fires EVENT_EMPTY_RESULT_SEARCH when result_count == 0.
+
+    Optional backend-only properties (dataset_type, page_number, sort_by) are
+    included when provided; they are omitted from frontend-initiated calls.
+    """
+    properties: Dict[str, Any] = {
+        'search_term': search_term,
+        'result_count': result_count,
+        'is_empty': result_count == 0,
+    }
+    if dataset_type is not None:
+        properties['dataset_type'] = dataset_type
+    if page_number is not None:
+        properties['page_number'] = page_number
+    if sort_by is not None:
+        properties['sort_by'] = sort_by
+
+    AnalyticsTracker.track(
+        user_id=user_id,
+        event=EVENT_SEARCH,
+        properties=properties,
+    )
+
+    if result_count == 0:
+        AnalyticsTracker.track(
+            user_id=user_id,
+            event=EVENT_EMPTY_RESULT_SEARCH,
+            properties=properties,
+        )

@@ -133,7 +133,8 @@ COPY src/shared/templates /shared/templates
 
 RUN pip install $APP_DIR/src_extensions/ckanext-oidc-pkce && \
   pip install $APP_DIR/src_extensions/ckanext-pidinst-theme && \
-  pip install pandas openpyxl requests python-multipart
+  pip install pandas openpyxl requests python-multipart && \
+  pip install rudder-sdk-python
 
 RUN chmod +x ${APP_DIR}/start_ckan.sh
 # RUN chmod +x ${APP_DIR}/start_ckan_development.sh

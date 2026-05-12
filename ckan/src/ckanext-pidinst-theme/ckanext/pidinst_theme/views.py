@@ -23,6 +23,7 @@ from ckanext.pidinst_theme.logic import (
 )
 from ckanext.pidinst_theme.logic.schema import _parse_date_bound, _DATE_FILTER_DEFS
 from ckanext.pidinst_theme import analytics_views
+from ckanext.pidinst_theme import analytics
 
 check_access = logic.check_access
 NotAuthorized = logic.NotAuthorized
@@ -1528,6 +1529,19 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         query = toolkit.get_action('package_search')(context, data_dict)
         log.info('[PERF] %s package_search returned %d results in %.3fs',
                  template, query.get('count', 0), time.time() - _solr_t0)
+        # --- Analytics: track search event after successful package_search ---
+        try:
+            result_count = query.get('count', 0)
+            analytics.track_dataset_search(
+                user_id=toolkit.c.userobj.id if toolkit.c.userobj else None,
+                search_term=q,
+                result_count=result_count,
+                dataset_type=display_type,
+                page_number=page,
+                sort_by=sort_by,
+            )
+        except Exception as _ae:
+            log.warning('Search analytics tracking failed: %s', _ae)
     except Exception as e:
         log.error('[PERF] Search error on %s after %.3fs: %s', template, time.time() - _solr_t0, e)
         query = {'results': [], 'count': 0, 'search_facets': {}}

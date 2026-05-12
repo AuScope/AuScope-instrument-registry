@@ -166,6 +166,9 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         toolkit.add_public_directory(config_, '/shared/public')
         toolkit.add_public_directory(config_, "public")
         toolkit.add_resource("assets", "pidinst_theme")
+        # Initialise backend analytics eagerly so startup logs reveal config problems
+        # (SDK missing, WRITE_KEY absent, etc.) instead of silently failing on first event.
+        analytics.AnalyticsTracker.initialize()
 
 
     # IPackageController
@@ -354,6 +357,37 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     def before_view(self, pkg_dict):
         pass
 
+    def before_dataset_update(self, context, pkg_dict):
+        """Snapshot the DOI published state before the update.
+
+        Stores ``context['_analytics_doi_was_published']``:
+          * ``True``  – DOI record existed and ``doi.published`` was set.
+          * ``False`` – DOI record absent or ``doi.published`` was None.
+          * ``None``  – Query failed; state is unknown.
+
+        Stage 3A transition rule (in after_dataset_update):
+          * Only fire if was_published=False AND now published=True.
+          * was_published=None → conservative: skip event to avoid duplicates.
+
+        For reliable detection this plugin must be listed *after* ``doi`` in
+        ``ckan.plugins`` so that ckanext-doi's after_dataset_update (which
+        calls ``mint_doi()`` and sets ``doi.published``) has already run when
+        our after_dataset_update hook executes.
+        """
+        try:
+            pkg_id = pkg_dict.get('id')
+            if pkg_id:
+                from ckanext.doi.model.crud import DOIQuery  # noqa: PLC0415
+                record = DOIQuery.read_package(pkg_id)
+                context['_analytics_doi_was_published'] = (
+                    record is not None and record.published is not None
+                )
+            else:
+                context['_analytics_doi_was_published'] = None
+        except Exception:
+            context['_analytics_doi_was_published'] = None
+        return pkg_dict
+
     def after_dataset_create(self, context, pkg_dict):
         # 1) Ensure version_handler_id is set on first creation
         try:
@@ -362,6 +396,10 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
 
                 patch_ctx = dict(context)
                 patch_ctx["ignore_auth"] = True
+                # Prevent after_dataset_update from firing a spurious
+                # 'Update Existing Dataset' analytics event for this
+                # internal package_patch call.
+                patch_ctx["_analytics_suppress"] = True
 
                 toolkit.get_action("package_patch")(
                     patch_ctx,
@@ -374,27 +412,61 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         except Exception as e:
             logging.exception("Failed to set version_handler_id on create: %s", e)
 
-        # Track analytics event
-        user = context.get('user')
-        if user:
+        # Track analytics event — resolve stable CKAN UUID, not username string.
+        user_id = analytics.get_safe_analytics_user_id(
+            context.get('auth_user_obj') or context.get('user')
+        )
+        if user_id:
             try:
-                analytics.track_dataset_created(user, pkg_dict)
+                analytics.track_dataset_created(user_id, pkg_dict)
             except Exception as e:
                 logging.error(f"Failed to track instrument creation: {e}")
+
+            # Stage 3B: fire Dataset Reuse Created when this is a new version.
+            # Must run AFTER the version_handler_id block above so that the
+            # local pkg_dict copy is normalised (version_handler_id == id for
+            # ordinary creates; version_handler_id != id for new versions).
+            try:
+                if analytics._is_new_version_pkg(pkg_dict):
+                    source_id = analytics._reuse_source_from_pkg(pkg_dict)
+                    analytics.track_dataset_reuse_created(user_id, pkg_dict,
+                                                          source_dataset_id=source_id)
+            except Exception as e:
+                logging.error(f"Failed to track dataset reuse creation: {e}")
 
         # Sync party group membership
         self._sync_party_groups(context, pkg_dict)
 
     def after_dataset_update(self, context, pkg_dict):
-        # Track analytics event
-        user = context.get('user')
-        if user:
-            try:
-                analytics.track_dataset_updated(user, pkg_dict)
+        # Skip analytics tracking when the update was triggered internally
+        # (e.g. the package_patch call inside after_dataset_create that sets
+        # version_handler_id).  The caller sets _analytics_suppress=True to
+        # signal this.
+        if context.get('_analytics_suppress'):
+            return
 
-                # Check if DOI was just created (doi field exists and is not empty)
-                if pkg_dict.get('doi'):
-                    analytics.track_doi_created(user, pkg_dict, pkg_dict.get('doi'))
+        # Track analytics event — resolve stable CKAN UUID, not username string.
+        user_id = analytics.get_safe_analytics_user_id(
+            context.get('auth_user_obj') or context.get('user')
+        )
+        if user_id:
+            try:
+                analytics.track_dataset_updated(user_id, pkg_dict)
+
+                # Stage 3A: Fire only on DOI published state transition.
+                # Fires when was_published=False (confirmed not yet published
+                # before this update) AND the DOI record is now published.
+                # Conservative: was_published=None (unknown) → skip to avoid
+                # duplicate events.  Requires pidinst_theme to be listed
+                # AFTER doi in ckan.plugins so that ckanext-doi's
+                # after_dataset_update (mint_doi + doi.published) has already
+                # run by the time our hook executes.
+                was_published = context.get('_analytics_doi_was_published')
+                if was_published is False:
+                    pkg_id = pkg_dict.get('id', '')
+                    is_now_published, doi_status = analytics._doi_status_from_db(pkg_id)
+                    if is_now_published:
+                        analytics.track_doi_published(user_id, pkg_dict, doi_status=doi_status)
             except Exception as e:
                 logging.error(f"Failed to track instrument update: {e}")
 

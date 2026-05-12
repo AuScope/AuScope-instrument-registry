@@ -2,179 +2,175 @@
 
 ## Overview
 
-This analytics implementation tracks user interactions for funnel analysis using RudderStack, which is connected to Amplitude and Mixpanel.
+This analytics implementation tracks user interactions for conversion and stewardship metrics using RudderStack. Event data is forwarded to a downstream analytics destination (e.g. Amplitude, Mixpanel, or a data warehouse).
 
-## Events Tracked
+Event tracking is split between the backend (Python/RudderStack SDK) and the frontend (RudderStack JS SDK). Neither layer sends PII — no email, username, display name, dataset title, resource name, or raw DOI value is included in any event payload.
 
-### Frontend Events (JavaScript)
+## Implemented Events
 
-1. **Dataset Search Submitted**
-   - Triggered when user submits search form
-   - Properties: search_query, sort_by, page, url
+### Conversion Events
 
-2. **Search Result Click-Through**
-   - Triggered when user clicks on dataset from search results
-   - Properties: dataset_title, dataset_url, search_query, result_position
+| Event Name | Source | Trigger |
+|---|---|---|
+| `Search` | Backend | After successful `package_search` in `_instrument_platform_search` |
+| `Empty-Result Search` | Backend | Same call when `result_count == 0` |
+| `Search Result Click-Through` | Frontend JS | User clicks a search result heading |
+| `Dataset Page View` | Frontend JS | Dataset detail page loads |
+| `Resource Preview Opened` | Frontend JS | User clicks a resource view / explore link |
+| `Download` | Frontend JS | User clicks a download link |
+| `Time To First Download` | Frontend JS | First download click per dataset page load |
+| `Dataset View Duration` | Frontend JS (sendBeacon) | User navigates away from dataset page |
 
-3. **Dataset Page View**
-   - Triggered when dataset page loads
-   - Properties: dataset_id, dataset_title, organization, has_doi, page_url, referrer
+### Stewardship Events
 
-4. **Resource Download Click**
-   - Triggered when user clicks download button
-   - Properties: download_id, resource_url, resource_name, resource_format, dataset_id
+| Event Name | Source | Trigger |
+|---|---|---|
+| `Dataset Created` | Backend | `after_dataset_create` hook |
+| `Update Existing Dataset` | Backend | `after_dataset_update` hook (user edits only) |
+| `Dataset Published With DOI` | Backend | First DOI publication transition detected |
+| `Dataset Reuse Created` | Backend | `after_dataset_create` when a new version is created |
+| `DOI-Based Citation` | Frontend JS (proxy) | User clicks a DOI badge or link |
 
-5. **Download Completion**
-   - Triggered after download initiated
-   - Properties: download_id, resource_url, resource_name, completion_status
+### Not Implemented
 
-6. **Time to First Download**
-   - Triggered on first download of session
-   - Properties: time_to_download_ms, time_to_download_seconds
+- **Download Completion** — client-side completion detection is unreliable. Requires a server-side CKAN download route override. Not implemented.
+- **Dataset Withdrawn** — planned; not yet implemented.
+- **DOI-Based Citation (real)** — the JS event above is a proxy (link click intent). Real citation detection requires the DataCite Event Data API. Not implemented.
 
-7. **DOI-Based Citation**
-   - Triggered when user clicks DOI badge/link
-   - Properties: doi, dataset_id, citation_link_clicked
+## Configuration
 
-### Backend Events (Python)
-
-8. **Dataset Created**
-   - Triggered after successful dataset creation
-   - Properties: dataset_id, dataset_title, organization_id, num_resources, num_tags
-
-9. **Dataset Published with DOI**
-   - Triggered when DOI is created for dataset
-   - Properties: dataset_id, dataset_title, doi, organization_id
-
-10. **Update Existing Dataset**
-    - Triggered after dataset update
-    - Properties: dataset_id, dataset_title, organization_id, num_resources
-
-## Installation
-
-### 1. Install Python Dependencies (Optional - for server-side tracking)
-
-```bash
-cd /opt/ckan/ckan/src/ckanext-pidinst-theme
-pip install -r analytics-requirements.txt
-```
-
-### 2. Configure Environment Variables
+### Environment Variables
 
 Add to your `.env` file:
 
 ```bash
-# Analytics Configuration
 RUDDERSTACK_ENABLED=true
 RUDDERSTACK_WRITE_KEY=your_write_key_here
-RUDDERSTACK_DATA_PLANE_URL=https://rudderstack.data.auscope.org.au
+RUDDERSTACK_DATA_PLANE_URL=https://your-rudderstack-dataplane.example.com
 ```
 
-### 3. Rebuild Docker Container
+When `RUDDERSTACK_ENABLED` is not `true`, all backend events are silently dropped and the JS snippet is not injected into the page.
+
+### Docker Setup
 
 ```bash
-cd /opt/ckan
+# Install Python SDK (already in requirements.txt — rebuild the image)
 docker compose -f docker-compose.dev.yml build ckan-dev
 docker compose -f docker-compose.dev.yml up -d ckan-dev
 ```
 
-## Files Created/Modified
+### Verify Setup
 
-### New Files
-- `assets/js/analytics-tracking.js` - Frontend tracking logic
-- `analytics.py` - Backend tracking helpers
-- `analytics_views.py` - API endpoints for tracking
-- `analytics-requirements.txt` - Python dependencies
-
-### Modified Files
-- `assets/webassets.yml` - Added analytics JS to bundle
-- `plugin.py` - Integrated backend event tracking
-- `helpers.py` - Added analytics helper functions
-- `views.py` - Registered analytics blueprint
-
-### New Templates
-- `templates/package/snippets/package_item.html` - Search result tracking
-- `templates/package/read_base.html` - Dataset page view tracking
-- `templates/package/snippets/resource_item.html` - Download tracking
+```bash
+./check-analytics-setup.sh
+```
 
 ## API Endpoints
 
+These endpoints receive browser-originated events and relay them to RudderStack via the backend SDK. All endpoints require a valid JSON body and a whitelisted event name.
+
 ### POST /api/analytics/track
-Generic event tracking endpoint
+
+Relay a frontend event to RudderStack. The `event` field must match a known event name.
 
 ```json
 {
-  "event": "Custom Event Name",
+  "event": "Dataset View Duration",
   "properties": {
-    "key": "value"
+    "dataset_id": "3f8a2b1c-...",
+    "dataset_type": "instrument",
+    "is_public": true,
+    "has_doi": false,
+    "duration_seconds": 45
   }
 }
 ```
 
 ### POST /api/analytics/resource-download
-Track resource downloads
+
+Track a resource download. Raw file size is bucketed server-side; `size_bytes` is not stored.
 
 ```json
 {
-  "resource_id": "...",
-  "dataset_id": "...",
-  "resource_name": "...",
-  "resource_format": "..."
+  "resource_id": "res-uuid",
+  "dataset_id": "pkg-uuid",
+  "resource_format": "CSV",
+  "size_bytes": 1048576,
+  "dataset_type": "instrument"
 }
 ```
 
 ### POST /api/analytics/search
-Track search events
+
+Track a search event (primarily called from views.py backend). Can also be used for manual testing.
 
 ```json
 {
-  "query": "search terms",
-  "num_results": 10,
-  "sort_by": "relevance"
+  "search_term": "climate sensor",
+  "result_count": 12
 }
 ```
 
-## Custom Event Tracking
+## File Structure
 
-You can track custom events from JavaScript:
-
-```javascript
-if (typeof window.CKANAnalytics !== 'undefined') {
-  window.CKANAnalytics.track('Custom Event', {
-    property1: 'value1',
-    property2: 'value2'
-  });
-}
+```
+ckan/src/ckanext-pidinst-theme/
+├── ckanext/pidinst_theme/
+│   ├── analytics.py                  # Backend: AnalyticsTracker, event helpers, constants
+│   ├── analytics_views.py            # Backend: /api/analytics/* relay endpoints
+│   ├── assets/js/
+│   │   └── analytics-tracking.js    # Frontend: all JS event tracking
+│   ├── templates/
+│   │   ├── base.html                 # Injects RudderStack snippet; sets PIDINST_ANALYTICS_USER_ID
+│   │   └── package/
+│   │       ├── read_base.html        # data-* attributes on dataset page wrapper
+│   │       └── snippets/
+│   │           ├── package_item.html # data-dataset-id / data-dataset-type on search results
+│   │           └── resource_item.html # data-id, data-resource-format on resource rows
+│   └── tests/
+│       └── test_analytics.py        # 203+ unit tests covering all implemented events
+docs/
+├── ANALYTICS_IMPLEMENTATION_PLAN.md # Full implementation history and metric coverage
+├── ANALYTICS_QUICK_REFERENCE.md     # Event taxonomy and payload reference
+└── ANALYTICS_SETUP.md               # This file
 ```
 
-From Python:
+## Privacy
 
-```python
-from ckanext.pidinst_theme import analytics
+- Authenticated users: identified by their stable internal CKAN UUID only (`window.PIDINST_ANALYTICS_USER_ID` in JS; `get_safe_analytics_user_id()` in Python). No email, username, or display name is sent.
+- Anonymous users: identified only by RudderStack's built-in anonymous ID. `identify()` is never called for anonymous visitors.
+- All event payloads are reviewed against the allowed-properties list. Title, name, description, organisation membership, raw file size, and full DOI value are never sent.
 
-analytics.AnalyticsTracker.track(
-    user_id='user_id_here',
-    event='Custom Event',
-    properties={'key': 'value'}
-)
+## Troubleshooting
+
+### Events not appearing in RudderStack
+
+1. Check environment variables:
+   ```bash
+   docker compose exec ckan-dev env | grep RUDDERSTACK
+   ```
+
+2. Check CKAN container logs:
+   ```bash
+   docker compose -f docker-compose.dev.yml logs -f ckan-dev | grep -i analytics
+   ```
+
+3. Open browser DevTools → Network tab, filter by `api/analytics` or `rudderstack`.
+
+4. Verify the JS SDK is loaded:
+   ```javascript
+   typeof window.rudderanalytics   // should be "object"
+   typeof window.CKANAnalytics     // should be "object"
+   ```
+
+### Backend events not tracked
+
+Ensure `rudder-sdk-python` is installed in the container:
+```bash
+docker compose exec ckan-dev pip show rudder-sdk-python
 ```
 
-## Verification
-
-### 1. Check Browser Console
-Open browser DevTools and check for:
-- "Analytics tracking initialized" message
-- Event tracking logs
-
-### 2. Check RudderStack Dashboard
-- Log into your RudderStack dashboard
-- Navigate to Live Events
-- Verify events are being received
-
-### 3. Check Amplitude/Mixpanel
-- Log into Amplitude or Mixpanel
-- Check recent events
-- Verify event properties are correct
+If missing, add `rudder-sdk-python` to `ckan/src/requirements.txt` and rebuild.
 
 ## Troubleshooting
 
