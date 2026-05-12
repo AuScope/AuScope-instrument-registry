@@ -489,6 +489,7 @@ def ror_search():
 # --- Party tree cache ---
 # State lives in party_cache.py so action.py can import it without circular deps.
 from ckanext.pidinst_theme import party_cache as _party_cache_mod
+from ckanext.pidinst_theme import propagation_helpers as _propagation_helpers
 
 
 def _party_cache_get(key):
@@ -706,6 +707,43 @@ def party_cache_version():
     be invalidated.
     """
     return jsonify({'version': _party_cache_mod.get_version()})
+
+
+@pidinst_theme.route('/api/propagation_progress/<path:entity_key>')
+def propagation_progress(entity_key):
+    """Return the current progress of a background propagation job.
+
+    *entity_key* is the same key used when the job was created, e.g.
+    ``party=phoenix-geophysics``.
+
+    Response schema:
+      {status: 'pending'|'running'|'done'|'no_job',
+       job_id: <str|null>,
+       total: <int|null>, done: <int>, updated: <int>, failures: <int>}
+    """
+    # Werkzeug usually decodes percent-encoded path segments, but apply an
+    # explicit unquote so the lookup always uses the decoded form (e.g.
+    # "party=slug" not "party%3Dslug") regardless of proxy/Flask version.
+    from urllib.parse import unquote as _unquote
+    entity_key = _unquote(entity_key)
+    log.debug('[propagation_progress] polling entity_key=%r', entity_key)
+    job = _propagation_helpers.job_get_by_entity(entity_key)
+    if job is None:
+        log.debug('[propagation_progress] no_job for entity_key=%r', entity_key)
+        return jsonify({'status': 'no_job', 'job_id': None}), 200
+    log.debug(
+        '[propagation_progress] entity_key=%r status=%s done=%s/%s updated=%s',
+        entity_key, job['status'], job['done'], job['total'], job['updated'],
+    )
+    return jsonify({
+        'status':      job['status'],
+        'job_id':      job.get('job_id'),
+        'finished_at': job.get('finished_at'),
+        'total':       job['total'],
+        'done':        job['done'],
+        'updated':     job['updated'],
+        'failures':    job['failures'],
+    })
 
 
 @pidinst_theme.route('/api/instrument_parties')

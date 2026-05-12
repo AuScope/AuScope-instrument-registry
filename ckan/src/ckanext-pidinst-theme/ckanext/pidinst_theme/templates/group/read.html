@@ -12,6 +12,18 @@
   {% endif %}
 {% endblock %}
 
+{# Progress banner: shown automatically when a background propagation job is
+   active for this party.  The JS module polls /api/propagation_progress/…
+   and updates the bar; it self-hides 8 s after completion. #}
+{% block primary_content_inner %}
+  {% if group_type == 'party' %}
+    <div data-module="propagation-progress"
+         data-module-entity-key="party={{ group_dict.name }}">
+    </div>
+  {% endif %}
+  {{ super() }}
+{% endblock %}
+
 {% block groups_search_form %}
   {% if group_type == 'party' %}
     {# Use 'dataset-search-form' id so spatial JS can find the form #}

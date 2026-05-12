@@ -16,62 +16,84 @@
 {% block primary_content %}
 <section class="module">
   <div class="module-content">
-    <h1 class="page-heading">{{ _('Confirm Delete') }}</h1>
 
-    {% if item_type == 'term' %}
-      {% set referencing_packages = h.taxonomy_term_packages(item.id) %}
-      {% if referencing_packages %}
-        <div class="alert alert-warning">
-          <p><strong>{{ _('This term cannot be deleted.') }}</strong></p>
-          <p>
-            {% trans count=referencing_packages|length %}
-              It is still referenced by {{ count }} instrument. Remove the term from that instrument before deleting it.
-            {% pluralize %}
-              It is still referenced by {{ count }} instruments. Remove the term from those instruments before deleting it.
-            {% endtrans %}
-          </p>
-          <ul>
-            {% for pkg in referencing_packages %}
-              <li>
-                <a href="{{ h.url_for('dataset.read', id=pkg.name) }}">{{ pkg.title or pkg.name }}</a>
-              </li>
-            {% endfor %}
-          </ul>
-        </div>
-      {% endif %}
+    {# ── Pre-flight deletability check ── #}
+    {% if item_type == 'taxonomy' %}
+      {% set blocking_packages = h.taxonomy_blocking_packages(item.id) %}
+    {% elif item_type == 'term' %}
+      {% set blocking_packages = h.taxonomy_term_packages(item.id) %}
+    {% else %}
+      {% set blocking_packages = [] %}
     {% endif %}
 
-    <div class="alert alert-danger">
-      {% if item_type == 'taxonomy' %}
-        <p><strong>{{ _('Are you sure you want to delete the taxonomy') }} "{{ item.title or item.name }}"?</strong></p>
-        {% if term_count > 0 %}
-          <p>{{ _('This will also delete') }} <strong>{{ term_count }}</strong> {{ _('term(s) belonging to this taxonomy.') }}</p>
-        {% endif %}
-      {% elif item_type == 'term' %}
-        <p><strong>{{ _('Are you sure you want to delete the term') }} "{{ item.label }}"?</strong></p>
-        {% if term_count > 0 %}
-          <p>{{ _('This will also delete') }} <strong>{{ term_count }}</strong> {{ _('child term(s).') }}</p>
-        {% endif %}
-      {% endif %}
-      <p>{{ _('This action cannot be undone.') }}</p>
-    </div>
+    {% if blocking_packages %}
 
-    <form method="post">
-      {% if item_type == 'term' and referencing_packages %}
-        <button type="submit" class="btn btn-danger" disabled>
-          <i class="fa fa-trash"></i> {{ _('Yes, delete') }}
-        </button>
-      {% else %}
-        <button type="submit" class="btn btn-danger">
-          <i class="fa fa-trash"></i> {{ _('Yes, delete') }}
-        </button>
-      {% endif %}
+      {# ── BLOCKED: show error and only a Cancel button ── #}
+      <h1 class="page-heading">{{ _('Cannot Delete') }}</h1>
+
+      <div class="alert alert-danger">
+        <p><strong>
+          {% if item_type == 'taxonomy' %}
+            {{ _('The taxonomy') }} "{{ item.title or item.name }}" {{ _('cannot be deleted.') }}
+          {% elif item_type == 'term' %}
+            {{ _('The term') }} "{{ item.label }}" {{ _('cannot be deleted.') }}
+          {% endif %}
+        </strong></p>
+        <p>
+          {% trans count=blocking_packages|length %}
+            It is still referenced by {{ count }} instrument. Remove the term from that instrument before deleting.
+          {% pluralize %}
+            It is still referenced by {{ count }} instruments. Remove the term from those instruments before deleting.
+          {% endtrans %}
+        </p>
+        <ul>
+          {% for pkg in blocking_packages %}
+            <li>
+              <a href="{{ h.url_for('dataset.read', id=pkg.name) }}">{{ pkg.title or pkg.name }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+
       {% if item_type == 'taxonomy' %}
         <a href="{{ h.url_for('taxonomy.taxonomy_detail', taxonomy_name=item.name) }}" class="btn btn-default">{{ _('Cancel') }}</a>
       {% elif item_type == 'term' %}
         <a href="{{ h.url_for('taxonomy.term_detail', term_id=item.id) }}" class="btn btn-default">{{ _('Cancel') }}</a>
       {% endif %}
-    </form>
+
+    {% else %}
+
+      {# ── SAFE: show normal confirmation ── #}
+      <h1 class="page-heading">{{ _('Confirm Delete') }}</h1>
+
+      <div class="alert alert-danger">
+        {% if item_type == 'taxonomy' %}
+          <p><strong>{{ _('Are you sure you want to delete the taxonomy') }} "{{ item.title or item.name }}"?</strong></p>
+          {% if term_count > 0 %}
+            <p>{{ _('This will also delete') }} <strong>{{ term_count }}</strong> {{ _('term(s) belonging to this taxonomy.') }}</p>
+          {% endif %}
+        {% elif item_type == 'term' %}
+          <p><strong>{{ _('Are you sure you want to delete the term') }} "{{ item.label }}"?</strong></p>
+          {% if term_count > 0 %}
+            <p>{{ _('This will also delete') }} <strong>{{ term_count }}</strong> {{ _('child term(s).') }}</p>
+          {% endif %}
+        {% endif %}
+        <p>{{ _('This action cannot be undone.') }}</p>
+      </div>
+
+      <form method="post">
+        <button type="submit" class="btn btn-danger">
+          <i class="fa fa-trash"></i> {{ _('Yes, delete') }}
+        </button>
+        {% if item_type == 'taxonomy' %}
+          <a href="{{ h.url_for('taxonomy.taxonomy_detail', taxonomy_name=item.name) }}" class="btn btn-default">{{ _('Cancel') }}</a>
+        {% elif item_type == 'term' %}
+          <a href="{{ h.url_for('taxonomy.term_detail', term_id=item.id) }}" class="btn btn-default">{{ _('Cancel') }}</a>
+        {% endif %}
+      </form>
+
+    {% endif %}
+
   </div>
 </section>
 {% endblock %}

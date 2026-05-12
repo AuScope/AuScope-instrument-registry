@@ -709,11 +709,30 @@ def pidinst_parse_related_instruments(raw):
 
 
 def taxonomy_term_packages(term_id):
-    """Return packages referencing a taxonomy term, for use in templates."""
+    """Return packages referencing a taxonomy term (and its descendants), for use in templates."""
+    from ckanext.pidinst_theme import taxonomy_protection
+    from ckanext.pidinst_theme.logic.action import _gather_term_and_descendants
+    try:
+        ctx = {'ignore_auth': True}
+        term = toolkit.get_action('taxonomy_term_show')(ctx, {'id': term_id})
+        all_terms = toolkit.get_action('taxonomy_term_list')(ctx, {'id': term['taxonomy_id']})
+        terms_to_check = _gather_term_and_descendants(term_id, all_terms)
+        check = taxonomy_protection.check_terms_deletable(terms_to_check)
+        return check['packages']
+    except Exception:
+        return []
+
+
+def taxonomy_blocking_packages(taxonomy_id):
+    """Return packages that block deletion of an entire taxonomy, for use in templates."""
     from ckanext.pidinst_theme import taxonomy_protection
     try:
-        term = toolkit.get_action('taxonomy_term_show')({'ignore_auth': True}, {'id': term_id})
-        return taxonomy_protection.find_packages_referencing_term(term)
+        ctx = {'ignore_auth': True}
+        all_terms = toolkit.get_action('taxonomy_term_list')(ctx, {'id': taxonomy_id})
+        if not all_terms:
+            return []
+        check = taxonomy_protection.check_terms_deletable(all_terms)
+        return check['packages']
     except Exception:
         return []
 
@@ -774,5 +793,6 @@ def get_helpers():
         "pidinst_parse_related_instruments": pidinst_parse_related_instruments,
         "pidinst_row_category": pidinst_row_category,
         "taxonomy_term_packages": taxonomy_term_packages,
+        "taxonomy_blocking_packages": taxonomy_blocking_packages,
         "pidinst_group_filter_facet_items": pidinst_group_filter_facet_items,
     }

@@ -5,7 +5,9 @@ from ckan.logic.validators import owner_org_validator as default_owner_org_valid
 import logging
 import re
 import json
+import threading
 from datetime import datetime
+from flask import current_app
 from ckan.logic.auth import get_package_object
 from ckan.common import  _
 from ckan.plugins.toolkit import h
@@ -15,10 +17,51 @@ from ckanext.pidinst_theme.logic import (
 )
 from ckanext.pidinst_theme.helpers import doi_resolver_url
 from ckanext.pidinst_theme.logic.auth import _is_doi_published, _package_extra_value
-from ckanext.pidinst_theme import party_propagation, taxonomy_protection, party_cache
+from ckanext.pidinst_theme import party_propagation, taxonomy_protection, party_cache, propagation_helpers
 from ckanext.doi.lib.api import DataciteClient
 from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 from ckanext.doi.model.crud import DOIQuery
+
+
+_log = logging.getLogger(__name__)
+
+
+def _run_propagation_async(propagation_fn, *args, **kwargs):
+    """Run a propagation function in a background daemon thread.
+
+    Captures the Flask application object before the request context ends so
+    the thread can push its own application context and safely call CKAN
+    actions (which require the app context for config / toolkit access).
+    """
+    try:
+        app = current_app._get_current_object()
+    except RuntimeError:
+        # No active application context – fall back to synchronous execution.
+        _log.warning(
+            'No Flask app context; running %s synchronously', propagation_fn.__name__
+        )
+        propagation_fn(*args, **kwargs)
+        return
+
+    def _target():
+        # CKAN's Solr search indexer (triggered by package_patch) calls
+        # plugin_validate which runs validators that use _() for i18n.
+        # _() resolves via Flask-Babel and requires a request context, not
+        # just an app context.  Without it a RuntimeError fires inside the
+        # SQLAlchemy event handler, which corrupts the session and makes all
+        # subsequent package_show / package_patch calls in the same thread
+        # fail too.  test_request_context() provides both app context and a
+        # minimal request context to satisfy the validators.
+        with app.test_request_context():
+            try:
+                propagation_fn(*args, **kwargs)
+            except Exception:
+                _log.exception(
+                    'Background propagation failed in %s', propagation_fn.__name__
+                )
+
+    thread = threading.Thread(target=_target, daemon=True)
+    thread.start()
 
 @tk.side_effect_free
 def pidinst_theme_get_sum(context, data_dict):
@@ -532,10 +575,15 @@ def taxonomy_term_update(next_action, context, data_dict):
                 {'ignore_auth': True},
                 {'id': result.get('id', data_dict.get('id', ''))},
             )
-            taxonomy_protection.propagate_term_update(new_term, old_term=old_term)
+            term_id = result.get('id', data_dict.get('id', ''))
+            job_id = propagation_helpers.job_create(f'term={term_id}')
+            _run_propagation_async(
+                taxonomy_protection.propagate_term_update, new_term,
+                old_term=old_term, _job_id=job_id,
+            )
         except Exception:
-            logging.getLogger(__name__).exception(
-                'Taxonomy term update propagation failed for %s',
+            _log.exception(
+                'Failed to schedule taxonomy term update propagation for %s',
                 result.get('label', '?'),
             )
 
@@ -544,14 +592,75 @@ def taxonomy_term_update(next_action, context, data_dict):
 
 @tk.chained_action
 def taxonomy_term_delete(next_action, context, data_dict):
-    """Block deletion of a taxonomy term that is still referenced by instruments."""
+    """Block deletion of a taxonomy term (and its descendants) that are still
+    referenced by instruments."""
     term = tk.get_action('taxonomy_term_show')({'ignore_auth': True}, data_dict)
-    check = taxonomy_protection.check_term_deletable(term)
+
+    # ckanext-taxonomy cascades deletes to all child terms, so we must check
+    # the term AND every descendant before allowing the delete.
+    all_terms = tk.get_action('taxonomy_term_list')(
+        {'ignore_auth': True}, {'id': term['taxonomy_id']}
+    )
+    terms_to_check = _gather_term_and_descendants(term['id'], all_terms)
+
+    if len(terms_to_check) > 1:
+        # Multiple terms affected – use the bulk check
+        check = taxonomy_protection.check_terms_deletable(terms_to_check)
+    else:
+        check = taxonomy_protection.check_term_deletable(term)
+
     if not check['deletable']:
         raise ValidationError({
             'message': [check['message']],
             'packages': check['packages'],
         })
+    return next_action(context, data_dict)
+
+
+def _gather_term_and_descendants(root_id, all_terms):
+    """Return a flat list of the root term + all its descendants.
+
+    *all_terms* is the flat list returned by ``taxonomy_term_list``.
+    """
+    by_id = {t['id']: t for t in all_terms}
+    children_index = {}
+    for t in all_terms:
+        parent = t.get('parent_id')
+        if parent:
+            children_index.setdefault(parent, []).append(t['id'])
+
+    result = []
+    queue = [root_id]
+    visited = set()
+    while queue:
+        tid = queue.pop(0)
+        if tid in visited:
+            continue
+        visited.add(tid)
+        if tid in by_id:
+            result.append(by_id[tid])
+        for child_id in children_index.get(tid, []):
+            queue.append(child_id)
+    return result
+
+
+@tk.chained_action
+def taxonomy_delete(next_action, context, data_dict):
+    """Block deletion of a taxonomy when any of its terms are still
+    referenced by instruments."""
+    taxonomy = tk.get_action('taxonomy_show')(
+        {'ignore_auth': True}, data_dict
+    )
+    all_terms = tk.get_action('taxonomy_term_list')(
+        {'ignore_auth': True}, {'id': taxonomy['id']}
+    )
+    if all_terms:
+        check = taxonomy_protection.check_terms_deletable(all_terms)
+        if not check['deletable']:
+            raise ValidationError({
+                'message': [check['message']],
+                'packages': check['packages'],
+            })
     return next_action(context, data_dict)
 
 
@@ -600,10 +709,21 @@ def group_update(next_action, context, data_dict):
             {'ignore_auth': True},
             {'id': result['id'], 'include_extras': True},
         )
-        party_propagation.propagate_party_update(party, old_name=old_name)
+        party_name = party.get('name', result.get('name', ''))
+        entity_key = f'party={party_name}'
+        job_id = propagation_helpers.job_create(entity_key)
+        _log.info(
+            'group_update: scheduled propagation for party=%r '
+            'old_name=%r entity_key=%r job_id=%s',
+            party_name, old_name, entity_key, job_id,
+        )
+        _run_propagation_async(
+            party_propagation.propagate_party_update, party,
+            old_name=old_name, _job_id=job_id,
+        )
     except Exception:
-        logging.getLogger(__name__).exception(
-            'Party update propagation failed for %s', result.get('name', '?'),
+        _log.exception(
+            'Failed to schedule party update propagation for %s', result.get('name', '?'),
         )
 
     return result
@@ -654,4 +774,5 @@ def get_actions():
         'group_delete': group_delete,
         'taxonomy_term_update': taxonomy_term_update,
         'taxonomy_term_delete': taxonomy_term_delete,
+        'taxonomy_delete': taxonomy_delete,
     }

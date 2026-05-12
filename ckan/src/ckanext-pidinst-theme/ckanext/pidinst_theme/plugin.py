@@ -471,10 +471,11 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                 toolkit.get_action('group_list')(ctx, {'type': 'party'})
             )
 
-            # Current groups this package belongs to
-            pkg_full = toolkit.get_action('package_show')(ctx, {'id': pkg_id})
+            # Current groups this package belongs to.
+            # pkg_dict is the full package result already returned by
+            # package_create / package_update, so no extra package_show is needed.
             current_party_groups = {
-                g['name'] for g in pkg_full.get('groups', [])
+                g['name'] for g in pkg_dict.get('groups', [])
                 if g.get('name') in all_party_names
             }
 

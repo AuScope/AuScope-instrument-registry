@@ -27,6 +27,7 @@ pidinst_theme-js:
     - js/gcmd-taxonomy-tree-module.js
     - js/vocab-picker-module.js
     - js/related-instruments-picker-module.js
+    - js/propagation-progress-module.js
     - js/pidinst_theme.js
   extra:
     preload:
