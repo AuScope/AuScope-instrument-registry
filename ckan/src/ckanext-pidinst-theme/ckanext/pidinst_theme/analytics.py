@@ -5,6 +5,7 @@ Integrates with RudderStack for server-side event tracking
 
 import os
 import logging
+import uuid
 from datetime import datetime
 from typing import Dict, Optional, Any
 
@@ -119,71 +120,100 @@ class AnalyticsTracker:
         return cls._enabled
     
     @classmethod
-    def track(cls, user_id: Optional[str], event: str, properties: Dict[str, Any]) -> bool:
+    def track(cls, event: str, properties: Dict[str, Any]) -> bool:
         """Track an event. Returns True if the event was sent successfully.
 
-        A copy of properties is made before adding context fields so that
-        the caller's dict is never mutated (important when track() is called
-        twice with the same dict, e.g. Search + Empty-Result Search).
+        Always uses anonymous_id from the pidinst_browser_id cookie; never
+        sends user_id.  A copy of properties is made before adding context
+        fields so that the caller's dict is never mutated.
         """
         if not cls.is_enabled():
             log.debug(f"Analytics disabled, skipping event: {event}")
             return False
 
         try:
-            # Copy so the caller's dict is not mutated.
             props = dict(properties)
 
             if 'timestamp' not in props:
                 props['timestamp'] = datetime.utcnow().isoformat()
             props['environment'] = os.environ.get('CKAN_SITE_URL', 'unknown')
 
-            if user_id:
-                cls._client.track(
-                    user_id=user_id,
-                    event=event,
-                    properties=props
-                )
-            else:
-                anonymous_id = props.get('anonymous_id', 'anonymous')
-                cls._client.track(
-                    anonymous_id=anonymous_id,
-                    event=event,
-                    properties=props
-                )
+            cls._client.track(
+                user_id=get_browser_id(),
+                event=event,
+                properties=props
+            )
 
-            log.debug(f"Tracked event: {event} for user: {user_id or 'anonymous'}")
+            log.debug(f"Tracked event: {event}")
             return True
 
         except Exception as e:
             log.error(f"Failed to track event {event}: {e}")
             return False
-    
-    @classmethod
-    def identify(cls, user_id: str, traits: Dict[str, Any]) -> bool:
-        """
-        Identify a user with traits
-        
-        Args:
-            user_id: User identifier
-            traits: User traits dictionary
-            
-        Returns:
-            bool: True if identification was successful
-        """
-        if not cls.is_enabled():
-            return False
-        
-        try:
-            cls._client.identify(
-                user_id=user_id,
-                traits=traits
+
+
+# ---------------------------------------------------------------------------
+# Browser identity
+# ---------------------------------------------------------------------------
+
+def get_browser_id() -> str:
+    """Return the stable browser UUID used as anonymous_id for every analytics event.
+
+    Resolution order (within a Flask request context):
+    1. Existing ``pidinst_browser_id`` cookie — reuse it unchanged.
+    2. ``flask.g.pidinst_browser_id_to_set`` — a UUID already generated earlier
+       in this same request (ensures two events in one request share the same ID).
+    3. Generate a fresh ``uuid.uuid4()``, store it on ``g`` so the
+       ``after_app_request`` hook can write it as a cookie on the response.
+
+    Outside a Flask request context (CLI, background jobs, tests without a
+    request context) a fresh UUID is returned without touching ``g``.
+    A string is *always* returned — ``None`` is never returned.
+    """
+    try:
+        from flask import request as _flask_request, g as _flask_g  # noqa: PLC0415
+        existing = _flask_request.cookies.get('pidinst_browser_id')
+        if existing:
+            return existing
+        # Re-use the ID already generated for this request (e.g. second event).
+        stored = getattr(_flask_g, 'pidinst_browser_id_to_set', None)
+        if stored:
+            return stored
+        # First event in this request with no cookie — generate and stash.
+        new_id = str(uuid.uuid4())
+        _flask_g.pidinst_browser_id_to_set = new_id
+        return new_id
+    except Exception:
+        # Outside a request context — return a UUID without touching g.
+        return str(uuid.uuid4())
+
+
+def set_browser_id_cookie(response):
+    """Set pidinst_browser_id on *response* when a new UUID was generated this request.
+
+    Called by the ``after_app_request`` hook registered in views.py.  When
+    ``get_browser_id()`` had to generate a fresh UUID (no incoming cookie), it
+    stored the value on ``flask.g.pidinst_browser_id_to_set``.  This function
+    reads that value and writes it as a long-lived first-party cookie so that
+    subsequent requests and frontend JS use the same stable identifier.
+
+    The cookie is intentionally readable by JavaScript (no ``httponly``) because
+    ``analytics-tracking.js`` passes it to ``rudderanalytics.setAnonymousId()``.
+    ``samesite='Lax'`` prevents cross-site request forgery for the cookie itself.
+    """
+    try:
+        from flask import g as _flask_g  # noqa: PLC0415
+        browser_id = getattr(_flask_g, 'pidinst_browser_id_to_set', None)
+        if browser_id:
+            response.set_cookie(
+                'pidinst_browser_id',
+                browser_id,
+                max_age=365 * 24 * 60 * 60,  # 1 year
+                samesite='Lax',
             )
-            log.debug(f"Identified user: {user_id}")
-            return True
-        except Exception as e:
-            log.error(f"Failed to identify user {user_id}: {e}")
-            return False
+    except Exception:
+        pass
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -253,66 +283,22 @@ def file_size_group(size_bytes: Optional[int]) -> str:
     return 'large'
 
 
-def get_safe_analytics_user_id(user_or_username) -> Optional[str]:
-    """Return the stable internal CKAN user UUID for analytics.
-
-    Accepts any of:
-    - A CKAN ``User`` model object  — returns ``user.id`` directly.
-    - A username string (e.g. ``'ckan_admin'``) — looks up the User record by
-      name and returns the UUID.
-    - ``None`` — returns ``None``; anonymous users remain anonymous.
-
-    The function **never** returns the username, email, display name, or any
-    other PII.  On any failure (missing model, DB error, user not found) it
-    returns ``None`` so that analytics tracking silently degrades rather than
-    raising.
-
-    Usage in plugin.py hooks:
-        user_id = get_safe_analytics_user_id(
-            context.get('auth_user_obj') or context.get('user')
-        )
-    ``context['auth_user_obj']`` is preferred because it avoids a DB lookup
-    when the User object is already in the request context.  The username
-    string fallback (``context['user']``) is used only when the object is
-    absent.
-    """
-    if user_or_username is None:
-        return None
-    # Already a User model object — use .id directly to avoid a DB round-trip.
-    if hasattr(user_or_username, 'id'):
-        uid = user_or_username.id
-        return str(uid) if uid else None
-    # Assume it's a username string; look up the User record.
-    username = str(user_or_username).strip()
-    if not username:
-        return None
-    try:
-        from ckan.model import User as _CKANUser  # noqa: PLC0415
-        user_obj = _CKANUser.by_name(username)
-        if user_obj and user_obj.id:
-            return str(user_obj.id)
-    except Exception:
-        pass
-    return None
-
 
 # ---------------------------------------------------------------------------
 # Event tracking helper functions
 # ---------------------------------------------------------------------------
 
-def track_dataset_created(user_id: str, dataset_dict: Dict[str, Any]):
+def track_dataset_created(dataset_dict: Dict[str, Any]):
     """Track dataset creation event (EVENT_DATASET_CREATED)."""
     AnalyticsTracker.track(
-        user_id=user_id,
         event=EVENT_DATASET_CREATED,
         properties=minimal_dataset_props(dataset_dict),
     )
 
 
-def track_dataset_updated(user_id: str, dataset_dict: Dict[str, Any]):
+def track_dataset_updated(dataset_dict: Dict[str, Any]):
     """Track dataset update event (EVENT_UPDATE_EXISTING_DATASET)."""
     AnalyticsTracker.track(
-        user_id=user_id,
         event=EVENT_UPDATE_EXISTING_DATASET,
         properties=minimal_dataset_props(dataset_dict),
     )
@@ -346,18 +332,15 @@ def _doi_status_from_db(package_id: str):
         return False, 'unknown'
 
 
-def track_doi_published(user_id: str, dataset_dict: Dict[str, Any],
+def track_doi_published(dataset_dict: Dict[str, Any],
                         doi_status: Optional[str] = None):
     """Track DOI publication event (EVENT_DATASET_PUBLISHED_WITH_DOI).
 
     The full DOI value is intentionally NOT sent in the payload.
-    Call this only when a confirmed transition from not-published to published
-    has been detected (see plugin.py Stage 3A logic and _doi_status_from_db).
     """
     props = minimal_dataset_props(dataset_dict)
     props['doi_status'] = doi_status or 'unknown'
     AnalyticsTracker.track(
-        user_id=user_id,
         event=EVENT_DATASET_PUBLISHED_WITH_DOI,
         properties=props,
     )
@@ -424,32 +407,24 @@ def _is_new_version_pkg(pkg_dict: Dict[str, Any]) -> bool:
     return bool(vhid and pkg_id and vhid != pkg_id)
 
 
-def track_dataset_reuse_created(user_id: str, dataset_dict: Dict[str, Any],
-                                 source_dataset_id: Optional[str] = None):
+def track_dataset_reuse_created(dataset_dict: Dict[str, Any],
+                                source_dataset_id: Optional[str] = None):
     """Track dataset reuse event (EVENT_DATASET_REUSE_CREATED).
 
     Fires only when a new dataset was explicitly created as a new version of
     (or derived from) an existing dataset via the new_version workflow.
-
-    Allowed payload:
-        dataset_id, dataset_type, is_public, has_doi, source_dataset_id?,
-        reuse_type
-
-    Never sent:
-        full DOI, title, name, description, email, username, full metadata.
     """
     props = minimal_dataset_props(dataset_dict)
     props['reuse_type'] = 'new_version'
     if source_dataset_id:
         props['source_dataset_id'] = source_dataset_id
     AnalyticsTracker.track(
-        user_id=user_id,
         event=EVENT_DATASET_REUSE_CREATED,
         properties=props,
     )
 
 
-def track_resource_download(user_id: Optional[str], resource_id: str,
+def track_resource_download(resource_id: str,
                             dataset_id: str, resource_format: str,
                             size_bytes: Optional[int] = None,
                             dataset_type: Optional[str] = None):
@@ -467,13 +442,12 @@ def track_resource_download(user_id: Optional[str], resource_id: str,
     if dataset_type is not None:
         props['dataset_type'] = dataset_type
     AnalyticsTracker.track(
-        user_id=user_id,
         event=EVENT_DOWNLOAD,
         properties=props,
     )
 
 
-def track_dataset_search(user_id: Optional[str], search_term: str,
+def track_dataset_search(search_term: str,
                          result_count: int,
                          dataset_type: Optional[str] = None,
                          page_number: Optional[int] = None,
@@ -482,9 +456,6 @@ def track_dataset_search(user_id: Optional[str], search_term: str,
 
     Fires EVENT_SEARCH always.
     Also fires EVENT_EMPTY_RESULT_SEARCH when result_count == 0.
-
-    Optional backend-only properties (dataset_type, page_number, sort_by) are
-    included when provided; they are omitted from frontend-initiated calls.
     """
     properties: Dict[str, Any] = {
         'search_term': search_term,
@@ -499,14 +470,12 @@ def track_dataset_search(user_id: Optional[str], search_term: str,
         properties['sort_by'] = sort_by
 
     AnalyticsTracker.track(
-        user_id=user_id,
         event=EVENT_SEARCH,
         properties=properties,
     )
 
     if result_count == 0:
         AnalyticsTracker.track(
-            user_id=user_id,
             event=EVENT_EMPTY_RESULT_SEARCH,
             properties=properties,
         )

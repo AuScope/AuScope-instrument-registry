@@ -15,15 +15,4 @@
 {% block scripts %}
 {{ super() }}
 {% asset 'pidinst_theme/pidinst_theme-js' %}
-
-{# Analytics identity — expose only the stable internal user UUID.
-   The JS analytics module (analytics-tracking.js) reads this value and calls
-   rudderanalytics.identify() so that logged-in frontend events and backend
-   lifecycle events share the same user_id.
-   Anonymous users: variable is not set; RudderStack anonymous ID is used. #}
-{% if c.userobj %}
-<script type="text/javascript">
-  window.PIDINST_ANALYTICS_USER_ID = '{{ c.userobj.id }}';
-</script>
-{% endif %}
 {% endblock %}

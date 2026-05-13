@@ -375,45 +375,48 @@
   }
 
   // ---------------------------------------------------------------------------
-  // User identity
-  // Reads window.PIDINST_ANALYTICS_USER_ID (set by base.html only when a user
-  // is logged in) and calls rudderanalytics.identify() so that all subsequent
-  // frontend track calls are correlated with the same stable UUID used by
-  // backend lifecycle events (Dataset Created, Update Existing Dataset, etc.).
-  //
-  // For anonymous visitors the variable is absent; identify() is NOT called
-  // and RudderStack assigns its own anonymous ID automatically.
-  //
-  // Privacy rules:
-  //   - Never send email, username, display name, or any other PII as traits.
-  //   - Only the stable internal CKAN user UUID is passed to identify().
+  // Browser identity
+  // Creates/reuses a first-party pidinst_browser_id cookie and registers it
+  // as the RudderStack anonymous ID so that all frontend events and backend
+  // events share the same stable UUID regardless of login state.
   // ---------------------------------------------------------------------------
-  function initUserIdentity() {
-    var analyticsUserId = window.PIDINST_ANALYTICS_USER_ID;
-    if (!analyticsUserId) {
-      // Anonymous user — do not call identify(); RudderStack anonymous ID applies.
-      return;
+  function getOrCreateBrowserId() {
+    var name = 'pidinst_browser_id';
+    var match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    if (match) {
+      return decodeURIComponent(match[1]);
     }
-    function doIdentify() {
+    // Generate UUID v4
+    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0;
+      var v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+    var expires = new Date();
+    expires.setFullYear(expires.getFullYear() + 2);
+    document.cookie = name + '=' + encodeURIComponent(uuid) +
+      '; expires=' + expires.toUTCString() + '; path=/; SameSite=Lax';
+    return uuid;
+  }
+
+  function initBrowserIdentity() {
+    var browserId = getOrCreateBrowserId();
+    if (typeof window.rudderanalytics !== 'undefined' && window.rudderanalytics.identify) {
       try {
-        // No traits object — only the stable UUID is sent.
-        window.rudderanalytics.identify(analyticsUserId);
+        // Identify with the stable browser UUID as user_id (no traits — no PII).
+        // This aligns with the backend which also sends user_id=pidinst_browser_id.
+        window.rudderanalytics.identify(browserId);
       } catch (e) {
         console.error('Analytics identify error:', e);
       }
     }
-    if (typeof window.rudderanalytics !== 'undefined' && window.rudderanalytics.ready) {
-      window.rudderanalytics.ready(doIdentify);
-    }
-    // If RudderStack is not loaded (e.g. RUDDERSTACK_ENABLED=false),
-    // doIdentify is never called; tracking degrades silently.
   }
 
   // ---------------------------------------------------------------------------
   // Initialise all tracking
   // ---------------------------------------------------------------------------
   function initializeTracking() {
-    initUserIdentity();
+    initBrowserIdentity();
     initSearchTracking();
     trackDatasetPageView();
     initDatasetViewDurationTracking();

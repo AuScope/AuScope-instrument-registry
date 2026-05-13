@@ -1533,7 +1533,6 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         try:
             result_count = query.get('count', 0)
             analytics.track_dataset_search(
-                user_id=toolkit.c.userobj.id if toolkit.c.userobj else None,
                 search_term=q,
                 result_count=result_count,
                 dataset_type=display_type,
@@ -1541,7 +1540,7 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
                 sort_by=sort_by,
             )
         except Exception as _ae:
-            log.warning('Search analytics tracking failed: %s', _ae)
+            log.warning('Search analytics tracking failed: %s', _ae, exc_info=True)
     except Exception as e:
         log.error('[PERF] Search error on %s after %.3fs: %s', template, time.time() - _solr_t0, e)
         query = {'results': [], 'count': 0, 'search_facets': {}}
@@ -1714,6 +1713,12 @@ def mark_duplicate(pkg_name):
         'pkg_dict': pkg,
         'errors': errors,
     })
+
+
+@pidinst_theme.after_app_request
+def _set_browser_id_cookie_on_response(response):
+    """Delegate to analytics.set_browser_id_cookie to persist the browser UUID."""
+    return analytics.set_browser_id_cookie(response)
 
 
 def get_blueprints():

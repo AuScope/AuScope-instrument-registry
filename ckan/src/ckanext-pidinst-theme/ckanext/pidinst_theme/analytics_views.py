@@ -4,7 +4,6 @@ Blueprint views for analytics tracking endpoints
 
 from flask import Blueprint, jsonify, request
 from ckan.plugins import toolkit
-from ckan.common import current_user
 import logging
 
 from ckanext.pidinst_theme import analytics
@@ -57,14 +56,7 @@ def track_event():
         if event not in _KNOWN_FRONTEND_EVENTS:
             return jsonify({'success': False, 'error': 'Unknown event name'}), 400
 
-        # Get user ID if authenticated
-        user_id = None
-        if current_user.is_authenticated:
-            user_id = current_user.id
-        
-        # Track the event
         success = analytics.AnalyticsTracker.track(
-            user_id=user_id,
             event=event,
             properties=properties
         )
@@ -95,15 +87,10 @@ def track_resource_download():
         if not data:
             return jsonify({'success': False, 'error': 'Request body required'}), 400
 
-        user_id = None
-        if current_user.is_authenticated:
-            user_id = current_user.id
-
         size_raw = data.get('size_bytes')
         size_bytes = int(size_raw) if size_raw is not None else None
 
         analytics.track_resource_download(
-            user_id=user_id,
             resource_id=data.get('resource_id', ''),
             dataset_id=data.get('dataset_id', ''),
             resource_format=data.get('resource_format', ''),
@@ -134,12 +121,7 @@ def track_search():
         if not data:
             return jsonify({'success': False, 'error': 'Request body required'}), 400
 
-        user_id = None
-        if current_user.is_authenticated:
-            user_id = current_user.id
-
         analytics.track_dataset_search(
-            user_id=user_id,
             search_term=data.get('search_term', data.get('query', '')),
             result_count=int(data.get('result_count', data.get('num_results', 0))),
         )

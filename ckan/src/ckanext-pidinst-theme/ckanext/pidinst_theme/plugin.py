@@ -412,27 +412,18 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         except Exception as e:
             logging.exception("Failed to set version_handler_id on create: %s", e)
 
-        # Track analytics event — resolve stable CKAN UUID, not username string.
-        user_id = analytics.get_safe_analytics_user_id(
-            context.get('auth_user_obj') or context.get('user')
-        )
-        if user_id:
-            try:
-                analytics.track_dataset_created(user_id, pkg_dict)
-            except Exception as e:
-                logging.error(f"Failed to track instrument creation: {e}")
+        try:
+            analytics.track_dataset_created(pkg_dict)
+        except Exception as e:
+            logging.error(f"Failed to track instrument creation: {e}")
 
-            # Stage 3B: fire Dataset Reuse Created when this is a new version.
-            # Must run AFTER the version_handler_id block above so that the
-            # local pkg_dict copy is normalised (version_handler_id == id for
-            # ordinary creates; version_handler_id != id for new versions).
-            try:
-                if analytics._is_new_version_pkg(pkg_dict):
-                    source_id = analytics._reuse_source_from_pkg(pkg_dict)
-                    analytics.track_dataset_reuse_created(user_id, pkg_dict,
-                                                          source_dataset_id=source_id)
-            except Exception as e:
-                logging.error(f"Failed to track dataset reuse creation: {e}")
+        try:
+            if analytics._is_new_version_pkg(pkg_dict):
+                source_id = analytics._reuse_source_from_pkg(pkg_dict)
+                analytics.track_dataset_reuse_created(pkg_dict,
+                                                      source_dataset_id=source_id)
+        except Exception as e:
+            logging.error(f"Failed to track dataset reuse creation: {e}")
 
         # Sync party group membership
         self._sync_party_groups(context, pkg_dict)
@@ -445,30 +436,17 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
         if context.get('_analytics_suppress'):
             return
 
-        # Track analytics event — resolve stable CKAN UUID, not username string.
-        user_id = analytics.get_safe_analytics_user_id(
-            context.get('auth_user_obj') or context.get('user')
-        )
-        if user_id:
-            try:
-                analytics.track_dataset_updated(user_id, pkg_dict)
+        try:
+            analytics.track_dataset_updated(pkg_dict)
 
-                # Stage 3A: Fire only on DOI published state transition.
-                # Fires when was_published=False (confirmed not yet published
-                # before this update) AND the DOI record is now published.
-                # Conservative: was_published=None (unknown) → skip to avoid
-                # duplicate events.  Requires pidinst_theme to be listed
-                # AFTER doi in ckan.plugins so that ckanext-doi's
-                # after_dataset_update (mint_doi + doi.published) has already
-                # run by the time our hook executes.
-                was_published = context.get('_analytics_doi_was_published')
-                if was_published is False:
-                    pkg_id = pkg_dict.get('id', '')
-                    is_now_published, doi_status = analytics._doi_status_from_db(pkg_id)
-                    if is_now_published:
-                        analytics.track_doi_published(user_id, pkg_dict, doi_status=doi_status)
-            except Exception as e:
-                logging.error(f"Failed to track instrument update: {e}")
+            was_published = context.get('_analytics_doi_was_published')
+            if was_published is False:
+                pkg_id = pkg_dict.get('id', '')
+                is_now_published, doi_status = analytics._doi_status_from_db(pkg_id)
+                if is_now_published:
+                    analytics.track_doi_published(pkg_dict, doi_status=doi_status)
+        except Exception as e:
+            logging.error(f"Failed to track instrument update: {e}")
 
         # Sync party group membership
         self._sync_party_groups(context, pkg_dict)
