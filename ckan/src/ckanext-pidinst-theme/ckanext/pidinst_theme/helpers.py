@@ -200,6 +200,30 @@ def custom_structured_data(dataset_id, profiles=None, _format='jsonld'):
         return data
 
 
+def get_ckan_user_id() -> str:
+    """Return the CKAN internal user UUID for the currently logged-in user.
+
+    Returns an empty string for anonymous users or outside a request context.
+    Never exposes username, email, or display name — UUID only.
+    Used by base.html to expose a safe identifier to frontend analytics JS.
+    """
+    try:
+        from ckan.common import current_user  # noqa: PLC0415
+        if current_user and current_user.is_authenticated:
+            uid = getattr(current_user, 'id', None)
+            if uid:
+                return str(uid)
+    except Exception:
+        pass
+    try:
+        userobj = getattr(toolkit.c, 'userobj', None)
+        if userobj and getattr(userobj, 'id', None):
+            return str(userobj.id)
+    except Exception:
+        pass
+    return ''
+
+
 def rudderstack_script():
     """
     Generate RudderStack analytics script tag with configuration from environment variables.
@@ -780,6 +804,7 @@ def get_helpers():
         "rudderstack_script": rudderstack_script,
         "analytics_enabled": analytics_enabled,
         "get_analytics_config": get_analytics_config,
+        "get_ckan_user_id": get_ckan_user_id,
         "prepare_dataset_for_cloning": prepare_dataset_for_cloning,
         "pidinst_upload_help_html": pidinst_upload_help_html,
         "pidinst_cover_image_url": pidinst_cover_image_url,

@@ -376,9 +376,9 @@
 
   // ---------------------------------------------------------------------------
   // Browser identity
-  // Creates/reuses a first-party pidinst_browser_id cookie and registers it
-  // as the RudderStack anonymous ID so that all frontend events and backend
-  // events share the same stable UUID regardless of login state.
+  // Creates/reuses a first-party pidinst_browser_id cookie.  Used as the
+  // analytics user_id for anonymous users; logged-in users identify with
+  // their CKAN user UUID exposed via <meta name="ckan-analytics-user-id">.
   // ---------------------------------------------------------------------------
   function getOrCreateBrowserId() {
     var name = 'pidinst_browser_id';
@@ -399,13 +399,24 @@
     return uuid;
   }
 
+  /**
+   * Return the CKAN user UUID exposed by base.html for logged-in users, or
+   * null when the user is anonymous (meta tag absent).
+   * Never returns email, username, or display name.
+   */
+  function getCkanUserId() {
+    var meta = document.querySelector('meta[name="ckan-analytics-user-id"]');
+    return meta ? meta.getAttribute('content') : null;
+  }
+
   function initBrowserIdentity() {
     var browserId = getOrCreateBrowserId();
+    // Logged-in users identify with their CKAN UUID; anonymous users use the
+    // stable browser UUID.  No traits are sent — no PII.
+    var userId = getCkanUserId() || browserId;
     if (typeof window.rudderanalytics !== 'undefined' && window.rudderanalytics.identify) {
       try {
-        // Identify with the stable browser UUID as user_id (no traits — no PII).
-        // This aligns with the backend which also sends user_id=pidinst_browser_id.
-        window.rudderanalytics.identify(browserId);
+        window.rudderanalytics.identify(userId);
       } catch (e) {
         console.error('Analytics identify error:', e);
       }

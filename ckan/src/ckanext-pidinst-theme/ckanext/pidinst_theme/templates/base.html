@@ -10,6 +10,8 @@
 {{ super() }}
 {# RudderStack Analytics Integration #}
 {{ h.rudderstack_script() }}
+{# Expose CKAN user UUID for logged-in users — UUID only, no PII. #}
+{% if h.get_ckan_user_id() %}<meta name="ckan-analytics-user-id" content="{{ h.get_ckan_user_id() }}">{% endif %}
 {% endblock %}
 
 {% block scripts %}

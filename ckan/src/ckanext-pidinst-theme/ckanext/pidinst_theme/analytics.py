@@ -123,9 +123,12 @@ class AnalyticsTracker:
     def track(cls, event: str, properties: Dict[str, Any]) -> bool:
         """Track an event. Returns True if the event was sent successfully.
 
-        Always uses anonymous_id from the pidinst_browser_id cookie; never
-        sends user_id.  A copy of properties is made before adding context
-        fields so that the caller's dict is never mutated.
+        Uses get_analytics_user_id() to resolve the user_id:
+        - Logged-in users: CKAN internal user UUID.
+        - Anonymous users: stable pidinst_browser_id browser UUID.
+        Never sends anonymous_id; user_id always carries the stable identifier.
+        A copy of properties is made before adding context fields so that the
+        caller's dict is never mutated.
         """
         if not cls.is_enabled():
             log.debug(f"Analytics disabled, skipping event: {event}")
@@ -139,7 +142,7 @@ class AnalyticsTracker:
             props['environment'] = os.environ.get('CKAN_SITE_URL', 'unknown')
 
             cls._client.track(
-                user_id=get_browser_id(),
+                user_id=get_analytics_user_id(),
                 event=event,
                 properties=props
             )
@@ -153,11 +156,56 @@ class AnalyticsTracker:
 
 
 # ---------------------------------------------------------------------------
-# Browser identity
+# Identity helpers
 # ---------------------------------------------------------------------------
 
+def get_logged_in_user_id() -> Optional[str]:
+    """Return the CKAN internal user UUID when a user is currently logged in.
+
+    Resolution order:
+    1. ``ckan.common.current_user.id`` — flask-login user (CKAN 2.9+).
+    2. ``toolkit.c.userobj.id``         — legacy CKAN context object.
+
+    Returns ``None`` for anonymous users, when no request context exists
+    (CLI, background jobs), or when any lookup raises an exception.
+    Never returns a username, email, or display name — only the UUID field.
+    """
+    try:
+        from ckan.common import current_user  # noqa: PLC0415
+        if current_user and current_user.is_authenticated:
+            uid = getattr(current_user, 'id', None)
+            if uid:
+                return str(uid)
+    except Exception:
+        pass
+    try:
+        from ckan.plugins import toolkit as _toolkit  # noqa: PLC0415
+        userobj = getattr(_toolkit.c, 'userobj', None)
+        if userobj and getattr(userobj, 'id', None):
+            return str(userobj.id)
+    except Exception:
+        pass
+    return None
+
+
+def get_analytics_user_id() -> str:
+    """Return the analytics user_id for the current request.
+
+    For logged-in users: returns the CKAN internal user UUID via
+    ``get_logged_in_user_id()``.
+    For anonymous users: returns the stable ``pidinst_browser_id`` browser
+    UUID via ``get_browser_id()``.
+
+    A string is *always* returned — ``None`` is never returned.
+    """
+    logged_in_id = get_logged_in_user_id()
+    if logged_in_id:
+        return logged_in_id
+    return get_browser_id()
+
+
 def get_browser_id() -> str:
-    """Return the stable browser UUID used as anonymous_id for every analytics event.
+    """Return the stable browser UUID for anonymous users.
 
     Resolution order (within a Flask request context):
     1. Existing ``pidinst_browser_id`` cookie — reuse it unchanged.
