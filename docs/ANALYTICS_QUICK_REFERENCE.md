@@ -8,7 +8,7 @@ All event names are defined as `EVENT_*` constants in `analytics.py` and as `EVE
 
 | Event Name | Source | Core Properties |
 |---|---|---|
-| `Search` | Backend | `search_term`, `result_count`, `is_empty`, `dataset_type?`, `page_number?`, `sort_by?` |
+| `Search` | Backend | `search_term`, `search_keywords`, `search_context`, `result_count`, `is_empty`, `dataset_type?`, `page_number?`, `sort_by?` |
 | `Empty-Result Search` | Backend | same as `Search`; fires only when `result_count == 0` |
 | `Search Result Click-Through` | Frontend JS | `result_position`, `dataset_id?`, `dataset_type?`, `search_term?` |
 | `Dataset Page View` | Frontend JS | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
@@ -58,6 +58,9 @@ All event names are defined as `EVENT_*` constants in `analytics.py` and as `EVE
 | `citation_source` | `'doi_link_click'` | Always this value; DOI-Based Citation is proxy-only |
 | `page_number` | integer | Page number in search results (backend only) |
 | `sort_by` | string | Sort parameter (backend only) |
+| `search_keywords` | string[] | Cleaned flat list of search term + active filter values. Each entry is lowercased, with hyphens/underscores replaced by spaces. Capped at 20 entries, 100 chars each. Empty when no term and no filters. |
+| `search_context` | string | Pipe-joined summary of search term + filter values. Format: `"seismometer \| sensor"` or `"no search term \| geophysics"`. Values only — no internal field names. Never contains PII, URLs, IDs, or DOIs. |
+| `user_type` | `'anonymous'` \| `'logged_in'` | Injected automatically; use to segment all events by auth state |
 
 ## Never Send
 
@@ -147,10 +150,34 @@ The following must never appear in any event payload:
 
 ## User Identity
 
+### user_id resolution
+
 | User type | Frontend | Backend |
 |---|---|---|
-| Logged-in | `rudderanalytics.identify(ckanUUID)` — UUID only, no traits | `get_safe_analytics_user_id()` returns UUID |
-| Anonymous | No `identify()` call — RudderStack anonymous ID used automatically | `user_id=None` |
+| Logged-in | `rudderanalytics.identify(ckanUUID)` — UUID only, no traits | `get_analytics_user_id()` returns the CKAN internal user UUID |
+| Anonymous | `rudderanalytics.identify(browserId)` — stable cookie UUID | `get_analytics_user_id()` returns the `pidinst_browser_id` cookie UUID |
+
+### user_type property
+
+Every event — backend and frontend — carries a `user_type` property that
+identifies whether the action was performed by an authenticated or anonymous
+user.  It is injected automatically by `AnalyticsTracker.track()` (backend)
+and by `AnalyticsTracker.track()` (frontend JS) so individual event helpers
+never need to set it explicitly.
+
+| Value | Meaning |
+|---|---|
+| `'logged_in'` | A CKAN user is authenticated in the current request / browser session |
+| `'anonymous'` | No authenticated user; the stable `pidinst_browser_id` browser UUID is used as the identity |
+
+`user_type` is a label string — it never contains an email, username, UUID,
+or any other PII.
+
+### Amplitude segmentation examples
+
+- **Compare engagement**: `user_type = logged_in` vs `user_type = anonymous` on any event chart.
+- **Funnel by auth state**: filter the Search → Dataset Page View → Download funnel to `user_type = anonymous` to measure anonymous discovery-to-download conversion.
+- **Stewardship actions**: `Dataset Created` is always `user_type = logged_in` in practice; `user_type = anonymous` there would indicate a misconfigured public endpoint.
 
 ## Metric Coverage
 

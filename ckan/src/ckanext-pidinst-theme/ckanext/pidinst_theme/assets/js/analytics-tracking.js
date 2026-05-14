@@ -40,19 +40,24 @@
     },
 
     track: function(eventName, properties, callback) {
+      // Shallow-copy so the caller's dict is never mutated.
+      var props = Object.assign({}, properties || {});
+      if (!props.user_type) {
+        props.user_type = getUserType();
+      }
       if (this.isReady()) {
         try {
-          window.rudderanalytics.track(eventName, properties || {});
+          window.rudderanalytics.track(eventName, props);
           if (callback) callback();
         } catch (e) {
           console.error('Analytics tracking error:', e);
         }
       } else {
-        // Retry once after SDK loads
+        // Retry once after SDK loads; pass the already-enriched props.
         var self = this;
         setTimeout(function() {
           if (self.isReady()) {
-            self.track(eventName, properties, callback);
+            self.track(eventName, props, callback);
           }
         }, 500);
       }
@@ -407,6 +412,14 @@
   function getCkanUserId() {
     var meta = document.querySelector('meta[name="ckan-analytics-user-id"]');
     return meta ? meta.getAttribute('content') : null;
+  }
+
+  /**
+   * Return 'logged_in' when a CKAN user UUID meta tag is present,
+   * 'anonymous' otherwise.  Never sends PII.
+   */
+  function getUserType() {
+    return getCkanUserId() ? 'logged_in' : 'anonymous';
   }
 
   function initBrowserIdentity() {

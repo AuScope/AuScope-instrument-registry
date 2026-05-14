@@ -1532,12 +1532,14 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
         # --- Analytics: track search event after successful package_search ---
         try:
             result_count = query.get('count', 0)
+            filter_vals = analytics.extract_filter_values(fields_grouped)
             analytics.track_dataset_search(
                 search_term=q,
                 result_count=result_count,
                 dataset_type=display_type,
                 page_number=page,
                 sort_by=sort_by,
+                filter_values=filter_vals,
             )
         except Exception as _ae:
             log.warning('Search analytics tracking failed: %s', _ae, exc_info=True)

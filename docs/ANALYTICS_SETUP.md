@@ -111,6 +111,110 @@ Track a search event (primarily called from views.py backend). Can also be used 
 }
 ```
 
+> **Note:** `search_keywords` and `search_context` are derived automatically by the backend from
+> the CKAN request parameters when called from `views.py`. They are not currently accepted via
+> this HTTP endpoint.
+
+## Search Keywords Analytics
+
+### How it works
+
+When a user performs a search on `/instruments` or `/platforms`, the backend view handler
+(`_instrument_platform_search` in `views.py`) collects all active facet/filter selections into a
+`fields_grouped` dict. Before firing the `Search` (and `Empty-Result Search`) analytics event,
+`analytics.extract_filter_values(fields_grouped)` is called to produce a flat list of selected
+filter values. These, combined with the search term, are passed to `build_search_keywords()` and
+`build_search_context()` to produce the event payload.
+
+### Filter field whitelist
+
+Only the following CKAN facet fields contribute filter values to analytics events. All other request
+parameters (including `fq`, `q`, `id`, `owner_org`, and any unknown field) are silently ignored.
+
+| CKAN internal field | Description |
+|---|---|
+| `vocab_instrument_type_gcmd` | GCMD instrument type |
+| `vocab_instrument_type_custom` | Custom instrument type |
+| `vocab_measured_variable_gcmd` | GCMD measured variable |
+| `vocab_measured_variable_custom` | Custom measured variable |
+| `vocab_instrument_classification` | Instrument classification |
+| `vocab_manufacturer_party` | Manufacturer |
+| `owner_party` | Owner / funder party |
+
+### Example Search event payload (with filters)
+
+```json
+{
+  "search_term": "seismometer",
+  "search_keywords": ["seismometer", "seismometer", "seismic waveforms"],
+  "search_context": "seismometer | seismometer | seismic waveforms",
+  "result_count": 4,
+  "is_empty": false,
+  "dataset_type": "instrument",
+  "page_number": 1,
+  "sort_by": "score desc, metadata_modified desc"
+}
+```
+
+### `search_keywords` property
+
+A cleaned, deduplicated flat list of all active search keywords — the search term followed by
+any active filter values. Used to enable Amplitude's "group by array property" feature.
+
+**Cleaning rules applied to each value:**
+- Lowercased
+- Leading/trailing whitespace stripped
+- Hyphens and underscores replaced with spaces
+- Multiple consecutive spaces collapsed
+
+**Bounds:** capped at `_KEYWORD_MAX_COUNT` entries (default 20); each entry capped at
+`_KEYWORD_MAX_LEN` characters (default 100). Duplicates (case-insensitive) are removed.
+
+### `search_context` property
+
+A single derived string joining the search term and active filter values with ` | `. Designed
+for Amplitude chart grouping — each distinct combination becomes a row in a frequency table.
+
+**Format:** values only — no internal CKAN field names appear.
+
+| Scenario | Example value |
+|---|---|
+| Term only | `"seismometer"` |
+| Term + one filter | `"seismometer \| sensor"` |
+| Term + multiple filters | `"seismometer \| sensor \| seismic waveforms"` |
+| Filters only | `"no search term \| geophysics"` |
+| Neither term nor filters | `"no search term"` |
+
+**Safety:** only values that passed through `extract_filter_values()` (i.e. from the whitelist)
+can appear. URLs, package IDs, org IDs, usernames, emails, and DOIs never appear.
+
+### Example Amplitude charts
+
+#### Top search terms
+- **Chart type:** Bar chart
+- **Event:** `Search`
+- **Group by:** `search_term`
+- **Insight:** Most common raw search queries.
+
+#### Top search keywords
+- **Chart type:** Bar chart
+- **Event:** `Search`
+- **Group by:** `search_keywords` (explode array property)
+- **Insight:** Most common terms + filter values across all searches.
+
+#### Top search contexts (search_context)
+- **Chart type:** Table or horizontal bar chart
+- **Event:** `Search`
+- **Metric:** Event count (or unique users)
+- **Group by:** `search_context`
+- **Insight:** Most common combinations of search term + filter selections at a glance.
+
+#### Empty-result searches by context
+- **Chart type:** Table
+- **Event:** `Empty-Result Search`
+- **Columns:** `search_term`, `search_keywords`, `search_context`
+- **Insight:** Which term + filter combinations yield no results (potential vocabulary gaps).
+
 ## File Structure
 
 ```
@@ -209,7 +313,7 @@ If missing, add `rudder-sdk-python` to `ckan/src/requirements.txt` and rebuild.
 
 ### Example Funnel: Download Conversion
 
-1. Dataset Search Submitted
+1. Search
 2. Search Result Click-Through
 3. Dataset Page View
 4. Resource Download Click

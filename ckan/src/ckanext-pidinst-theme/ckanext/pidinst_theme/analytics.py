@@ -7,7 +7,7 @@ import os
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, Optional, Any
+from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
@@ -137,6 +137,8 @@ class AnalyticsTracker:
         try:
             props = dict(properties)
 
+            if 'user_type' not in props:
+                props['user_type'] = get_user_type()
             if 'timestamp' not in props:
                 props['timestamp'] = datetime.utcnow().isoformat()
             props['environment'] = os.environ.get('CKAN_SITE_URL', 'unknown')
@@ -202,6 +204,16 @@ def get_analytics_user_id() -> str:
     if logged_in_id:
         return logged_in_id
     return get_browser_id()
+
+
+def get_user_type() -> str:
+    """Return 'logged_in' when a user is authenticated, 'anonymous' otherwise.
+
+    Use this single helper to resolve the user_type property that is
+    automatically injected into every backend analytics event by
+    ``AnalyticsTracker.track()``.  Never returns PII.
+    """
+    return 'logged_in' if get_logged_in_user_id() else 'anonymous'
 
 
 def get_browser_id() -> str:
@@ -495,21 +507,167 @@ def track_resource_download(resource_id: str,
     )
 
 
+# ---------------------------------------------------------------------------
+# Filter analytics — safe field whitelist and keyword helpers
+# ---------------------------------------------------------------------------
+
+# Internal CKAN facet fields that are safe to include in analytics.
+# Do NOT add: fq, q, page, sort, owner_org, id, name, or any field that
+# might carry PII or internal identifiers.
+_SAFE_FILTER_FIELDS: Dict[str, str] = {
+    'vocab_instrument_type_gcmd':      'instrument_type_gcmd',
+    'vocab_instrument_type_custom':    'instrument_type_custom',
+    'vocab_measured_variable_gcmd':    'measured_variable_gcmd',
+    'vocab_measured_variable_custom':  'measured_variable_custom',
+    'vocab_instrument_classification': 'instrument_classification',
+    'vocab_manufacturer_party':        'manufacturer',
+    'owner_party':                     'owner',
+}
+
+_FILTER_VALUE_MAX_LEN = 200  # characters; prevents runaway values
+_KEYWORD_MAX_LEN = 100       # characters per search keyword
+_KEYWORD_MAX_COUNT = 20      # total keywords in search_keywords
+
+
+def extract_filter_values(params: Any) -> List[str]:
+    """Return a flat list of selected filter values from whitelisted CKAN facet fields.
+
+    Only fields in ``_SAFE_FILTER_FIELDS`` are included.  All other keys are
+    silently ignored so that internal CKAN fields (``fq``, ``id``,
+    ``owner_org``, etc.) can never reach analytics events.
+
+    ``params`` may be:
+    - A plain ``dict`` (e.g. ``fields_grouped`` from ``_instrument_platform_search``).
+    - A Werkzeug ``MultiDict`` (``request.args``) supporting ``.getlist()``.
+
+    Values are returned raw (not cleaned); callers should pass them through
+    ``build_search_keywords()`` which applies ``clean_search_value()`` before
+    including them in events.
+    """
+    values: List[str] = []
+    for internal_field in _SAFE_FILTER_FIELDS:
+        if hasattr(params, 'getlist'):
+            raw: List[Any] = params.getlist(internal_field)
+        else:
+            raw_val = params.get(internal_field)
+            if raw_val is None:
+                raw = []
+            elif isinstance(raw_val, list):
+                raw = raw_val
+            else:
+                raw = [raw_val]
+        values.extend(str(v)[:_FILTER_VALUE_MAX_LEN] for v in raw if v)
+    return values
+
+
+def clean_search_value(value: str) -> str:
+    """Return a normalised, chart-friendly version of a search value.
+
+    Applies: strip, lowercase, replace hyphens and underscores with spaces,
+    collapse multiple spaces.  Returns an empty string for blank input.
+    """
+    if not value:
+        return ''
+    cleaned = value.strip().lower()
+    cleaned = cleaned.replace('-', ' ').replace('_', ' ')
+    cleaned = ' '.join(cleaned.split())
+    return cleaned
+
+
+def build_search_keywords(search_term: str,
+                          selected_filter_values: List[str]) -> List[str]:
+    """Build the ``search_keywords`` array for the Search analytics event.
+
+    Combines the typed search term with selected safe filter values into a
+    deduplicated, cleaned keyword list bounded by ``_KEYWORD_MAX_COUNT``.
+
+    Rules:
+    - The cleaned search term is included first (if non-empty after cleaning).
+    - Each filter value is cleaned via ``clean_search_value()`` and appended
+      if it is non-empty and not already present.
+    - Duplicates are removed (case-insensitive after cleaning).
+    - Total keywords are capped at ``_KEYWORD_MAX_COUNT``.
+    - Each keyword is capped at ``_KEYWORD_MAX_LEN`` characters.
+    """
+    keywords: List[str] = []
+    seen: set = set()
+
+    term = clean_search_value(search_term)[:_KEYWORD_MAX_LEN]
+    if term:
+        keywords.append(term)
+        seen.add(term)
+
+    for v in selected_filter_values:
+        if len(keywords) >= _KEYWORD_MAX_COUNT:
+            break
+        cleaned = clean_search_value(v)[:_KEYWORD_MAX_LEN]
+        if cleaned and cleaned not in seen:
+            keywords.append(cleaned)
+            seen.add(cleaned)
+
+    return keywords
+
+
+def build_search_context(search_term: str,
+                         search_keywords: Optional[List[str]] = None) -> str:
+    """Build a short human-readable summary of the current search for Amplitude grouping.
+
+    Combines the cleaned search term with any extra keywords (from filter
+    values) into a single pipe-separated string.
+
+    Format:
+        "seismometer"                                    — term only
+        "no search term"                                 — neither term nor filters
+        "seismometer | sensor"                           — term + one filter value
+        "no search term | geophysics | curtin university" — filters only
+        "temperature | sensor | pressure"                — term + multiple filters
+
+    ``search_keywords`` is the list returned by ``build_search_keywords()``.
+    """
+    term = clean_search_value(search_term)
+    keywords = search_keywords or []
+
+    if term:
+        # Extra keywords are those not equal to the term itself.
+        others = [kw for kw in keywords if kw != term]
+        parts: List[str] = [term] + others
+    else:
+        parts = ['no search term'] + keywords
+
+    return ' | '.join(parts)
+
+
 def track_dataset_search(search_term: str,
                          result_count: int,
                          dataset_type: Optional[str] = None,
                          page_number: Optional[int] = None,
-                         sort_by: Optional[str] = None):
+                         sort_by: Optional[str] = None,
+                         filter_values: Optional[List[str]] = None):
     """Track search event (EVENT_SEARCH).
 
     Fires EVENT_SEARCH always.
     Also fires EVENT_EMPTY_RESULT_SEARCH when result_count == 0.
+
+    ``filter_values`` should be the list returned by ``extract_filter_values()``.
+    Search keywords and the combined search_context are derived automatically.
+
+    Event properties:
+        search_term      — the raw typed query string
+        search_keywords  — cleaned list: [term] + cleaned filter values
+        search_context   — pipe-joined summary for Amplitude grouping
+        result_count     — number of results returned
+        is_empty         — True when result_count == 0
     """
+    keywords = build_search_keywords(search_term, filter_values or [])
+
     properties: Dict[str, Any] = {
         'search_term': search_term,
+        'search_keywords': keywords,
+        'search_context': build_search_context(search_term, keywords),
         'result_count': result_count,
         'is_empty': result_count == 0,
     }
+
     if dataset_type is not None:
         properties['dataset_type'] = dataset_type
     if page_number is not None:
