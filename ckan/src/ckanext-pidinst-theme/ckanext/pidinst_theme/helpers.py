@@ -7,7 +7,7 @@ from ckan.lib.munge import munge_title_to_name
 import simplejson as json
 import logging
 import os
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 # ---------------------------------------------------------------------------
 # Taxonomy name configuration – single source of truth
@@ -788,6 +788,50 @@ def pidinst_group_filter_facet_items(group_dict, group_type):
         return None
 
 
+# ---------------------------------------------------------------------------
+# URL rendering helpers (issue #103)
+# ---------------------------------------------------------------------------
+
+def pidinst_is_safe_url(value):
+    """Return True if *value* is a safe http or https URL.
+
+    Only ``http://`` and ``https://`` schemes are considered safe.
+    Schemes such as ``javascript:``, ``data:``, or ``file:`` return False.
+    """
+    if not value or not isinstance(value, str):
+        return False
+    v = value.strip()
+    return v.startswith('http://') or v.startswith('https://')
+
+
+def pidinst_render_url_or_text(value, identifier_type=None):
+    """Return a safe Markup string for *value*.
+
+    If *value* is a safe ``http://`` or ``https://`` URL (validated regardless
+    of *identifier_type*), returns an anchor tag with ``target="_blank"`` and
+    ``rel="noopener noreferrer"``.  All text content and URL characters are
+    escaped to prevent XSS.
+
+    If *value* is not a safe URL, returns the escaped plain text.
+
+    Args:
+        value: The string value to render.
+        identifier_type: Optional sibling identifier-type string (e.g. "URL",
+            "DOI").  Informational only; the URL scheme is always validated.
+    """
+    if not value:
+        return Markup('')
+    v = str(value).strip()
+    if pidinst_is_safe_url(v):
+        return Markup(
+            '<a href="{url}" target="_blank" rel="noopener noreferrer">{text}</a>'.format(
+                url=escape(v),
+                text=escape(v),
+            )
+        )
+    return Markup(escape(v))
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -820,4 +864,6 @@ def get_helpers():
         "taxonomy_term_packages": taxonomy_term_packages,
         "taxonomy_blocking_packages": taxonomy_blocking_packages,
         "pidinst_group_filter_facet_items": pidinst_group_filter_facet_items,
+        "pidinst_is_safe_url": pidinst_is_safe_url,
+        "pidinst_render_url_or_text": pidinst_render_url_or_text,
     }

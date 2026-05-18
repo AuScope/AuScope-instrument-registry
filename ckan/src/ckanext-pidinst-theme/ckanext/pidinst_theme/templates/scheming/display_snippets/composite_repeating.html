@@ -38,7 +38,11 @@
            {% elif h.composite_is_mail(value|string) %}
               {{ h.mail_to(email_address=value, name=value) }}
            {% else %}
-             {{ value }}
+             {# Look up the sibling *_type field from the same composite entry so that
+                e.g. related_identifier_type="URL" is forwarded to the renderer.
+                If no sibling type exists (e.g. award_uri) the value check alone applies. #}
+             {% set _sibling_type = composite_dict.get(key ~ '_type', '') %}
+             {{ h.pidinst_render_url_or_text(value|string, _sibling_type) }}
            {% endif %}
            {% set first_key_written = true %}
          </div>
