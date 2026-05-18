@@ -832,6 +832,59 @@ def pidinst_render_url_or_text(value, identifier_type=None):
     return Markup(escape(v))
 
 
+# Mapping from party_id subfield names to their resolved human-readable name
+# sibling fields within the same composite row.
+_PARTY_ID_TO_NAME_FIELD = {
+    'owner_party_id': 'owner_name',
+    'manufacturer_party_id': 'manufacturer_name',
+    'funder_party_id': 'funder_name',
+}
+
+
+def pidinst_party_display(field_name, composite_dict):
+    """Return a safe Markup display value for a party_id composite subfield.
+
+    Looks up the resolved human-readable name stored in the sibling ``*_name``
+    field of the same composite row.  Falls back to the raw party slug when no
+    resolved name is available (e.g. for records created before name
+    resolution was introduced).
+
+    The display text is wrapped in an anchor tag linking to the party read
+    page (``/party/<slug>``).  If the URL cannot be generated (outside a
+    request context, or the route does not exist), plain escaped text is
+    returned instead.
+
+    Args:
+        field_name:     The party_id subfield name (e.g. ``'owner_party_id'``).
+        composite_dict: The composite row dict for this record entry.
+
+    Returns:
+        A :class:`markupsafe.Markup` string, safe for direct template output.
+    """
+    slug = str(composite_dict.get(field_name, '') or '').strip()
+    if not slug:
+        return Markup('')
+
+    name_field = _PARTY_ID_TO_NAME_FIELD.get(field_name)
+    display_text = slug
+    if name_field:
+        resolved = str(composite_dict.get(name_field, '') or '').strip()
+        if resolved:
+            display_text = resolved
+
+    # Bonus: try to link to the party read page.
+    try:
+        url = toolkit.url_for('party.read', id=slug)
+        return Markup(
+            '<a href="{url}">{text}</a>'.format(
+                url=escape(url),
+                text=escape(display_text),
+            )
+        )
+    except Exception:
+        return Markup(escape(display_text))
+
+
 def get_helpers():
     return {
         "pidinst_theme_hello": pidinst_theme_hello,
@@ -866,4 +919,5 @@ def get_helpers():
         "pidinst_group_filter_facet_items": pidinst_group_filter_facet_items,
         "pidinst_is_safe_url": pidinst_is_safe_url,
         "pidinst_render_url_or_text": pidinst_render_url_or_text,
+        "pidinst_party_display": pidinst_party_display,
     }

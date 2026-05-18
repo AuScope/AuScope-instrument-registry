@@ -153,7 +153,7 @@ dataset_fields:
     help_text: "Select one or more parties as owners. A contact email is required for each selected owner."
     subfields:
       - field_name: owner_party_id
-        label: Party
+        label: Owner
         form_snippet: owner_party_select.html
         help_text: "Select a party from the registry"
         validators: ignore_missing unicode_safe

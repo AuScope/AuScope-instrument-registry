@@ -33,7 +33,9 @@
              <br>
            {% endif %}
            <b>{{ label_dict[key] }}:</b> 
-           {% if subfield.display_snippet is not none and subfield.display_snippet == "URL" %}
+           {% if key in ('owner_party_id', 'manufacturer_party_id', 'funder_party_id') %}
+             {{ h.pidinst_party_display(key, composite_dict) }}
+           {% elif subfield.display_snippet is not none and subfield.display_snippet == "URL" %}
               {{ h.link_to(value, value, target='_blank') }}
            {% elif h.composite_is_mail(value|string) %}
               {{ h.mail_to(email_address=value, name=value) }}
