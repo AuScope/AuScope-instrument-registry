@@ -1,0 +1,21 @@
+{% ckan_extends %}
+
+{#
+  Taxonomy term detail page override.
+
+  Adds the propagation-progress widget so that when a taxonomy term is edited,
+  the user can see a live progress bar while the background thread propagates
+  the change into every referencing instrument.
+
+  entity_key = "term=<term.id>"  (stable UUID, not the label)
+  This matches the key created by taxonomy_term_update in logic/action.py:
+      job_create(f"term={term_id}")
+
+  The widget is a no-op when no active job exists for this term.
+#}
+{% block primary_content %}
+  <div data-module="propagation-progress"
+       data-module-entity-key="term={{ term.id }}">
+  </div>
+  {{ super() }}
+{% endblock %}
