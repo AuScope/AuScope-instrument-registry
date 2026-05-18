@@ -1,0 +1,19 @@
+{% ckan_extends %}
+
+{# Fix: CKAN core hardcodes named_route='group.about' in the description block,
+   which generates /group/<name>/about regardless of the actual group type.
+   For party-type groups this produces a broken link because the canonical URL
+   is /party/<name>/about.  We override just the description block to build the
+   route name dynamically from group.type so parties link to party.about. #}
+
+{% block description %}
+{% if group.description %}
+  <p class="description">
+    {{ h.markdown_extract(group.description, 180) }}
+  </p>
+  <p class="read-more">
+    {% set about_route = (group.type or 'group') ~ '.about' %}
+    {% link_for _('read more'), named_route=about_route, id=group.name %}
+  </p>
+{% endif %}
+{% endblock %}

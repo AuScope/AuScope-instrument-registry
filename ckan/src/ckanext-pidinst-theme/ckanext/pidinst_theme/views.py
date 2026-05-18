@@ -43,6 +43,67 @@ except ImportError:
 pidinst_theme = Blueprint("pidinst_theme", __name__)
 
 
+_GROUP_ACTION_KEYWORDS = frozenset({
+    'edit', 'about', 'new', 'manage_members', 'member_dump',
+    'members', 'member_new', 'bulk_process', 'delete',
+    'follow', 'unfollow', 'member_delete', 'followers', 'admins',
+})
+
+
+@pidinst_theme.before_app_request
+def redirect_group_to_party():
+    """Redirect /group/<name>[/...] to /party/<name>[/...] for party-type groups.
+
+    CKAN registers both /group/ and /party/ routes for custom group types.
+    Visiting /group/<party-name> results in group_type='group' in the template
+    context, which breaks party-specific rendering and facets.  This hook
+    intercepts every request and transparently redirects the browser to the
+    canonical /party/ URL when the group is actually of type 'party'.
+
+    Both the read path (/group/<name>) and action sub-paths
+    (/group/edit/<name>, /group/about/<name>, etc.) are handled.
+    """
+    path = request.path
+    # Only intercept /group/ paths (not /organization/ or /party/)
+    if not path.startswith('/group/'):
+        return None
+
+    # CKAN group URL patterns:
+    #   /group/<id>                 → parts[2] is the group id
+    #   /group/<action>/<id>[/...]  → parts[3] is the group id
+    parts = path.split('/', 4)   # ['', 'group', seg2, seg3?, rest?]
+    if len(parts) < 3 or not parts[2]:
+        return None
+
+    seg2 = parts[2]
+    if seg2 in _GROUP_ACTION_KEYWORDS:
+        # e.g. /group/edit/auscope  → group id is parts[3]
+        if len(parts) < 4 or not parts[3]:
+            return None
+        group_id = parts[3]
+    else:
+        # e.g. /group/auscope  → group id is parts[2]
+        group_id = seg2
+
+    try:
+        username = getattr(current_user, 'name', None) or ''
+        context = {'user': username, 'ignore_auth': False}
+        group_dict = get_action('group_show')(context, {'id': group_id})
+    except Exception:
+        # Group not found or not accessible — let CKAN handle it
+        return None
+
+    if group_dict.get('type') == 'party':
+        # Replace /group prefix with /party (path already starts with /group)
+        new_path = '/party' + path[6:]   # strip the 6-char '/group' prefix
+        query_string = request.query_string.decode('utf-8')
+        if query_string:
+            new_path += '?' + query_string
+        return redirect(new_path, code=301)
+
+    return None
+
+
 def page():
     return "Hello, pidinst_theme!"
 
