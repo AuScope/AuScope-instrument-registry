@@ -78,7 +78,7 @@ RUN pip install -e "git+https://github.com/AuScope/ckanext-iso19115.git@auscope_
 RUN pip install ckanext-contact
 
 ### DOI extension ###
-RUN pip install -e "git+https://github.com/AuScope/ckanext-doi.git@auscope_pidinst#egg=ckanext-doi" && \
+RUN pip install -e "git+https://github.com/AuScope/ckanext-doi.git@ckan-2.11#egg=ckanext-doi" && \
     pip install jsonschema-specifications
 
 ### S3 Filestore extension ###
