@@ -1,48 +1,51 @@
 {% set intro = g.site_intro_text %}
 
 <div class="module-promotion card box">
-  <div>
-    {% if intro %} {{ h.render_markdown(intro) }} {% else %}
-    <h1 class="page-heading">{{ _("Quick Start") }}</h1>
-    <p>To register your instruments with a new organisation in the repository:</p>
-    <ol>
-      <li>Log in via (AAF)</li>
-      <li>
-        <a href="{{ h.url_for('pidinst_theme.request_new_organisation') }}" class="custom-link"
-          >Submit a request</a
-        >
-        to create a instrument organisation
-      </li>
-      <li>You will be notified via email after the organisation is created</li>
-      <li>
-        Select your <a href="{{ h.url_for('organization.index') }}" class="custom-link">organisation</a> and
-        choose:
-        <ul>
-          <li>
-            <span class="badge">Add Instrument</span>(register individual instruments via the online form)
-          </li>
-        </ul>
-      </li>
-    </ol>
+  <div class="pidinst-key-concepts">
+  <h2>Tips</h2>
 
-    <p>To register your instruments with an existing organisation in the repository:</p>
-    <ol>
-      <li>Log in via (AAF)</li>
-      <li>
-        Select your
-        <a href="{{ h.url_for('organization.index') }}" class="custom-link">organisation-of-interest</a>
-      </li>
-      <li>
-        Click
-        <ul>
-          <li>
-            <span class="badge">Add Instrument</span>(register individual instruments via the online form)
-          </li>
-        </ul>
-      </li>
-    </ol>
-    {% endif %}
-  </div>
+  <p>
+    The AuScope Instrument Registry is organised around a few key concepts:
+  </p>
+
+  <dl>
+    <dt><strong>Instruments</strong></dt>
+    <dd>
+      Individual scientific devices or pieces of equipment that are funded or owned by AuScope.
+      Instrument records describe details such as name, identifier, manufacturer, owner, model,
+      measured variables, location, lifecycle dates, and related resources.
+    </dd>
+
+    <dt><strong>Platforms</strong></dt>
+    <dd>
+      Configured collections of instruments used together for a specific purpose, such as a survey
+      or measurement system. A platform may include multiple instruments arranged or deployed as a
+      combined system.
+    </dd>
+
+    <dt><strong>Parties</strong></dt>
+    <dd>
+      Organisations or people associated with instruments, such as owners, manufacturers, funders,
+      and contacts. Where possible, parties can be linked to recognised organisation identifiers
+      through ROR.
+    </dd>
+
+    <dt><strong>Taxonomies</strong></dt>
+    <dd>
+      Controlled vocabularies used to classify instruments, platforms, and measured variables.
+      Taxonomies help keep metadata consistent and improve search and discovery.
+    </dd>
+  </dl>
+
+  <p>
+    The registry is scoped to AuScope-funded and AuScope-owned instruments. Most visitors can browse
+    and search public records without logging in.
+  </p>
+
+  <p>
+    If you need an account to register instrument records, please contact us.
+  </p>
+</div>
 </div>
 
 <style>

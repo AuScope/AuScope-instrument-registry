@@ -7,11 +7,11 @@
     {% else %}
       <h1 class="page-heading">{{ _("Welcome to AuScope Instrument Registry") }}</h1>
       <p>
-        {% trans %} The AuScope Instrument Registry provides a trusted digital repository for publishing specimen metadata from AuScope communities following the FAIR Data Guiding Principles and simplifying the issuing of globally unique persistent identifiers (PIDINST) for specimens. Instrument metadata and links to related datasets are available openly through this repository with appropriate attributions to promote open science.
+        {% trans %} The AuScope Instrument Registry provides a dedicated place to describe, manage, and publish metadata for AuScope-funded and AuScope-owned scientific instruments. It supports persistent identification of instruments, helping improve discoverability, traceability, citation, and reuse across research projects, datasets, and infrastructure programs.
         {% endtrans %}
       </p>
       <p>
-        {% trans %} The repository is essential for geoscience research innovation in support of the AuScope 5-Year Investment Plan and Australian Academy of Science Decadal plan for Australian Geoscience: Our Planet, Australia's Future.
+        {% trans %} The registry is based on the PIDINST metadata standard and supports publishing instrument records with Digital Object Identifiers (DOIs). It helps make instrument information easier to find, understand, and link to related organisations, datasets, surveys, publications, and other research outputs.
         {% endtrans %}
         <br>
         </p>
@@ -26,7 +26,7 @@
   </style>
   {% block home_image %}
       <section class="featured media-overlay hidden-xs">
-        <h2 class="media-heading">{% block home_image_caption %}{{ _("Characterisation image of natural mineral iron-oxide nodules") }}{% endblock %}</h2>
+        <h2 class="media-heading">{% block home_image_caption %}{{ _("CSIRO-developed Maia x-ray imaging") }}{% endblock %}</h2>
         {% block home_image_content %}
           <div class="media-image-wrapper">
             <a class="media-image" href="#">
@@ -35,7 +35,7 @@
                   alt="Placeholder" />
             </a>
             <div class="image-caption">
-              Characterisation image of natural mineral iron-oxide nodules. Taken with CSIRO-developed Maia x-ray imaging.
+              CSIRO-developed Maia x-ray imaging.
             </div>
           </div>
         {% endblock %}
