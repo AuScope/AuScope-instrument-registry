@@ -9,23 +9,23 @@ Analytics implementation for the AuScope PIDINST CKAN extension. Tracks conversi
 | Event | Source |
 |---|---|
 | `Search` | Backend — `_instrument_platform_search` after `package_search` |
-| `Empty-Result Search` | Backend — same call when `result_count == 0` |
-| `Search Result Click-Through` | Frontend JS — click on search result heading |
-| `Dataset Page View` | Frontend JS — dataset detail page load |
-| `Resource Preview Opened` | Frontend JS — click on resource view / explore link |
+| `Empty-result search` | Backend — same call when `result_count == 0` |
+| `Search result click-through` | Frontend JS — click on search result heading |
+| `Dataset page view` | Frontend JS — dataset detail page load |
+| `Resource preview opened` | Frontend JS — click on resource view / explore link |
 | `Download` | Frontend JS — click on download link |
-| `Time To First Download` | Frontend JS — first download per dataset page load |
-| `Dataset View Duration` | Frontend JS (sendBeacon) — user leaves dataset page |
+| `Time to first download ` | Frontend JS — first download per dataset page load |
+| `Dataset view duration` | Frontend JS (sendBeacon) — user leaves dataset page |
 
 ### Stewardship
 
 | Event | Source |
 |---|---|
-| `Dataset Created` | Backend — `after_dataset_create` hook |
-| `Update Existing Dataset` | Backend — `after_dataset_update` hook (user edits only) |
-| `Dataset Published With DOI` | Backend — first DOI publication transition |
-| `Dataset Reuse Created` | Backend — `after_dataset_create` for new-version datasets |
-| `DOI-Based Citation` | Frontend JS (proxy) — DOI badge link click |
+| `Dataset created` | Backend — `after_dataset_create` hook |
+| `Update existing dataset` | Backend — `after_dataset_update` hook (user edits only) |
+| `Dataset published with DOI` | Backend — first DOI publication transition |
+| `Dataset reuse created` | Backend — `after_dataset_create` for new-version datasets |
+| `DOI-Based citations` | Frontend JS (proxy) — DOI badge link click |
 
 ## Quick Start
 
@@ -59,7 +59,7 @@ docker compose -f docker-compose.dev.yml up -d ckan-dev
 ## Known Limitations
 
 - **Download Completion** — not implemented. Client-side detection is unreliable; requires a server-side CKAN download route override.
-- **DOI-Based Citation** — proxy only (DOI link click). Real citation tracking requires the DataCite Event Data API.
+- **DOI-Based citations** — proxy only (DOI link click). Real citation tracking requires the DataCite Event Data API.
 - **Dataset Withdrawn** — not implemented.
 - **Unique / Returning Visitors** — partially covered by RudderStack's built-in anonymous ID.
 

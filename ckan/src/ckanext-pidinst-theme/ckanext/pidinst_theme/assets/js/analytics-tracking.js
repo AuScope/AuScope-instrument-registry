@@ -17,17 +17,17 @@
   // ---------------------------------------------------------------------------
   var EVENTS = {
     SEARCH:                     'Search',
-    EMPTY_RESULT_SEARCH:        'Empty-Result Search',
-    SEARCH_RESULT_CLICK_THROUGH:'Search Result Click-Through',
-    DATASET_PAGE_VIEW:          'Dataset Page View',
+    EMPTY_RESULT_SEARCH:        'Empty-result search',
+    SEARCH_RESULT_CLICK_THROUGH:'Search result click-through',
+    DATASET_PAGE_VIEW:          'Dataset page view',
     DOWNLOAD:                   'Download',
-    TIME_TO_FIRST_DOWNLOAD:     'Time To First Download',
-    DATASET_CREATED:            'Dataset Created',
-    DATASET_PUBLISHED_WITH_DOI: 'Dataset Published With DOI',
-    UPDATE_EXISTING_DATASET:    'Update Existing Dataset',
-    DOI_BASED_CITATION:         'DOI-Based Citation',
-    RESOURCE_PREVIEW_OPENED:    'Resource Preview Opened',
-    DATASET_VIEW_DURATION:      'Dataset View Duration'
+    TIME_TO_FIRST_DOWNLOAD:     'Time to first download ',
+    DATASET_CREATED:            'Dataset created',
+    DATASET_PUBLISHED_WITH_DOI: 'Dataset published with DOI',
+    UPDATE_EXISTING_DATASET:    'Update existing dataset',
+    DOI_BASED_CITATION:         'DOI-Based citations',
+    RESOURCE_PREVIEW_OPENED:    'Resource preview opened',
+    DATASET_VIEW_DURATION:      'Dataset view duration'
   };
 
   // ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@
   // Search tracking
   // ---------------------------------------------------------------------------
   function initSearchTracking() {
-    // Note: Search and Empty-Result Search events are now fired from the
+    // Note: Search and Empty-result search events are now fired from the
     // backend (_instrument_platform_search in views.py) which has reliable
     // result_count.  The form-submit handler has been removed to avoid
     // duplicates.  This function now only sets up click-through tracking.
@@ -220,7 +220,7 @@
   // ---------------------------------------------------------------------------
   // Dataset page view tracking
   // Single source of truth — the inline script in read_base.html has been
-  // removed.  This function is the only place Dataset Page View fires.
+  // removed.  This function is the only place Dataset page view fires.
   // ---------------------------------------------------------------------------
   function trackDatasetPageView() {
     var ctx = getDatasetContext();
@@ -315,7 +315,7 @@
       'a[href*="/download/"], .resource-url-analytics, a.resource-url'
     );
 
-    // Capture the dataset page load time for Time To First Download measurement.
+    // Capture the dataset page load time for Time to first download  measurement.
     // This is intentionally page-specific (not the overall session start) so the
     // metric reflects time from dataset page load to first download click.
     var datasetPageLoadTime = Date.now();
@@ -339,7 +339,7 @@
 
         AnalyticsTracker.track(EVENTS.DOWNLOAD, props);
 
-        // Time To First Download — fires at most once per session.
+        // Time to first download  — fires at most once per session.
         // seconds_to_download measures from dataset page load to this click.
         if (!sessionStorage.getItem('has_downloaded')) {
           var elapsed = Date.now() - datasetPageLoadTime;
@@ -363,7 +363,7 @@
   function initDOITracking() {
     // DOI badge / link clicks — proxy for citation intent only.
     // NOTE: a hyperlink click is NOT a real citation.  This event is documented
-    // as a proxy.  Real DOI-Based Citation tracking requires the DataCite
+    // as a proxy.  Real DOI-Based citations tracking requires the DataCite
     // Event Data API (planned Stage 4).
     var doiBadges = document.querySelectorAll('.doi-badge, [data-doi] a, a[href*="doi.org"]');
     doiBadges.forEach(function(badge) {
@@ -447,7 +447,7 @@
     initDownloadTracking();
     initResourcePreviewTracking();
     initDOITracking();
-    // initFormTracking() removed: Dataset Created and Update Existing Dataset
+    // initFormTracking() removed: Dataset created and Update existing dataset
     // are tracked server-side via CKAN hooks (after_dataset_create /
     // after_dataset_update in plugin.py).  Frontend form-submit tracking was
     // a duplicate source and has been intentionally removed.

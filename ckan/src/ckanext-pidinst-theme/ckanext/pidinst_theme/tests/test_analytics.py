@@ -34,34 +34,34 @@ class TestEventConstants(unittest.TestCase):
         self.assertEqual(analytics.EVENT_SEARCH, 'Search')
 
     def test_empty_result_search(self):
-        self.assertEqual(analytics.EVENT_EMPTY_RESULT_SEARCH, 'Empty-Result Search')
+        self.assertEqual(analytics.EVENT_EMPTY_RESULT_SEARCH, 'Empty-result search')
 
     def test_search_result_click_through(self):
-        self.assertEqual(analytics.EVENT_SEARCH_RESULT_CLICK_THROUGH, 'Search Result Click-Through')
+        self.assertEqual(analytics.EVENT_SEARCH_RESULT_CLICK_THROUGH, 'Search result click-through')
 
     def test_dataset_page_view(self):
-        self.assertEqual(analytics.EVENT_DATASET_PAGE_VIEW, 'Dataset Page View')
+        self.assertEqual(analytics.EVENT_DATASET_PAGE_VIEW, 'Dataset page view')
 
     def test_download(self):
         self.assertEqual(analytics.EVENT_DOWNLOAD, 'Download')
 
     def test_time_to_first_download(self):
-        self.assertEqual(analytics.EVENT_TIME_TO_FIRST_DOWNLOAD, 'Time To First Download')
+        self.assertEqual(analytics.EVENT_TIME_TO_FIRST_DOWNLOAD, 'Time to first download ')
 
     def test_dataset_created(self):
-        self.assertEqual(analytics.EVENT_DATASET_CREATED, 'Dataset Created')
+        self.assertEqual(analytics.EVENT_DATASET_CREATED, 'Dataset created')
 
     def test_dataset_published_with_doi(self):
-        self.assertEqual(analytics.EVENT_DATASET_PUBLISHED_WITH_DOI, 'Dataset Published With DOI')
+        self.assertEqual(analytics.EVENT_DATASET_PUBLISHED_WITH_DOI, 'Dataset published with DOI')
 
     def test_update_existing_dataset(self):
-        self.assertEqual(analytics.EVENT_UPDATE_EXISTING_DATASET, 'Update Existing Dataset')
+        self.assertEqual(analytics.EVENT_UPDATE_EXISTING_DATASET, 'Update existing dataset')
 
     def test_doi_based_citation(self):
-        self.assertEqual(analytics.EVENT_DOI_BASED_CITATION, 'DOI-Based Citation')
+        self.assertEqual(analytics.EVENT_DOI_BASED_CITATION, 'DOI-Based citations')
 
     def test_resource_preview_opened(self):
-        self.assertEqual(analytics.EVENT_RESOURCE_PREVIEW_OPENED, 'Resource Preview Opened')
+        self.assertEqual(analytics.EVENT_RESOURCE_PREVIEW_OPENED, 'Resource preview opened')
 
 
 # ---------------------------------------------------------------------------
@@ -472,7 +472,7 @@ class TestAnalyticsTrackerIdentity(unittest.TestCase):
     @patch('ckanext.pidinst_theme.analytics.RUDDERSTACK_AVAILABLE', True)
     @patch('ckanext.pidinst_theme.analytics.get_browser_id', return_value=_BROWSER_UUID)
     def test_anonymous_search_events_use_browser_uuid_as_user_id(self, _mock_browser, mock_client):
-        """Anonymous Search and Empty-Result Search must use browser UUID as user_id."""
+        """Anonymous Search and Empty-result search must use browser UUID as user_id."""
         mock_instance = _make_enabled_tracker(mock_client)
         analytics.track_dataset_search('telescope', 0)
         self.assertEqual(mock_instance.track.call_count, 2)
@@ -697,7 +697,7 @@ class TestSearchAnalyticsFailureSafety(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Stage 2B: Search Result Click-Through & Resource Preview Opened
+# Stage 2B: Search result click-through & Resource preview opened
 # ---------------------------------------------------------------------------
 
 class TestStage2BEventNames(unittest.TestCase):
@@ -706,18 +706,18 @@ class TestStage2BEventNames(unittest.TestCase):
     def test_search_result_click_through_event_name(self):
         self.assertEqual(
             analytics.EVENT_SEARCH_RESULT_CLICK_THROUGH,
-            'Search Result Click-Through'
+            'Search result click-through'
         )
 
     def test_resource_preview_opened_event_name(self):
         self.assertEqual(
             analytics.EVENT_RESOURCE_PREVIEW_OPENED,
-            'Resource Preview Opened'
+            'Resource preview opened'
         )
 
 
 class TestSearchResultClickThroughPayload(unittest.TestCase):
-    """Search Result Click-Through payload must be minimal and PII-free."""
+    """Search result click-through payload must be minimal and PII-free."""
 
     # Allowed properties per Stage 2B requirements
     _ALLOWED = {'dataset_id', 'dataset_type', 'result_position', 'search_term'}
@@ -742,7 +742,7 @@ class TestSearchResultClickThroughPayload(unittest.TestCase):
         for key in self._sample_payload():
             self.assertIn(
                 key, self._ALLOWED,
-                f"Key '{key}' is not in the allowed set for Search Result Click-Through"
+                f"Key '{key}' is not in the allowed set for Search result click-through"
             )
 
     def test_no_banned_props_in_sample(self):
@@ -768,7 +768,7 @@ class TestSearchResultClickThroughPayload(unittest.TestCase):
 
 
 class TestResourcePreviewOpenedPayload(unittest.TestCase):
-    """Resource Preview Opened payload must be minimal and PII-free."""
+    """Resource preview opened payload must be minimal and PII-free."""
 
     _ALLOWED = {'dataset_id', 'dataset_type', 'resource_id', 'resource_format'}
 
@@ -791,7 +791,7 @@ class TestResourcePreviewOpenedPayload(unittest.TestCase):
         for key in self._sample_payload():
             self.assertIn(
                 key, self._ALLOWED,
-                f"Key '{key}' is not in the allowed set for Resource Preview Opened"
+                f"Key '{key}' is not in the allowed set for Resource preview opened"
             )
 
     def test_no_banned_props_in_sample(self):
@@ -849,7 +849,7 @@ class TestStage2BFailureSafety(unittest.TestCase):
         self.assertTrue(navigation_completed)
 
     def test_resource_preview_tracking_failure_does_not_propagate(self):
-        """JS wraps the Resource Preview Opened track() call in try/catch."""
+        """JS wraps the Resource preview opened track() call in try/catch."""
         navigation_completed = False
         with patch.object(
             analytics.AnalyticsTracker, 'track',
@@ -867,22 +867,22 @@ class TestStage2BFailureSafety(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Stage 2C: Dataset View Duration & Time To First Download verification
+# Stage 2C: Dataset view duration & Time to first download  verification
 # ---------------------------------------------------------------------------
 
 class TestStage2CEventNames(unittest.TestCase):
     """Stage 2C event name constants must match the requirements table exactly."""
 
     def test_dataset_view_duration_event_name(self):
-        self.assertEqual(analytics.EVENT_DATASET_VIEW_DURATION, 'Dataset View Duration')
+        self.assertEqual(analytics.EVENT_DATASET_VIEW_DURATION, 'Dataset view duration')
 
     def test_time_to_first_download_event_name(self):
         # Verify the TTFD constant has not drifted from the required name.
-        self.assertEqual(analytics.EVENT_TIME_TO_FIRST_DOWNLOAD, 'Time To First Download')
+        self.assertEqual(analytics.EVENT_TIME_TO_FIRST_DOWNLOAD, 'Time to first download ')
 
 
 class TestDatasetViewDurationPayload(unittest.TestCase):
-    """Dataset View Duration payload must be minimal and PII-free."""
+    """Dataset view duration payload must be minimal and PII-free."""
 
     # All keys that are allowed in the payload
     _ALLOWED = {'dataset_id', 'dataset_type', 'is_public', 'has_doi', 'duration_seconds'}
@@ -917,7 +917,7 @@ class TestDatasetViewDurationPayload(unittest.TestCase):
         for key in self._sample_payload():
             self.assertIn(
                 key, self._ALLOWED,
-                f"Key '{key}' is not in the allowed set for Dataset View Duration"
+                f"Key '{key}' is not in the allowed set for Dataset view duration"
             )
 
     def test_no_banned_props_in_sample(self):
@@ -925,7 +925,7 @@ class TestDatasetViewDurationPayload(unittest.TestCase):
         for banned in self._BANNED:
             self.assertNotIn(
                 banned, sample,
-                f"Banned prop '{banned}' found in Dataset View Duration payload"
+                f"Banned prop '{banned}' found in Dataset view duration payload"
             )
 
     def test_dataset_id_is_present(self):
@@ -960,7 +960,7 @@ class TestDatasetViewDurationPayload(unittest.TestCase):
 
 
 class TestTimeToFirstDownloadPayload(unittest.TestCase):
-    """Time To First Download payload must be minimal with correct property names."""
+    """Time to first download  payload must be minimal with correct property names."""
 
     # Allowed properties per Stage 2C requirements
     _ALLOWED = {
@@ -1005,7 +1005,7 @@ class TestTimeToFirstDownloadPayload(unittest.TestCase):
         for key in self._sample_payload():
             self.assertIn(
                 key, self._ALLOWED,
-                f"Key '{key}' is not in the allowed set for Time To First Download"
+                f"Key '{key}' is not in the allowed set for Time to first download "
             )
 
     def test_no_banned_props_in_sample(self):
@@ -1115,7 +1115,7 @@ class TestDoiStatusFromDb(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Stage 3A: Dataset Published With DOI — transition detection
+# Stage 3A: Dataset published with DOI — transition detection
 #
 # The transition logic lives in plugin.py; we test it here by simulating the
 # guard exactly as plugin.py implements it:
@@ -1127,7 +1127,7 @@ class TestDoiStatusFromDb(unittest.TestCase):
 #           analytics.track_doi_published(user, pkg_dict, doi_status=doi_status)
 # ---------------------------------------------------------------------------
 class TestStage3ADoiPublishedTransition(unittest.TestCase):
-    """Dataset Published With DOI fires only when the transition is confirmed."""
+    """Dataset published with DOI fires only when the transition is confirmed."""
 
     # Simulate the plugin.py guard so tests do not depend on plugin internals.
     def _simulate_after_update(self, was_published, is_now_published, doi_status='published'):
@@ -1222,7 +1222,7 @@ class TestStage3ADoiPublishedTransition(unittest.TestCase):
     # 9. Event name constant matches requirements table.
     def test_event_name_constant(self):
         self.assertEqual(analytics.EVENT_DATASET_PUBLISHED_WITH_DOI,
-                         'Dataset Published With DOI')
+                         'Dataset published with DOI')
 
     # 10. Verify has_doi is True in payload when doi field is present.
     def test_has_doi_true_in_payload(self):
@@ -1384,10 +1384,10 @@ class TestReuseSourceFromPkg(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Stage 3B: Dataset Reuse Created — event tracking
+# Stage 3B: Dataset reuse created — event tracking
 # ---------------------------------------------------------------------------
 class TestStage3BDatasetReuseCreated(unittest.TestCase):
-    """Dataset Reuse Created fires only for new-version datasets."""
+    """Dataset reuse created fires only for new-version datasets."""
 
     def _new_version_pkg(self):
         """Return a minimal pkg dict that looks like a new version."""
@@ -1434,7 +1434,7 @@ class TestStage3BDatasetReuseCreated(unittest.TestCase):
         calls = self._simulate_after_create(pkg)
         self.assertEqual(len(calls), 0)
 
-    # 4. Dataset Created still fires independently (simulated separately).
+    # 4. Dataset created still fires independently (simulated separately).
     def test_dataset_created_still_fires_for_ordinary(self):
         pkg = _pkg({'id': 'pkg-001', 'version_handler_id': 'pkg-001'})
         with patch.object(analytics.AnalyticsTracker, 'track') as mock_track:
@@ -1517,7 +1517,7 @@ class TestStage3BDatasetReuseCreated(unittest.TestCase):
 
     # 12. Event name constant matches requirements table.
     def test_event_name_constant(self):
-        self.assertEqual(analytics.EVENT_DATASET_REUSE_CREATED, 'Dataset Reuse Created')
+        self.assertEqual(analytics.EVENT_DATASET_REUSE_CREATED, 'Dataset reuse created')
 
 
 # ---------------------------------------------------------------------------
@@ -1719,7 +1719,7 @@ class TestBrowserCookieReuse(unittest.TestCase):
 class TestTrackDoesNotMutateProperties(unittest.TestCase):
     """track() must not modify the caller's properties dict.
 
-    track_dataset_search fires track() twice (Search + Empty-Result Search)
+    track_dataset_search fires track() twice (Search + Empty-result search)
     with the same properties dict; mutating it in the first call would
     corrupt the second call's payload with extra keys (timestamp, environment).
     """
@@ -1764,7 +1764,7 @@ class TestTrackDoesNotMutateProperties(unittest.TestCase):
 
         props = {'search_term': 'nothing', 'result_count': 0, 'is_empty': True}
         analytics.AnalyticsTracker.track(event='Search', properties=props)
-        analytics.AnalyticsTracker.track(event='Empty-Result Search',
+        analytics.AnalyticsTracker.track(event='Empty-result search',
                                           properties=props)
 
         self.assertEqual(mock_instance.track.call_count, 2)
@@ -1851,10 +1851,10 @@ class TestBrowserIdCookieResponse(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Search and Empty-Result Search: anonymous_id is never None
+# Search and Empty-result search: anonymous_id is never None
 # ---------------------------------------------------------------------------
 class TestSearchUserIdNeverNone(unittest.TestCase):
-    """Search and Empty-Result Search must send user_id=browser_uuid, never None."""
+    """Search and Empty-result search must send user_id=browser_uuid, never None."""
 
     def _setup_tracker(self, mock_client_cls):
         mock_instance = Mock()
@@ -1898,7 +1898,7 @@ class TestSearchUserIdNeverNone(unittest.TestCase):
         self.assertEqual(len(empty_calls), 1)
         self.assertIsNotNone(
             empty_calls[0][1].get('user_id'),
-            "Empty-Result Search must not send user_id=None",
+            "Empty-result search must not send user_id=None",
         )
 
     @patch.dict('os.environ', {
@@ -1922,7 +1922,7 @@ class TestSearchUserIdNeverNone(unittest.TestCase):
         self.assertIsNotNone(ids[0])
         self.assertIsNotNone(ids[1])
         self.assertEqual(ids[0], ids[1],
-                         "Search and Empty-Result Search must share the same user_id")
+                         "Search and Empty-result search must share the same user_id")
 
     @patch.dict('os.environ', {
         'RUDDERSTACK_ENABLED': 'true',

@@ -397,7 +397,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                 patch_ctx = dict(context)
                 patch_ctx["ignore_auth"] = True
                 # Prevent after_dataset_update from firing a spurious
-                # 'Update Existing Dataset' analytics event for this
+                # 'Update existing dataset' analytics event for this
                 # internal package_patch call.
                 patch_ctx["_analytics_suppress"] = True
 

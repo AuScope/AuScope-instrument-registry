@@ -11,11 +11,11 @@
 | Stage | Description | Status |
 |---|---|---|
 | Stage 1 | Foundation cleanup — event constants, minimal props, privacy, duplicate prevention, suppression, tests | ✅ Complete |
-| Stage 2A | Search analytics — backend `Search` + `Empty-Result Search` events from `_instrument_platform_search` | ✅ Complete |
-| Stage 2B | User interaction analytics — Search Result Click-Through improved, Resource Preview Opened | ✅ Complete |
-| Stage 2C | Dataset engagement timing — Dataset View Duration (sendBeacon), Time To First Download verified/fixed | ✅ Complete |
-| Stage 3A | Dataset Published With DOI — correct transition detection (first-mint-only) | ✅ Complete |
-| Stage 3B | Dataset Reuse Created — `after_dataset_create` new-version detection | ✅ Complete |
+| Stage 2A | Search analytics — backend `Search` + `Empty-result search` events from `_instrument_platform_search` | ✅ Complete |
+| Stage 2B | User interaction analytics — Search result click-through improved, Resource preview opened | ✅ Complete |
+| Stage 2C | Dataset engagement timing — Dataset view duration (sendBeacon), Time to first download  verified/fixed | ✅ Complete |
+| Stage 3A | Dataset published with DOI — correct transition detection (first-mint-only) | ✅ Complete |
+| Stage 3B | Dataset reuse created — `after_dataset_create` new-version detection | ✅ Complete |
 | Stage 3D | Identity alignment — unified UUID-based user identity across frontend and backend | ✅ Complete |
 | Stage 3C | DataCite citation polling, Dataset Withdrawn | ⏳ Planned |
 | Stage 4 | PR readiness — code cleanup, documentation rewrite, dashboard readiness | ✅ Complete |
@@ -32,8 +32,8 @@ The following changes were implemented and verified (75/75 tests passing):
 | Renamed `track_doi_created` → `track_doi_published` | `analytics.py` | Old function removed; TODO marker added for Stage 3 transition logic |
 | Fixed PII in `identify()` | `base.html` | Removed `email`, `display_name`, `username`, `created` traits; sends only `user_id` |
 | Removed duplicate page-view + XSS | `read_base.html` | Removed inline `<script>` (had unescaped `{{ pkg.title }}`); added `data-*` attributes on wrapper `<div>` |
-| Rewrote JS tracking module | `analytics-tracking.js` | `EVENTS` constants object; single `Dataset Page View` source; no form tracking; `Download` → `file_size_group` only; removed fake 1s setTimeout `Download Completion` |
-| Added `_analytics_suppress` flag | `plugin.py` | Prevents spurious `Update Existing Dataset` from internal `package_patch` on create |
+| Rewrote JS tracking module | `analytics-tracking.js` | `EVENTS` constants object; single `Dataset page view` source; no form tracking; `Download` → `file_size_group` only; removed fake 1s setTimeout `Download Completion` |
+| Added `_analytics_suppress` flag | `plugin.py` | Prevents spurious `Update existing dataset` from internal `package_patch` on create |
 | Fixed API endpoint robustness | `analytics_views.py` | All three endpoints return 400 on missing/invalid JSON body instead of 500 |
 | Expanded test suite | `tests/test_analytics.py` | 4 → 75 tests; 10 test classes covering constants, helpers, PII, file-size buckets, suppression, event names |
 
@@ -65,14 +65,14 @@ Stage 1 foundation work is complete. The following table reflects the **current*
 | Resource item download links | `templates/package/snippets/resource_item.html` | ✅ Has `resource-url-analytics` class and `data-*` attributes |
 | User identify call | `templates/base.html` | ✅ Fixed in Stage 1; sends only `user_id`; no PII |
 | Event name consistency | `analytics.py` + `analytics-tracking.js` | ✅ All events use `EVENT_*` constants; JS `EVENTS` object matches Python constants |
-| `_analytics_suppress` flag | `plugin.py` | ✅ Added in Stage 1; prevents spurious `Update Existing Dataset` on create's `package_patch` |
+| `_analytics_suppress` flag | `plugin.py` | ✅ Added in Stage 1; prevents spurious `Update existing dataset` on create's `package_patch` |
 | Test suite | `tests/test_analytics.py` | ✅ 201 tests, 19 test classes (Stage 3D added 25 tests) |
 | Anonymous / session ID | `analytics-tracking.js` | ⚠️ `sessionStorage`-based session ID exists but not correlated with backend events |
 | Bot filtering | Anywhere | ❌ Not implemented |
 | Search tracking on filter change | Frontend JS | ❌ No tracking on facet click, pagination, or filter-only reloads — planned Stage 2 |
 | Resource preview tracking | Anywhere | ❌ Not implemented — planned Stage 2 |
 | Dataset-reuse / new-version tracking | Anywhere | ❌ Not implemented — planned Stage 3 |
-| DOI citation tracking | Anywhere | ⚠️ JS monitors DOI badge link clicks only as proxy (`DOI-Based Citation`); real DataCite API polling planned Stage 3 |
+| DOI citation tracking | Anywhere | ⚠️ JS monitors DOI badge link clicks only as proxy (`DOI-Based citations`); real DataCite API polling planned Stage 3 |
 | Acquisition channel / referrer | Frontend | ⚠️ Not currently sent in events |
 
 ---
@@ -112,7 +112,7 @@ Stage 1 foundation work is complete. The following table reflects the **current*
 | Click "Download" | `GET /instrument/<name>/resource/<id>/download` | CKAN core `instrument_resource.download` | Same |
 | Backend analytics POST | JS `Resource Download Click` event → `POST /api/analytics/resource-download` | `analytics_views.track_resource_download` | — |
 
-**Analytics notes (post-Stage-1):** `Download` event fires on click with `{resource_format, resource_id, dataset_id, dataset_type, file_size_group}` — no raw bytes or resource_name. `Time To First Download` fires correctly on first click in session. Fake 1-second `Download Completion` setTimeout removed. Resource preview tracking still missing — planned Stage 2.
+**Analytics notes (post-Stage-1):** `Download` event fires on click with `{resource_format, resource_id, dataset_id, dataset_type, file_size_group}` — no raw bytes or resource_name. `Time to first download ` fires correctly on first click in session. Fake 1-second `Download Completion` setTimeout removed. Resource preview tracking still missing — planned Stage 2.
 
 ---
 
@@ -124,7 +124,7 @@ Stage 1 foundation work is complete. The following table reflects the **current*
 | Update instrument | `POST /instrument/<name>/edit` | CKAN core → `after_dataset_update` in `plugin.py` | `analytics.track_dataset_updated(user, pkg_dict)` |
 | Create new version | `GET/POST /instrument/<id>/new_version` | `views.new_version()` → eventually redirects to `instrument.new` → hooks fire as normal | No dedicated tracking; fires create hook as normal |
 
-**Analytics notes (post-Stage-3A):** `Dataset Created` fires correctly from `after_dataset_create`. Spurious `Update Existing Dataset` on create's internal `package_patch` is suppressed via `_analytics_suppress = True`. `Dataset Published With DOI` now fires only on confirmed DOI publication transition — see Stage 3A section for full details.
+**Analytics notes (post-Stage-3A):** `Dataset created` fires correctly from `after_dataset_create`. Spurious `Update existing dataset` on create's internal `package_patch` is suppressed via `_analytics_suppress = True`. `Dataset published with DOI` now fires only on confirmed DOI publication transition — see Stage 3A section for full details.
 
 ---
 
@@ -149,7 +149,7 @@ Stage 1 foundation work is complete. The following table reflects the **current*
 | Confirm / save new version | `POST /instrument/new` via standard form | CKAN core create → `after_dataset_create` fires |
 | Relationship stored | `related_identifier_obj` field | Schema-level; `relation_type: IsNewVersionOf` |
 
-**Analytics gaps:** There is no tracking of "Dataset Reuse Created" at any point. The `_is_new_version` flag exists in `session['package_new_version_data']` but is consumed only by the template and is no longer accessible inside `after_dataset_create`.
+**Analytics gaps:** There is no tracking of "Dataset reuse created" at any point. The `_is_new_version` flag exists in `session['package_new_version_data']` but is consumed only by the template and is no longer accessible inside `after_dataset_create`.
 
 ---
 
@@ -173,21 +173,21 @@ Event names reflect the Stage 1 constants (`EVENT_*` in `analytics.py`, `EVENTS`
 | Metric | Required? | Status | Existing File / Location | Recommended Tracking Location | Event Name | Key Properties |
 |---|---|---|---|---|---|---|
 | Search performed | Yes (Conversion) | ✅ Implemented (Stage 2A) | `views._instrument_platform_search()` after `package_search` | Backend (current) | `Search` | `search_term`, `result_count`, `is_empty`, `dataset_type?`, `page_number?`, `sort_by?` |
-| Empty-result search | Yes (Conversion) | ✅ Implemented (Stage 2A) | Same as above, fires when `result_count == 0` | Backend (current) | `Empty-Result Search` | `search_term`, `result_count`, `is_empty: true`, `dataset_type?`, `page_number?`, `sort_by?` |
-| Search result click-through | Yes (Conversion) | ✅ Improved (Stage 2B) — now sends `dataset_id`, `dataset_type` from `data-*` attrs; dedup guard added | JS `initSearchTracking()` | JS click handler (current) | `Search Result Click-Through` | `dataset_id?`, `dataset_type?`, `result_position`, `search_term?` |
-| Dataset page view | Yes (Conversion) | ✅ Implemented (Stage 1 fixed duplicate) | JS `trackDatasetPageView()` via `data-*` attrs in `read_base.html` | JS module only (current) | `Dataset Page View` | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
-| Resource preview opened | Yes (Conversion) | ✅ Implemented (Stage 2B) | JS `initResourcePreviewTracking()` on `.resource-item` links to resource view pages | JS click handler (current) | `Resource Preview Opened` | `dataset_id`, `dataset_type?`, `resource_id?`, `resource_format?` |
+| Empty-result search | Yes (Conversion) | ✅ Implemented (Stage 2A) | Same as above, fires when `result_count == 0` | Backend (current) | `Empty-result search` | `search_term`, `result_count`, `is_empty: true`, `dataset_type?`, `page_number?`, `sort_by?` |
+| Search result click-through | Yes (Conversion) | ✅ Improved (Stage 2B) — now sends `dataset_id`, `dataset_type` from `data-*` attrs; dedup guard added | JS `initSearchTracking()` | JS click handler (current) | `Search result click-through` | `dataset_id?`, `dataset_type?`, `result_position`, `search_term?` |
+| Dataset page view | Yes (Conversion) | ✅ Implemented (Stage 1 fixed duplicate) | JS `trackDatasetPageView()` via `data-*` attrs in `read_base.html` | JS module only (current) | `Dataset page view` | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
+| Resource preview opened | Yes (Conversion) | ✅ Implemented (Stage 2B) | JS `initResourcePreviewTracking()` on `.resource-item` links to resource view pages | JS click handler (current) | `Resource preview opened` | `dataset_id`, `dataset_type?`, `resource_id?`, `resource_format?` |
 | Resource download | Yes (Conversion) | ✅ Implemented (Stage 1 cleaned) | JS `initDownloadTracking()` → POST `/resource-download` | JS click + server-side download route (Stage 2 for server-side) | `Download` | `resource_id`, `dataset_id`, `resource_format`, `dataset_type`, `file_size_group` |
-| Time to first download | Yes (Conversion) | ✅ Fixed (Stage 2C) — property name corrected to `seconds_to_download`; timing now measured from dataset page load; `dataset_type` + `resource_format` added | JS `initDownloadTracking()` | JS (current) | `Time To First Download` | `dataset_id?`, `dataset_type?`, `resource_id?`, `resource_format?`, `seconds_to_download` |
+| Time to first download  | Yes (Conversion) | ✅ Fixed (Stage 2C) — property name corrected to `seconds_to_download`; timing now measured from dataset page load; `dataset_type` + `resource_format` added | JS `initDownloadTracking()` | JS (current) | `Time to first download ` | `dataset_id?`, `dataset_type?`, `resource_id?`, `resource_format?`, `seconds_to_download` |
 | Download split by size | Yes (Conversion) | ✅ Implemented (Stage 1) | `file_size_group()` helper; included in `Download` event | Current | `Download` → `file_size_group` property | `'small'`/`'medium'`/`'large'`/`'unknown'` |
 | Download completion | Yes (Conversion) | ❌ Removed (fake impl removed in Stage 1) | Was 1s setTimeout — removed | Server-side CKAN download route (Stage 2) | Not yet assigned | — |
-| Dataset created | Yes (Advocacy) | ✅ Implemented | `plugin.py` `after_dataset_create` | Backend hook (keep); Stage 3: add `is_new_version` | `Dataset Created` | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
-| Dataset updated | Yes (Advocacy) | ✅ Implemented (Stage 1 suppression fixed) | `plugin.py` `after_dataset_update` | Backend hook (current) | `Update Existing Dataset` | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
-| Dataset published with DOI | Yes (Advocacy) | ✅ Fixed (Stage 3A) — fires only when confirmed transition from not-published to published | `plugin.py` `before_dataset_update` snapshots old state; `after_dataset_update` compares via `_doi_status_from_db()` | Backend hook (current) | `Dataset Published With DOI` | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `doi_status` |
-| DOI citation detected | Yes (Advocacy) | ⚠️ Proxy only — JS DOI link click | JS `initDOITracking()` on `.doi-badge`, `[data-doi] a`, `a[href*="doi.org"]` | DataCite Event Data API (Stage 3) | `DOI-Based Citation` | `dataset_id`, `dataset_type`, `is_public`, `citation_source: 'doi_link_click'` |
-| Dataset reuse created | Yes (Advocacy) | ✅ Implemented (Stage 3B) | `plugin.py` `after_dataset_create`; `analytics.track_dataset_reuse_created()` | Backend hook (current) | `Dataset Reuse Created` | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `reuse_type`, `source_dataset_id?` |
+| Dataset created | Yes (Advocacy) | ✅ Implemented | `plugin.py` `after_dataset_create` | Backend hook (keep); Stage 3: add `is_new_version` | `Dataset created` | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
+| Dataset updated | Yes (Advocacy) | ✅ Implemented (Stage 1 suppression fixed) | `plugin.py` `after_dataset_update` | Backend hook (current) | `Update existing dataset` | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
+| Dataset published with DOI | Yes (Advocacy) | ✅ Fixed (Stage 3A) — fires only when confirmed transition from not-published to published | `plugin.py` `before_dataset_update` snapshots old state; `after_dataset_update` compares via `_doi_status_from_db()` | Backend hook (current) | `Dataset published with DOI` | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `doi_status` |
+| DOI citation detected | Yes (Advocacy) | ⚠️ Proxy only — JS DOI link click | JS `initDOITracking()` on `.doi-badge`, `[data-doi] a`, `a[href*="doi.org"]` | DataCite Event Data API (Stage 3) | `DOI-Based citations` | `dataset_id`, `dataset_type`, `is_public`, `citation_source: 'doi_link_click'` |
+| Dataset reuse created | Yes (Advocacy) | ✅ Implemented (Stage 3B) | `plugin.py` `after_dataset_create`; `analytics.track_dataset_reuse_created()` | Backend hook (current) | `Dataset reuse created` | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `reuse_type`, `source_dataset_id?` |
 | Unique / returning visitors | Secondary | ⚠️ Partial — RudderStack JS auto-generates anonymous ID | RudderStack JS SDK | RudderStack built-in | — | RudderStack built-in |
-| Average engagement time | Secondary | ✅ Covered (Stage 2C) — `Dataset View Duration` sendBeacon; Amplitude/RudderStack auto-computes session average from this | JS `initDatasetViewDurationTracking()` | JS sendBeacon on visibilitychange + pagehide | `Dataset View Duration` | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `duration_seconds` |
+| Average engagement time | Secondary | ✅ Covered (Stage 2C) — `Dataset view duration` sendBeacon; Amplitude/RudderStack auto-computes session average from this | JS `initDatasetViewDurationTracking()` | JS sendBeacon on visibilitychange + pagehide | `Dataset view duration` | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `duration_seconds` |
 
 ---
 
@@ -201,29 +201,29 @@ Properties use `snake_case`. Events marked ✅ are implemented; ⚠️ partial/p
 | Event Name | Status | Trigger | Core Properties |
 |---|---|---|---|
 | `Search` | ✅ Backend | `_instrument_platform_search` after `package_search` | `search_term`, `result_count`, `is_empty`, `dataset_type?`, `page_number?`, `sort_by?` |
-| `Empty-Result Search` | ✅ Backend | Same; fires when `result_count == 0` | same as `Search` |
-| `Search Result Click-Through` | ✅ JS improved (Stage 2B) | User clicks a result title | `dataset_id?`, `dataset_type?`, `result_position`, `search_term?` |
-| `Dataset Page View` | ✅ JS | Dataset detail page renders | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
-| `Resource Preview Opened` | ✅ JS (Stage 2B) | User clicks a resource-view link on the dataset page | `dataset_id`, `dataset_type?`, `resource_id?`, `resource_format?` |
+| `Empty-result search` | ✅ Backend | Same; fires when `result_count == 0` | same as `Search` |
+| `Search result click-through` | ✅ JS improved (Stage 2B) | User clicks a result title | `dataset_id?`, `dataset_type?`, `result_position`, `search_term?` |
+| `Dataset page view` | ✅ JS | Dataset detail page renders | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
+| `Resource preview opened` | ✅ JS (Stage 2B) | User clicks a resource-view link on the dataset page | `dataset_id`, `dataset_type?`, `resource_id?`, `resource_format?` |
 | `Download` | ✅ JS | User clicks download on a resource | `resource_id?`, `dataset_id?`, `resource_format`, `dataset_type?`, `file_size_group` |
-| `Time To First Download` | ✅ JS fixed (Stage 2C) | First download click in session | `dataset_id?`, `dataset_type?`, `resource_id?`, `resource_format?`, `seconds_to_download` |
-| `Dataset View Duration` | ✅ JS (Stage 2C) | User leaves/hides dataset page | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `duration_seconds` |
+| `Time to first download ` | ✅ JS fixed (Stage 2C) | First download click in session | `dataset_id?`, `dataset_type?`, `resource_id?`, `resource_format?`, `seconds_to_download` |
+| `Dataset view duration` | ✅ JS (Stage 2C) | User leaves/hides dataset page | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `duration_seconds` |
 
 ### 4.2 Advocacy / Stewardship Events
 
 | Event Name | Status | Trigger | Core Properties |
 |---|---|---|---|
-| `Dataset Created` | ✅ Backend | `after_dataset_create` hook | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
-| `Update Existing Dataset` | ✅ Backend | `after_dataset_update` hook (non-automated) | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
-| `Dataset Published With DOI` | ✅ Fixed (Stage 3A) | `after_dataset_update` — only on confirmed not-published → published transition | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `doi_status` |
-| `Dataset Reuse Created` | ✅ Implemented (Stage 3B) | `after_dataset_create` when `version_handler_id != id` (new-version workflow) | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `reuse_type`, `source_dataset_id?` |
-| `DOI-Based Citation` | ⚠️ Proxy only | JS click on DOI link / badge | `dataset_id`, `dataset_type`, `is_public`, `citation_source: 'doi_link_click'` |
+| `Dataset created` | ✅ Backend | `after_dataset_create` hook | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
+| `Update existing dataset` | ✅ Backend | `after_dataset_update` hook (non-automated) | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
+| `Dataset published with DOI` | ✅ Fixed (Stage 3A) | `after_dataset_update` — only on confirmed not-published → published transition | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `doi_status` |
+| `Dataset reuse created` | ✅ Implemented (Stage 3B) | `after_dataset_create` when `version_handler_id != id` (new-version workflow) | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `reuse_type`, `source_dataset_id?` |
+| `DOI-Based citations` | ⚠️ Proxy only | JS click on DOI link / badge | `dataset_id`, `dataset_type`, `is_public`, `citation_source: 'doi_link_click'` |
 
 ### 4.3 Planned Events (Not Yet Implemented)
 
 | Event Name | Planned Stage | Trigger |
 |---|---|---|
-| `DOI-Based Citation` (real detection) | Stage 3C | DataCite Event Data API polling |
+| `DOI-Based citations` (real detection) | Stage 3C | DataCite Event Data API polling |
 | `Dataset Withdrawn` | Stage 3C | `views.withdraw()` success |
 
 ### 4.4 Common Property Schema
@@ -252,8 +252,8 @@ All items below were implemented and verified (75/75 tests passing, no lint erro
 4. ✅ **Fixed PII in `identify()` call** — removed `email`, `display_name`, `username`, `created` from `base.html`; sends `user_id` only.
 5. ✅ **Fixed XSS and duplicate page-view in `read_base.html`** — removed inline `<script>` block; replaced with `data-dataset-id`, `data-dataset-type`, `data-is-public` attributes on wrapper `<div>`.
 6. ✅ **Renamed `track_doi_created` → `track_doi_published`** — old function removed; payload uses `minimal_dataset_props` + `doi_status`; no raw DOI value sent. Full transition logic (first-mint-only) deferred to Stage 3 with TODO comment.
-7. ✅ **Added `_analytics_suppress` flag** in `plugin.py` — prevents spurious `Update Existing Dataset` from internal `package_patch` call during dataset creation.
-8. ✅ **Rewrote `analytics-tracking.js`** — `EVENTS` constants; single `Dataset Page View` source; removed `initFormTracking()` (was duplicating backend events); removed fake 1-second setTimeout `Download Completion`; `file_size_group` property on `Download`; `DOI-Based Citation` documented as proxy-only.
+7. ✅ **Added `_analytics_suppress` flag** in `plugin.py` — prevents spurious `Update existing dataset` from internal `package_patch` call during dataset creation.
+8. ✅ **Rewrote `analytics-tracking.js`** — `EVENTS` constants; single `Dataset page view` source; removed `initFormTracking()` (was duplicating backend events); removed fake 1-second setTimeout `Download Completion`; `file_size_group` property on `Download`; `DOI-Based citations` documented as proxy-only.
 9. ✅ **Fixed API endpoint robustness** — all three endpoints in `analytics_views.py` return 400 on missing/invalid JSON body.
 10. ✅ **Expanded test suite** — 4 → 75 tests across 10 classes covering constants, helpers, PII, file-size buckets, suppression, event names, search params.
 
@@ -262,14 +262,14 @@ All items below were implemented and verified (75/75 tests passing, no lint erro
 ### Stage 2A — Search Analytics ✅ COMPLETE
 
 1. ✅ **Backend `Search` event** — `analytics.track_dataset_search()` called in `_instrument_platform_search()` after `package_search` returns successfully.  Properties: `search_term`, `result_count`, `is_empty`, plus optional `dataset_type`, `page_number`, `sort_by`.
-2. ✅ **`Empty-Result Search` event** — fires from the same call inside `track_dataset_search` when `result_count == 0`. Same properties as `Search`.
-3. ✅ **Frontend duplicate removed** — form-submit `EVENTS.SEARCH` handler removed from `analytics-tracking.js`; backend is now the single source of truth. `Search Result Click-Through` is unaffected.
+2. ✅ **`Empty-result search` event** — fires from the same call inside `track_dataset_search` when `result_count == 0`. Same properties as `Search`.
+3. ✅ **Frontend duplicate removed** — form-submit `EVENTS.SEARCH` handler removed from `analytics-tracking.js`; backend is now the single source of truth. `Search result click-through` is unaffected.
 4. ✅ **Failure safety** — tracking wrapped in `try/except` in `_instrument_platform_search`; failure logs a warning and does not affect the search response.
 5. ✅ **Tests** — 13 new tests covering: event fires, required properties, no PII, optional properties, empty-result gate, shared props for empty-result, anonymous user, failure safety pattern.
 
 ### Stage 2B — User Interaction Analytics ⚠️ Partially Complete
 
-1. ✅ **Search Result Click-Through improved** — `initSearchTracking()` now reads `dataset_id` and
+1. ✅ **Search result click-through improved** — `initSearchTracking()` now reads `dataset_id` and
    `dataset_type` from `data-dataset-id` / `data-dataset-type` attributes on the
    `.dataset-item-wrapper` element (added to `snippets/package_item.html`). A dedup guard
    (`data-analytics-click-tracked` marker) prevents double-binding. The `try/catch` inside the
@@ -277,7 +277,7 @@ All items below were implemented and verified (75/75 tests passing, no lint erro
    - **Files changed:** `assets/js/analytics-tracking.js`, `templates/snippets/package_item.html`
    - **Payload:** `{ dataset_id?, dataset_type?, result_position, search_term? }` — no title, name, URL, facets
 
-2. ✅ **Resource Preview Opened implemented** — `initResourcePreviewTracking()` added to
+2. ✅ **Resource preview opened implemented** — `initResourcePreviewTracking()` added to
    `analytics-tracking.js`. Active on dataset read pages only (requires
    `[data-module="dataset-view"]` wrapper). Tracks clicks on:
    - `.resource-item a.heading` links (`resource_item_short.html`)
@@ -287,7 +287,7 @@ All items below were implemented and verified (75/75 tests passing, no lint erro
    - **Files changed:** `assets/js/analytics-tracking.js`
    - **Payload:** `{ dataset_id, dataset_type?, resource_id?, resource_format? }` — no resource name, dataset name, raw URL
 
-3. ⏳ **Dataset View Duration** — ✅ Implemented (Stage 2C). See Stage 2C section below.
+3. ⏳ **Dataset view duration** — ✅ Implemented (Stage 2C). See Stage 2C section below.
 
 4. ⏳ **Download completion reliability** — not implemented. Client-side completion detection is
    fundamentally unreliable. Best practical approach: override CKAN's download view at the
@@ -303,7 +303,7 @@ All items below were implemented and verified (75/75 tests passing, no lint erro
 ### Stage 2C — Dataset Engagement Timing ✅ Complete
 
 1. ✅ **`EVENT_DATASET_VIEW_DURATION` constant added** — `analytics.py` and `EVENTS` object in
-   `analytics-tracking.js`. Value: `'Dataset View Duration'`.
+   `analytics-tracking.js`. Value: `'Dataset view duration'`.
 
 2. ✅ **`KNOWN_FRONTEND_EVENTS` frozenset added to `analytics.py`** — used by the
    `/api/analytics/track` endpoint as a whitelist. Prevents unknown event names from being
@@ -312,7 +312,7 @@ All items below were implemented and verified (75/75 tests passing, no lint erro
 3. ✅ **`/api/analytics/track` endpoint hardened** — now returns 400 for event names not in
    `KNOWN_FRONTEND_EVENTS`. Existing 400-on-missing-body behaviour unchanged.
 
-4. ✅ **`Dataset View Duration` tracking implemented** — `initDatasetViewDurationTracking()` in
+4. ✅ **`Dataset view duration` tracking implemented** — `initDatasetViewDurationTracking()` in
    `analytics-tracking.js`. Active on dataset read pages only (requires `[data-module="dataset-view"]` wrapper).
    - Records `pageStart = Date.now()` at page load.
    - Fires at most once per page view (`fired` boolean guard).
@@ -326,7 +326,7 @@ All items below were implemented and verified (75/75 tests passing, no lint erro
    - **Payload:** `{ dataset_id, dataset_type, is_public, has_doi, duration_seconds }` — no title,
      name, URL, email, username, or raw DOI value.
 
-5. ✅ **`Time To First Download` verified and fixed** — `initDownloadTracking()` in
+5. ✅ **`Time to first download ` verified and fixed** — `initDownloadTracking()` in
    `analytics-tracking.js`:
    - **Bug fixed:** property name was `time_to_download_seconds` (wrong). Now `seconds_to_download`.
    - **Bug fixed:** timing used `session_start` (start of browsing session). Now uses
@@ -346,14 +346,14 @@ All items below were implemented and verified (75/75 tests passing, no lint erro
 
 **Not implemented in Stage 2C (by design):**
 - Download Completion (`Resource Download Completed`) — unreliable browser-side; deferred
-- DOI-Based Citation (real detection) — DataCite API polling; deferred Stage 3B
-- Dataset Reuse Created — deferred Stage 3B
+- DOI-Based citations (real detection) — DataCite API polling; deferred Stage 3B
+- Dataset reuse created — deferred Stage 3B
 
 ---
 
-### Stage 3A — Dataset Published With DOI (Transition Fix) ✅ COMPLETE
+### Stage 3A — Dataset published with DOI (Transition Fix) ✅ COMPLETE
 
-**Problem:** The previous implementation fired `Dataset Published With DOI` on every dataset update where a `doi` field happened to be present in the raw `pkg_dict`. This caused the event to fire repeatedly on any edit of a dataset with an existing published DOI.
+**Problem:** The previous implementation fired `Dataset published with DOI` on every dataset update where a `doi` field happened to be present in the raw `pkg_dict`. This caused the event to fire repeatedly on any edit of a dataset with an existing published DOI.
 
 **Root cause:** The guard `if pkg_dict.get('doi'):` only checks whether the DOI *string* is in the package dict — it does not check whether the DOI was *just* published for the first time.
 
@@ -412,16 +412,16 @@ Properties **not** sent: `doi` (full identifier), `name`, `title`, `email`, `use
 - `TestStage3AContextSnapshot` (5 tests) — `before_dataset_update` stores correct `True`/`False`/`None` in context
 
 **Not implemented in Stage 3A (by design):**
-- DOI-Based Citation (real detection) — DataCite Event Data API polling → Stage 3C
-- Dataset Reuse Created → Stage 3B (now complete)
+- DOI-Based citations (real detection) — DataCite Event Data API polling → Stage 3C
+- Dataset reuse created → Stage 3B (now complete)
 - Dataset Withdrawn → Stage 3C
 - No changes to Stage 1/2 behaviour
 
 ---
 
-### Stage 3B — Dataset Reuse Created ✅ COMPLETE
+### Stage 3B — Dataset reuse created ✅ COMPLETE
 
-**Problem:** There was no tracking of when a dataset is created as a new version of an existing one. The `after_dataset_create` hook fired `Dataset Created` for all new datasets, with no distinction between an ordinary create and a "Create New Version" workflow.
+**Problem:** There was no tracking of when a dataset is created as a new version of an existing one. The `after_dataset_create` hook fired `Dataset created` for all new datasets, with no distinction between an ordinary create and a "Create New Version" workflow.
 
 **Detection approach:**
 
@@ -433,7 +433,7 @@ For the `source_dataset_id`, `prepare_dataset_for_cloning()` adds an `IsNewVersi
 
 **Fix implemented:**
 
-1. **`EVENT_DATASET_REUSE_CREATED = 'Dataset Reuse Created'`** — added to constants block in `analytics.py`.
+1. **`EVENT_DATASET_REUSE_CREATED = 'Dataset reuse created'`** — added to constants block in `analytics.py`.
 
 2. **`analytics._is_new_version_pkg(pkg_dict)`** — returns `True` when `version_handler_id` is set and differs from `pkg_dict['id']`. Safe and O(1).
 
@@ -445,7 +445,7 @@ For the `source_dataset_id`, `prepare_dataset_for_cloning()` adds an `IsNewVersi
 
 **Detection guard in `after_dataset_create`:**
 ```python
-# Stage 3B: Dataset Reuse Created
+# Stage 3B: Dataset reuse created
 try:
     if analytics._is_new_version_pkg(pkg_dict):
         source_id = analytics._reuse_source_from_pkg(pkg_dict)
@@ -469,8 +469,8 @@ except Exception as e:
 Properties **not** sent: `doi`, `name`, `title`, `email`, `username`, `version_handler_id`, `related_identifier` (raw DOI), any other metadata.
 
 **Both events fire for a new-version create:**
-- `Dataset Created` — always fires for any new dataset (unchanged)
-- `Dataset Reuse Created` — fires additionally when the new dataset is a version of an existing one
+- `Dataset created` — always fires for any new dataset (unchanged)
+- `Dataset reuse created` — fires additionally when the new dataset is a version of an existing one
 
 **Files changed:**
 - `ckan/src/ckanext-pidinst-theme/ckanext/pidinst_theme/analytics.py` — added `EVENT_DATASET_REUSE_CREATED`; added `_is_new_version_pkg()`; added `_reuse_source_from_pkg()`; added `track_dataset_reuse_created()`
@@ -480,10 +480,10 @@ Properties **not** sent: `doi`, `name`, `title`, `email`, `username`, `version_h
 **Tests added (Stage 3B): 26 new tests — total now 176, all passing.**
 - `TestIsNewVersionPkg` (5 tests) — `_is_new_version_pkg`: true when differs, false when same, false when absent/empty, false when id missing
 - `TestReuseSourceFromPkg` (8 tests) — `_reuse_source_from_pkg`: extracts ID from list, from JSON string, ignores other relation types, None when absent/empty/no-pkg-id/invalid-JSON/no-doi-leak
-- `TestStage3BDatasetReuseCreated` (13 tests) — fires for new version; does NOT fire for ordinary create; does NOT fire when vhid absent; `Dataset Created` still fires; payload required props; `source_dataset_id` included/absent; `reuse_type='new_version'`; no PII; `is_public` reflects `private`; failure safety; event name constant
+- `TestStage3BDatasetReuseCreated` (13 tests) — fires for new version; does NOT fire for ordinary create; does NOT fire when vhid absent; `Dataset created` still fires; payload required props; `source_dataset_id` included/absent; `reuse_type='new_version'`; no PII; `is_public` reflects `private`; failure safety; event name constant
 
 **Not implemented in Stage 3B (by design):**
-- DOI-Based Citation (real detection) → Stage 3C
+- DOI-Based citations (real detection) → Stage 3C
 - Dataset Withdrawn → Stage 3C
 - No changes to Stage 1/2/3A behaviour
 
@@ -491,7 +491,7 @@ Properties **not** sent: `doi`, `name`, `title`, `email`, `username`, `version_h
 
 ### Stage 3D — Identity Alignment ✅ COMPLETE
 
-**Problem:** Frontend events (Dataset Page View, Download, Search Result Click-Through, etc.) and backend lifecycle events (Dataset Created, Update Existing Dataset, Dataset Published With DOI, Dataset Reuse Created) used different user identifiers for the same logged-in user:
+**Problem:** Frontend events (Dataset page view, Download, Search result click-through, etc.) and backend lifecycle events (Dataset created, Update existing dataset, Dataset published with DOI, Dataset reuse created) used different user identifiers for the same logged-in user:
 
 - Frontend RudderStack `identify()` → `c.userobj.id` (internal CKAN UUID, e.g. `3f8a2b1c-…`)
 - Backend plugin.py hooks → `context.get('user')` → a **username string** (e.g. `ckan_admin`)
@@ -559,18 +559,18 @@ This split one user journey across two different analytics identities, making fu
 1. Log in as a CKAN user. Open a dataset page, then open the browser DevTools Network tab.
 2. Find the call to `identify` — verify the userId matches the value in `window.PIDINST_ANALYTICS_USER_ID` (a UUID, not a username).
 3. Perform a download. In RudderStack Live Events, verify the Download event's `userId` matches the identify UUID.
-4. Edit the dataset. In RudderStack Live Events, verify the `Update Existing Dataset` backend event uses the same UUID.
+4. Edit the dataset. In RudderStack Live Events, verify the `Update existing dataset` backend event uses the same UUID.
 5. Log out. Verify no `identify` call is made and events appear with `anonymousId` only.
 
 ---
 
 ### Stage 3C — Remaining Advocacy Metrics (⏳ Planned)
 
-1. ✅ **`Dataset Created` (Stage 3B)** — fires for all creates (unchanged). `Dataset Reuse Created` fires additionally for new-version creates.
+1. ✅ **`Dataset created` (Stage 3B)** — fires for all creates (unchanged). `Dataset reuse created` fires additionally for new-version creates.
 
 2. ✅ **DOI published tracking fixed (Stage 3A)** — implemented via `before_dataset_update` snapshot + `_doi_status_from_db()` comparison. See Stage 3A section above.
 
-3. ✅ **Dataset Reuse Created (Stage 3B)** — fires from `after_dataset_create` when `version_handler_id != id`. See Stage 3B section above.
+3. ✅ **Dataset reuse created (Stage 3B)** — fires from `after_dataset_create` when `version_handler_id != id`. See Stage 3B section above.
 
 4. **Dataset Withdrawn tracking**: In `views.withdraw()`, after the successful `package_patch` call, fire `Dataset Withdrawn`.
 
@@ -584,7 +584,7 @@ This split one user journey across two different analytics identities, making fu
 
 **Changes made:**
 
-1. **Fixed `AnalyticsTracker.track()` dict mutation** — `analytics.py`: the method previously mutated the caller's `properties` dict in-place (adding `timestamp` and `environment`). Changed to `props = dict(properties)` before mutation. Prevented a subtle bug where calling `track()` twice with the same dict (Search + Empty-Result Search) would carry forward extra keys.
+1. **Fixed `AnalyticsTracker.track()` dict mutation** — `analytics.py`: the method previously mutated the caller's `properties` dict in-place (adding `timestamp` and `environment`). Changed to `props = dict(properties)` before mutation. Prevented a subtle bug where calling `track()` twice with the same dict (Search + Empty-result search) would carry forward extra keys.
 
 2. **Removed dead `initSessionTracking()` in JS** — `analytics-tracking.js`: the function created `session_id` and `session_start` values in `sessionStorage` but these were never read by any event handler. Removed the function and its call from `initializeTracking()`.
 
@@ -618,42 +618,42 @@ This split one user journey across two different analytics identities, making fu
 | Widget | Event(s) | Metric |
 |---|---|---|
 | Searches over time | `Search` | Count per day |
-| Empty-result rate | `Empty-Result Search` / `Search` | % |
-| Click-through rate | `Search Result Click-Through` / `Search` | % |
-| Dataset page views | `Dataset Page View` | Count |
-| Avg view duration | `Dataset View Duration`.`duration_seconds` | Average (seconds) |
+| Empty-result rate | `Empty-result search` / `Search` | % |
+| Click-through rate | `Search result click-through` / `Search` | % |
+| Dataset page views | `Dataset page view` | Count |
+| Avg view duration | `Dataset view duration`.`duration_seconds` | Average (seconds) |
 | Downloads | `Download` | Count |
-| Time to first download | `Time To First Download`.`seconds_to_download` | Average (seconds) |
-| Download rate | `Download` / `Dataset Page View` | % |
+| Time to first download  | `Time to first download `.`seconds_to_download` | Average (seconds) |
+| Download rate | `Download` / `Dataset page view` | % |
 
 ### Stewardship Dashboard
 
 | Widget | Event(s) | Metric |
 |---|---|---|
-| Datasets created | `Dataset Created` | Count |
-| Datasets updated | `Update Existing Dataset` | Count |
-| DOI publications | `Dataset Published With DOI` | Count |
-| Dataset reuses | `Dataset Reuse Created` | Count |
-| Reuse rate | `Dataset Reuse Created` / `Dataset Created` | % |
+| Datasets created | `Dataset created` | Count |
+| Datasets updated | `Update existing dataset` | Count |
+| DOI publications | `Dataset published with DOI` | Count |
+| Dataset reuses | `Dataset reuse created` | Count |
+| Reuse rate | `Dataset reuse created` / `Dataset created` | % |
 | Instrument vs platform | Any event `.dataset_type` | Breakdown |
 | Public vs private | Any event `.is_public` | Breakdown |
 
 ### Manual Verification Checklist
 
 - [ ] Search with results → `Search` event fires with `result_count > 0`, `is_empty: false`
-- [ ] Search with no results → both `Search` and `Empty-Result Search` fire with `result_count: 0`
-- [ ] Click a search result → `Search Result Click-Through` fires with `result_position`
-- [ ] Load a dataset page → `Dataset Page View` fires once
-- [ ] Stay on dataset page ≥ 3 s then navigate away → `Dataset View Duration` fires with `duration_seconds ≥ 3`
-- [ ] Click a resource view / explore link → `Resource Preview Opened` fires
+- [ ] Search with no results → both `Search` and `Empty-result search` fire with `result_count: 0`
+- [ ] Click a search result → `Search result click-through` fires with `result_position`
+- [ ] Load a dataset page → `Dataset page view` fires once
+- [ ] Stay on dataset page ≥ 3 s then navigate away → `Dataset view duration` fires with `duration_seconds ≥ 3`
+- [ ] Click a resource view / explore link → `Resource preview opened` fires
 - [ ] Click a download link → `Download` fires with `file_size_group`
-- [ ] Download fires once per click; second download in session sends `Download` but not `Time To First Download`
-- [ ] First download click → `Time To First Download` fires with `seconds_to_download`
-- [ ] Create a new dataset → `Dataset Created` fires
-- [ ] Create a new version of an existing dataset → both `Dataset Created` and `Dataset Reuse Created` fire
-- [ ] Edit an existing dataset → `Update Existing Dataset` fires; no `Dataset Created`
-- [ ] Publish a DOI for the first time → `Dataset Published With DOI` fires with `doi_status: published`
-- [ ] Edit a dataset with an already-published DOI → `Dataset Published With DOI` does NOT fire
+- [ ] Download fires once per click; second download in session sends `Download` but not `Time to first download `
+- [ ] First download click → `Time to first download ` fires with `seconds_to_download`
+- [ ] Create a new dataset → `Dataset created` fires
+- [ ] Create a new version of an existing dataset → both `Dataset created` and `Dataset reuse created` fire
+- [ ] Edit an existing dataset → `Update existing dataset` fires; no `Dataset created`
+- [ ] Publish a DOI for the first time → `Dataset published with DOI` fires with `doi_status: published`
+- [ ] Edit a dataset with an already-published DOI → `Dataset published with DOI` does NOT fire
 - [ ] Logged-in user: verify `identify()` UUID matches the backend `user_id` in RudderStack Live Events
 - [ ] Anonymous user: verify no `identify()` call; events appear with `anonymousId` only
 
@@ -672,7 +672,7 @@ This split one user journey across two different analytics identities, making fu
 | `ckanext/pidinst_theme/plugin.py` | `_analytics_suppress = True` in `package_patch` ctx; guard in `after_dataset_update`; TODO comment on DOI transition logic |
 | `ckanext/pidinst_theme/templates/base.html` | `identify()` sends only `user_id`; no PII traits |
 | `ckanext/pidinst_theme/templates/package/read_base.html` | Removed inline `<script>` block (XSS + duplicate); added `data-dataset-id`, `data-dataset-type`, `data-is-public` on wrapper `<div>` |
-| `ckanext/pidinst_theme/assets/js/analytics-tracking.js` | Full rewrite: `EVENTS` constants; single `Dataset Page View` source; `initFormTracking()` removed; fake `Download Completion` removed; `file_size_group` on `Download`; `DOI-Based Citation` proxy documented |
+| `ckanext/pidinst_theme/assets/js/analytics-tracking.js` | Full rewrite: `EVENTS` constants; single `Dataset page view` source; `initFormTracking()` removed; fake `Download Completion` removed; `file_size_group` on `Download`; `DOI-Based citations` proxy documented |
 | `ckanext/pidinst_theme/tests/test_analytics.py` | 75 tests across 10 classes (was 4 tests) |
 
 ### Stage 2 — Files Changed
@@ -680,7 +680,7 @@ This split one user journey across two different analytics identities, making fu
 | File | What changed |
 |---|---|
 | `ckanext/pidinst_theme/views.py` | Added server-side search tracking in `_instrument_platform_search()` (Stage 2A) |
-| `ckanext/pidinst_theme/assets/js/analytics-tracking.js` | Stage 2B: `Resource Preview Opened` handler; Stage 2C: `Dataset View Duration` sendBeacon; TTFD property/timing/props fix |
+| `ckanext/pidinst_theme/assets/js/analytics-tracking.js` | Stage 2B: `Resource preview opened` handler; Stage 2C: `Dataset view duration` sendBeacon; TTFD property/timing/props fix |
 | `ckanext/pidinst_theme/analytics.py` | Stage 2C: `EVENT_DATASET_VIEW_DURATION`, `KNOWN_FRONTEND_EVENTS` frozenset |
 | `ckanext/pidinst_theme/analytics_views.py` | Stage 2C: event whitelist validation on `/api/analytics/track` |
 | `ckanext/pidinst_theme/templates/snippets/package_item.html` | Stage 2B: `data-dataset-id` / `data-dataset-type` attrs on `.dataset-item-wrapper` |
@@ -689,7 +689,7 @@ This split one user journey across two different analytics identities, making fu
 
 | File | Reason |
 |---|---|
-| `ckanext/pidinst_theme/plugin.py` | Fix `Dataset Published With DOI` transition logic; add `Dataset Reuse Created` detection |
+| `ckanext/pidinst_theme/plugin.py` | Fix `Dataset published with DOI` transition logic; add `Dataset reuse created` detection |
 | `ckanext/pidinst_theme/analytics.py` | Add `track_dataset_withdrawn()`, `track_dataset_reuse_created()` |
 | `ckanext/pidinst_theme/views.py` | Add analytics call in `withdraw()`; pass `_original_package_id` in new version flow |
 
@@ -705,8 +705,8 @@ This split one user journey across two different analytics identities, making fu
 | Risk | Severity | Stage 1 Status | Notes |
 |---|---|---|---|
 | **DOI event fires on every update once DOI exists** | High | ⚠️ Partially mitigated — renamed, properties fixed, TODO added | Full first-mint-only check deferred to Stage 3 |
-| **Spurious `Update Existing Dataset` during `after_dataset_create`** | Medium | ✅ Fixed — `_analytics_suppress` flag | |
-| **Duplicate `Dataset Page View`** | Medium | ✅ Fixed — inline script removed; JS module is single source | |
+| **Spurious `Update existing dataset` during `after_dataset_create`** | Medium | ✅ Fixed — `_analytics_suppress` flag | |
+| **Duplicate `Dataset page view`** | Medium | ✅ Fixed — inline script removed; JS module is single source | |
 | **XSS in `read_base.html`** | High | ✅ Fixed — inline script removed; `data-*` attrs used | |
 | **PII in `identify()` call** | High | ✅ Fixed — only `user_id` sent | |
 | **Bot traffic** | Medium | ❌ Not implemented | Stage 2: user-agent sniffing in backend endpoints |
@@ -719,7 +719,7 @@ This split one user journey across two different analytics identities, making fu
 
 1. **Should anonymous user behaviour be tracked server-side at all?** Currently backend events for anonymous users use `user_id: None`. A per-session anonymous ID is needed for funnel analysis. Suggest: use `flask.session.sid` or a signed cookie.
 
-2. **What is the intended `Dataset Published With DOI` trigger?** First mint only? Or also on metadata update? This decision gates the Stage 3 implementation approach.
+2. **What is the intended `Dataset published with DOI` trigger?** First mint only? Or also on metadata update? This decision gates the Stage 3 implementation approach.
 
 3. **DataCite Event Data API polling**: Should this be implemented? It requires the site's DOI prefix. It would provide the most reliable citation tracking as a background job.
 

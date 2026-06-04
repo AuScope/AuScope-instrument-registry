@@ -13,29 +13,29 @@ Event tracking is split between the backend (Python/RudderStack SDK) and the fro
 | Event Name | Source | Trigger |
 |---|---|---|
 | `Search` | Backend | After successful `package_search` in `_instrument_platform_search` |
-| `Empty-Result Search` | Backend | Same call when `result_count == 0` |
-| `Search Result Click-Through` | Frontend JS | User clicks a search result heading |
-| `Dataset Page View` | Frontend JS | Dataset detail page loads |
-| `Resource Preview Opened` | Frontend JS | User clicks a resource view / explore link |
+| `Empty-result search` | Backend | Same call when `result_count == 0` |
+| `Search result click-through` | Frontend JS | User clicks a search result heading |
+| `Dataset page view` | Frontend JS | Dataset detail page loads |
+| `Resource preview opened` | Frontend JS | User clicks a resource view / explore link |
 | `Download` | Frontend JS | User clicks a download link |
-| `Time To First Download` | Frontend JS | First download click per dataset page load |
-| `Dataset View Duration` | Frontend JS (sendBeacon) | User navigates away from dataset page |
+| `Time to first download ` | Frontend JS | First download click per dataset page load |
+| `Dataset view duration` | Frontend JS (sendBeacon) | User navigates away from dataset page |
 
 ### Stewardship Events
 
 | Event Name | Source | Trigger |
 |---|---|---|
-| `Dataset Created` | Backend | `after_dataset_create` hook |
-| `Update Existing Dataset` | Backend | `after_dataset_update` hook (user edits only) |
-| `Dataset Published With DOI` | Backend | First DOI publication transition detected |
-| `Dataset Reuse Created` | Backend | `after_dataset_create` when a new version is created |
-| `DOI-Based Citation` | Frontend JS (proxy) | User clicks a DOI badge or link |
+| `Dataset created` | Backend | `after_dataset_create` hook |
+| `Update existing dataset` | Backend | `after_dataset_update` hook (user edits only) |
+| `Dataset published with DOI` | Backend | First DOI publication transition detected |
+| `Dataset reuse created` | Backend | `after_dataset_create` when a new version is created |
+| `DOI-Based citations` | Frontend JS (proxy) | User clicks a DOI badge or link |
 
 ### Not Implemented
 
 - **Download Completion** — client-side completion detection is unreliable. Requires a server-side CKAN download route override. Not implemented.
 - **Dataset Withdrawn** — planned; not yet implemented.
-- **DOI-Based Citation (real)** — the JS event above is a proxy (link click intent). Real citation detection requires the DataCite Event Data API. Not implemented.
+- **DOI-Based citations (real)** — the JS event above is a proxy (link click intent). Real citation detection requires the DataCite Event Data API. Not implemented.
 
 ## Configuration
 
@@ -75,7 +75,7 @@ Relay a frontend event to RudderStack. The `event` field must match a known even
 
 ```json
 {
-  "event": "Dataset View Duration",
+  "event": "Dataset view duration",
   "properties": {
     "dataset_id": "3f8a2b1c-...",
     "dataset_type": "instrument",
@@ -121,7 +121,7 @@ Track a search event (primarily called from views.py backend). Can also be used 
 
 When a user performs a search on `/instruments` or `/platforms`, the backend view handler
 (`_instrument_platform_search` in `views.py`) collects all active facet/filter selections into a
-`fields_grouped` dict. Before firing the `Search` (and `Empty-Result Search`) analytics event,
+`fields_grouped` dict. Before firing the `Search` (and `Empty-result search`) analytics event,
 `analytics.extract_filter_values(fields_grouped)` is called to produce a flat list of selected
 filter values. These, combined with the search term, are passed to `build_search_keywords()` and
 `build_search_context()` to produce the event payload.
@@ -211,7 +211,7 @@ can appear. URLs, package IDs, org IDs, usernames, emails, and DOIs never appear
 
 #### Empty-result searches by context
 - **Chart type:** Table
-- **Event:** `Empty-Result Search`
+- **Event:** `Empty-result search`
 - **Columns:** `search_term`, `search_keywords`, `search_context`
 - **Insight:** Which term + filter combinations yield no results (potential vocabulary gaps).
 
@@ -314,16 +314,16 @@ If missing, add `rudder-sdk-python` to `ckan/src/requirements.txt` and rebuild.
 ### Example Funnel: Download Conversion
 
 1. Search
-2. Search Result Click-Through
-3. Dataset Page View
+2. Search result click-through
+3. Dataset page view
 4. Resource Download Click
 5. Download Completion
 
 ### Example Funnel: DOI Publication
 
-1. Dataset Created
-2. Dataset Page View (by creator)
-3. Dataset Published with DOI
+1. Dataset created
+2. Dataset page view (by creator)
+3. Dataset published with DOI
 
 ## Best Practices
 

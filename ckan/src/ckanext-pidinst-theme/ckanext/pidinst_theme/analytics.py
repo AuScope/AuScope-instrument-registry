@@ -16,18 +16,18 @@ log = logging.getLogger(__name__)
 # Names match the requirements table exactly.
 # ---------------------------------------------------------------------------
 EVENT_SEARCH = 'Search'
-EVENT_EMPTY_RESULT_SEARCH = 'Empty-Result Search'
-EVENT_SEARCH_RESULT_CLICK_THROUGH = 'Search Result Click-Through'
-EVENT_DATASET_PAGE_VIEW = 'Dataset Page View'
+EVENT_EMPTY_RESULT_SEARCH = 'Empty-result search'
+EVENT_SEARCH_RESULT_CLICK_THROUGH = 'Search result click-through'
+EVENT_DATASET_PAGE_VIEW = 'Dataset page view'
 EVENT_DOWNLOAD = 'Download'
-EVENT_TIME_TO_FIRST_DOWNLOAD = 'Time To First Download'
-EVENT_DATASET_CREATED = 'Dataset Created'
-EVENT_DATASET_PUBLISHED_WITH_DOI = 'Dataset Published With DOI'
-EVENT_UPDATE_EXISTING_DATASET = 'Update Existing Dataset'
-EVENT_DOI_BASED_CITATION = 'DOI-Based Citation'
-EVENT_RESOURCE_PREVIEW_OPENED = 'Resource Preview Opened'
-EVENT_DATASET_VIEW_DURATION = 'Dataset View Duration'
-EVENT_DATASET_REUSE_CREATED = 'Dataset Reuse Created'
+EVENT_TIME_TO_FIRST_DOWNLOAD = 'Time to first download '
+EVENT_DATASET_CREATED = 'Dataset created'
+EVENT_DATASET_PUBLISHED_WITH_DOI = 'Dataset published with DOI'
+EVENT_UPDATE_EXISTING_DATASET = 'Update existing dataset'
+EVENT_DOI_BASED_CITATION = 'DOI-Based citations'
+EVENT_RESOURCE_PREVIEW_OPENED = 'Resource preview opened'
+EVENT_DATASET_VIEW_DURATION = 'Dataset view duration'
+EVENT_DATASET_REUSE_CREATED = 'Dataset reuse created'
 
 # ---------------------------------------------------------------------------
 # Known frontend event names — used to whitelist the /api/analytics/track
@@ -407,7 +407,7 @@ def track_doi_published(dataset_dict: Dict[str, Any],
 
 
 # ---------------------------------------------------------------------------
-# Stage 3B: Dataset Reuse Created helpers
+# Stage 3B: Dataset reuse created helpers
 # ---------------------------------------------------------------------------
 
 def _reuse_source_from_pkg(pkg_dict: Dict[str, Any]) -> Optional[str]:

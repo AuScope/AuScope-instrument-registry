@@ -9,23 +9,23 @@ All event names are defined as `EVENT_*` constants in `analytics.py` and as `EVE
 | Event Name | Source | Core Properties |
 |---|---|---|
 | `Search` | Backend | `search_term`, `search_keywords`, `search_context`, `result_count`, `is_empty`, `dataset_type?`, `page_number?`, `sort_by?` |
-| `Empty-Result Search` | Backend | same as `Search`; fires only when `result_count == 0` |
-| `Search Result Click-Through` | Frontend JS | `result_position`, `dataset_id?`, `dataset_type?`, `search_term?` |
-| `Dataset Page View` | Frontend JS | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
-| `Resource Preview Opened` | Frontend JS | `dataset_id`, `dataset_type?`, `resource_id?`, `resource_format?` |
+| `Empty-result search` | Backend | same as `Search`; fires only when `result_count == 0` |
+| `Search result click-through` | Frontend JS | `result_position`, `dataset_id?`, `dataset_type?`, `search_term?` |
+| `Dataset page view` | Frontend JS | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
+| `Resource preview opened` | Frontend JS | `dataset_id`, `dataset_type?`, `resource_id?`, `resource_format?` |
 | `Download` | Frontend JS | `resource_id?`, `dataset_id?`, `resource_format`, `dataset_type?`, `file_size_group` |
-| `Time To First Download` | Frontend JS | `dataset_id?`, `dataset_type?`, `resource_id?`, `resource_format?`, `seconds_to_download` |
-| `Dataset View Duration` | Frontend JS (sendBeacon) | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `duration_seconds` |
+| `Time to first download ` | Frontend JS | `dataset_id?`, `dataset_type?`, `resource_id?`, `resource_format?`, `seconds_to_download` |
+| `Dataset view duration` | Frontend JS (sendBeacon) | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `duration_seconds` |
 
 ### Stewardship Events
 
 | Event Name | Source | Core Properties |
 |---|---|---|
-| `Dataset Created` | Backend | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
-| `Update Existing Dataset` | Backend | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
-| `Dataset Published With DOI` | Backend | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `doi_status` |
-| `Dataset Reuse Created` | Backend | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `reuse_type`, `source_dataset_id?` |
-| `DOI-Based Citation` | Frontend JS (proxy) | `dataset_id?`, `dataset_type?`, `is_public?`, `citation_source` |
+| `Dataset created` | Backend | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
+| `Update existing dataset` | Backend | `dataset_id`, `dataset_type`, `is_public`, `has_doi` |
+| `Dataset published with DOI` | Backend | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `doi_status` |
+| `Dataset reuse created` | Backend | `dataset_id`, `dataset_type`, `is_public`, `has_doi`, `reuse_type`, `source_dataset_id?` |
+| `DOI-Based citations` | Frontend JS (proxy) | `dataset_id?`, `dataset_type?`, `is_public?`, `citation_source` |
 
 ### Not Implemented
 
@@ -33,7 +33,7 @@ All event names are defined as `EVENT_*` constants in `analytics.py` and as `EVE
 |---|---|
 | Download Completion | Client-side detection unreliable; requires server-side CKAN download route override |
 | Dataset Withdrawn | Planned; not yet implemented |
-| DOI-Based Citation (real) | Requires DataCite Event Data API polling; current event is a proxy (link click) |
+| DOI-Based citations (real) | Requires DataCite Event Data API polling; current event is a proxy (link click) |
 
 ## Allowed Properties
 
@@ -53,9 +53,9 @@ All event names are defined as `EVENT_*` constants in `analytics.py` and as `EVE
 | `duration_seconds` | integer | Page view duration, capped at 1800 s, minimum 2 s |
 | `seconds_to_download` | integer | Time from dataset page load to first download click |
 | `doi_status` | `'published'` \| `'minted'` \| `'none'` \| `'unknown'` | From `_doi_status_from_db()` |
-| `source_dataset_id` | string (UUID) | Predecessor package UUID for `Dataset Reuse Created` |
+| `source_dataset_id` | string (UUID) | Predecessor package UUID for `Dataset reuse created` |
 | `reuse_type` | `'new_version'` | Always `'new_version'` for the current workflow |
-| `citation_source` | `'doi_link_click'` | Always this value; DOI-Based Citation is proxy-only |
+| `citation_source` | `'doi_link_click'` | Always this value; DOI-Based citations is proxy-only |
 | `page_number` | integer | Page number in search results (backend only) |
 | `sort_by` | string | Sort parameter (backend only) |
 | `search_keywords` | string[] | Cleaned flat list of search term + active filter values. Each entry is lowercased, with hyphens/underscores replaced by spaces. Capped at 20 entries, 100 chars each. Empty when no term and no filters. |
@@ -92,10 +92,10 @@ The following must never appear in any event payload:
 }
 ```
 
-### Dataset Page View
+### Dataset page view
 ```json
 {
-  "event": "Dataset Page View",
+  "event": "Dataset page view",
   "properties": {
     "dataset_id": "3f8a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
     "dataset_type": "instrument",
@@ -119,10 +119,10 @@ The following must never appear in any event payload:
 }
 ```
 
-### Dataset Published With DOI
+### Dataset published with DOI
 ```json
 {
-  "event": "Dataset Published With DOI",
+  "event": "Dataset published with DOI",
   "properties": {
     "dataset_id": "pkg-uuid",
     "dataset_type": "instrument",
@@ -133,10 +133,10 @@ The following must never appear in any event payload:
 }
 ```
 
-### Dataset Reuse Created
+### Dataset reuse created
 ```json
 {
-  "event": "Dataset Reuse Created",
+  "event": "Dataset reuse created",
   "properties": {
     "dataset_id": "new-uuid",
     "dataset_type": "instrument",
@@ -176,50 +176,50 @@ or any other PII.
 ### Amplitude segmentation examples
 
 - **Compare engagement**: `user_type = logged_in` vs `user_type = anonymous` on any event chart.
-- **Funnel by auth state**: filter the Search → Dataset Page View → Download funnel to `user_type = anonymous` to measure anonymous discovery-to-download conversion.
-- **Stewardship actions**: `Dataset Created` is always `user_type = logged_in` in practice; `user_type = anonymous` there would indicate a misconfigured public endpoint.
+- **Funnel by auth state**: filter the Search → Dataset page view → Download funnel to `user_type = anonymous` to measure anonymous discovery-to-download conversion.
+- **Stewardship actions**: `Dataset created` is always `user_type = logged_in` in practice; `user_type = anonymous` there would indicate a misconfigured public endpoint.
 
 ## Metric Coverage
 
 | Metric | Status |
 |---|---|
 | Search | ✅ Implemented (backend) |
-| Empty-Result Search | ✅ Implemented (backend) |
-| Search Result Click-Through | ✅ Implemented (frontend) |
-| Dataset Page View | ✅ Implemented (frontend) |
-| Resource Preview Opened | ✅ Implemented (frontend) |
+| Empty-result search | ✅ Implemented (backend) |
+| Search result click-through | ✅ Implemented (frontend) |
+| Dataset page view | ✅ Implemented (frontend) |
+| Resource preview opened | ✅ Implemented (frontend) |
 | Download | ✅ Implemented (frontend) |
-| Time To First Download | ✅ Implemented (frontend) |
-| Dataset View Duration | ✅ Implemented (frontend sendBeacon) |
-| Dataset Created | ✅ Implemented (backend) |
-| Update Existing Dataset | ✅ Implemented (backend) |
-| Dataset Published With DOI | ✅ Implemented (backend, transition-detected) |
-| Dataset Reuse Created | ✅ Implemented (backend) |
-| DOI-Based Citation | ⚠️ Proxy only (link click) |
+| Time to first download  | ✅ Implemented (frontend) |
+| Dataset view duration | ✅ Implemented (frontend sendBeacon) |
+| Dataset created | ✅ Implemented (backend) |
+| Update existing dataset | ✅ Implemented (backend) |
+| Dataset published with DOI | ✅ Implemented (backend, transition-detected) |
+| Dataset reuse created | ✅ Implemented (backend) |
+| DOI-Based citations | ⚠️ Proxy only (link click) |
 | Download Completion | ❌ Not implemented |
 | Dataset Withdrawn | ❌ Not implemented |
 | Unique / Returning Visitors | ⚠️ Partial — RudderStack built-in anonymous ID |
-| Average Engagement Time | ⚠️ Partial — `Dataset View Duration` per page; session average from platform |
+| Average Engagement Time | ⚠️ Partial — `Dataset view duration` per page; session average from platform |
 
 ## Funnel Queries
 
 ### Download Conversion
 ```
 1. Search
-2. Search Result Click-Through
-3. Dataset Page View
+2. Search result click-through
+3. Dataset page view
 4. Download
 ```
 
 ### Stewardship Pipeline
 ```
-1. Dataset Created
-2. Update Existing Dataset  (0..N times)
-3. Dataset Published With DOI
+1. Dataset created
+2. Update existing dataset  (0..N times)
+3. Dataset published with DOI
 ```
 
 ### Reuse Detection
 ```
-1. Dataset Created (ordinary)
-2. Dataset Reuse Created (new version — both fire together)
+1. Dataset created (ordinary)
+2. Dataset reuse created (new version — both fire together)
 ```
