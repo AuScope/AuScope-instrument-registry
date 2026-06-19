@@ -716,3 +716,457 @@ table.table:has(.dataset-label) {
 .pidinst-search-filters section.is-collapsed > *:not(.module-heading) {
   display: none !important;
 }
+
+/* DOI metadata resolution helper */
+.pidinst-doi-resolve {
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+.pidinst-doi-resolve-message {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+}
+
+.doi-resolve-dialog .doi-resolve-tab-content {
+  display: block;
+  padding-top: 1rem;
+}
+
+.doi-resolve-meta {
+  margin-bottom: 0;
+}
+
+.doi-resolve-meta-row {
+  display: grid;
+  grid-template-columns: minmax(9rem, 12rem) 1fr;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.doi-resolve-meta-row dt,
+.doi-resolve-meta-row dd {
+  margin: 0;
+}
+
+.doi-resolve-meta-row dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.doi-resolve-warnings {
+  margin-top: 1rem;
+}
+
+.doi-resolve-provider-metadata,
+.doi-resolve-local-matches,
+.doi-resolve-unmapped {
+  margin-top: 1rem;
+}
+
+.doi-resolve-provider-metadata h6,
+.doi-resolve-local-matches h6,
+.doi-resolve-unmapped h6 {
+  margin-bottom: 0.5rem;
+}
+
+.doi-resolve-provider-metadata pre {
+  max-height: 12rem;
+  margin: 0;
+  padding: 0.75rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.75rem;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background: var(--bs-light, #f8f9fa);
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 4px;
+  color: inherit;
+}
+
+.doi-resolve-warnings-list {
+  margin-bottom: 0;
+}
+
+.doi-resolve-hint {
+  margin-bottom: 1rem;
+}
+
+.doi-resolve-fields-table {
+  table-layout: fixed;
+}
+
+.doi-resolve-fields-table td,
+.doi-resolve-fields-table th {
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+
+.doi-resolve-apply-col,
+.doi-resolve-field-apply {
+  width: 5rem;
+  text-align: center;
+}
+
+.doi-resolve-local-match-group {
+  margin-top: 0.75rem;
+}
+
+.doi-resolve-local-match-table {
+  table-layout: auto;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.doi-resolve-local-match-table th,
+.doi-resolve-local-match-table td {
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+  padding: 0.5rem 0.6rem;
+}
+
+.doi-resolve-local-match-apply {
+  width: 5rem;
+  text-align: center;
+}
+
+/* Source/local record identifier as muted sub-text */
+.doi-resolve-local-match-id {
+  display: block;
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 0.15rem;
+  word-break: break-all;
+}
+
+/* Status badges in local match table */
+.doi-resolve-status-badge {
+  display: inline-block;
+  padding: 0.2em 0.55em;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+
+.doi-resolve-status-badge--exact {
+  background-color: #d1e7dd;
+  color: #0f5132;
+  border: 1px solid #badbcc;
+}
+
+.doi-resolve-status-badge--warning {
+  background-color: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffecb5;
+}
+
+.doi-resolve-status-badge--manual {
+  color: #d63384;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+}
+
+/* Warning row highlight for no-match/manual rows */
+.doi-resolve-local-match-row--warning {
+  border-left: 3px solid #ffc107;
+  background-color: #fffdf5;
+}
+
+/* ── DOI Resolve Dialog — Cards & Visual Hierarchy ─────────────── */
+
+.doi-resolve-card {
+  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.doi-resolve-card-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.doi-resolve-card-title--inline {
+  display: inline;
+  margin: 0;
+}
+
+/* Primary / actionable card (local matches) */
+.doi-resolve-card--primary {
+  /* background: #fffdf5; */
+}
+
+/* Warning card (unmapped metadata) */
+.doi-resolve-card--warning {
+  border-color: #ffc107;
+  border-left: 4px solid #ffc107;
+  background: #fffdf5;
+}
+
+/* Secondary card (manual review — amber/warning style) */
+.doi-resolve-card--secondary {
+  border-color: #ffc107;
+  border-left: 4px solid #ffc107;
+  background: #fffdf5;
+}
+
+/* Not-auto-applied label */
+.doi-resolve-not-auto-label {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #856404;
+  background: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-radius: 0.25rem;
+  padding: 0.15em 0.5em;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+/* ── Summary Strip ─────────────────────────────────────────────── */
+
+.doi-resolve-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--bs-light, #f8f9fa);
+  border: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.doi-resolve-summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25em 0.6em;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+/* ── Manual Suggestion Cards ───────────────────────────────────── */
+
+.doi-resolve-manual-details > summary {
+  cursor: pointer;
+  padding: 0.25rem 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.doi-resolve-manual-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.doi-resolve-manual-details > summary::before {
+  content: "▶";
+  font-size: 0.7rem;
+  transition: transform 0.15s;
+}
+
+.doi-resolve-manual-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.doi-resolve-manual-card {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e8e8e8;
+  border-radius: 0.375rem;
+  background: #fdfdfd;
+}
+
+.doi-resolve-manual-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.doi-resolve-manual-card-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.doi-resolve-manual-card-count {
+  font-size: 0.75rem;
+}
+
+.doi-resolve-manual-card-list {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  max-height: 8rem;
+  overflow-y: auto;
+}
+
+.doi-resolve-manual-card-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+.doi-resolve-manual-card-dl dt {
+  font-weight: 600;
+  margin: 0;
+}
+
+.doi-resolve-manual-card-dl dd {
+  margin: 0;
+}
+
+/* ── Unmapped Metadata Keys ────────────────────────────────────── */
+
+.doi-resolve-unmapped-key-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+}
+
+.doi-resolve-unmapped-key-list li {
+  margin: 0;
+}
+
+.doi-resolve-unmapped-key-list code {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  font-size: 0.8rem;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 0.25rem;
+}
+
+/* ── Collapsible JSON blocks ───────────────────────────────────── */
+
+.doi-resolve-json-details {
+  margin-top: 0.5rem;
+}
+
+.doi-resolve-json-details > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #6c757d;
+  padding: 0.25rem 0;
+}
+
+.doi-resolve-json-details > summary:hover {
+  color: #495057;
+}
+
+.doi-resolve-json-block {
+  max-height: 11rem;
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.75rem;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background: var(--bs-light, #f8f9fa);
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 4px;
+  color: inherit;
+}
+
+/* ── Structured Fields — Table Layout ──────────────────────────── */
+
+.doi-resolve-structured-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.doi-resolve-structured-table th {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #6c757d;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 2px solid var(--bs-border-color, #dee2e6);
+  text-align: left;
+}
+
+.doi-resolve-structured-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+  vertical-align: middle;
+}
+
+.doi-resolve-structured-table .doi-resolve-structured-apply-col {
+  width: 5rem;
+  text-align: center;
+}
+
+.doi-resolve-structured-table .doi-resolve-structured-field-name {
+  font-weight: 600;
+  white-space: nowrap;
+  width: 10rem;
+}
+
+.doi-resolve-structured-table .doi-resolve-structured-preview-cell {
+  min-width: 0;
+}
+
+/* Compact nested preview table inside structured field rows */
+.doi-resolve-structured-preview {
+  margin: 0;
+  font-size: 0.8rem;
+  border: none;
+}
+
+.doi-resolve-structured-preview th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6c757d;
+  padding: 0.2rem 0.4rem;
+  border-bottom: 1px solid #dee2e6;
+  background: transparent;
+}
+
+.doi-resolve-structured-preview td {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.8rem;
+  border-bottom: 1px solid #f0f0f0;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doi-resolve-structured-preview tr:last-child td {
+  border-bottom: none;
+}
+
+.doi-resolve-composite-apply-check {
+  cursor: pointer;
+}
+
+.doi-resolve-structured-empty {
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
+@media (max-width: 575.98px) {
+  .doi-resolve-meta-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}

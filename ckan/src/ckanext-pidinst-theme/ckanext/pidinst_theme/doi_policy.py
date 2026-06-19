@@ -20,7 +20,12 @@ STALE_IDENTIFIER_FIELDS = (STALE_SOURCE_FIELD, STALE_EXTERNAL_URL_FIELD)
 
 _DOI_RE = re.compile(r'^10\.\d{4,9}/[-._;()/:A-Z0-9]+$', re.IGNORECASE)
 _DOI_PREFIX_RE = re.compile(
-    r'^(?:doi:\s*|https?://(?:dx\.)?doi\.org/)', re.IGNORECASE
+    r'^(?:'
+    r'doi:\s*|'
+    r'https?://(?:dx\.)?doi\.org/|'
+    r'https?://(?:handle(?:\.test)?|doi\.test|api(?:\.test)?)\.datacite\.org/(?:dois/)?'
+    r')',
+    re.IGNORECASE,
 )
 
 

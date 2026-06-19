@@ -13,6 +13,7 @@ from ckan.common import  _
 from ckan.plugins.toolkit import h
 from ckan.logic import get_action, ValidationError
 from ckanext.pidinst_theme.logic import (
+    doi_reconciliation,
     email_notifications
 )
 from ckanext.pidinst_theme.logic.auth import _is_doi_published, _package_extra_value
@@ -23,6 +24,16 @@ from ckanext.pidinst_theme import (
     propagation_helpers,
     taxonomy_protection,
 )
+from ckanext.pidinst_theme.doi_resolution.mapper import Mapper
+from ckanext.pidinst_theme.doi_resolution.providers import (
+    CrossrefClient,
+    DataCiteClient,
+)
+from ckanext.pidinst_theme.doi_resolution.input_normalizer import (
+    uses_datacite_test_api,
+)
+from ckanext.pidinst_theme.doi_resolution.resolver import resolve as resolve_doi
+from ckanext.pidinst_theme.doi_resolution.url_metadata_client import fetch_url_metadata
 from ckanext.doi.lib.api import DataciteClient
 from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 from ckanext.doi.model.crud import DOIQuery
@@ -151,6 +162,77 @@ def _package_identifier_state(package):
             package, 'external_identifier_url'
         ),
     }
+
+
+def _doi_resolution_timeout():
+    """Return the configured provider timeout, falling back safely."""
+    raw_timeout = tk.config.get(
+        'ckanext.pidinst_theme.doi_resolution.timeout', 10
+    )
+    try:
+        timeout = float(raw_timeout)
+    except (TypeError, ValueError):
+        _log.warning(
+            'Invalid DOI resolution timeout %r; using 10 seconds', raw_timeout
+        )
+        return 10.0
+    if timeout <= 0:
+        _log.warning(
+            'Non-positive DOI resolution timeout %r; using 10 seconds', raw_timeout
+        )
+        return 10.0
+    return timeout
+
+
+def _doi_resolution_datacite_api_url(identifier):
+    """Return the DataCite API URL for production or test resolver inputs."""
+    if uses_datacite_test_api(identifier):
+        return tk.config.get(
+            'ckanext.pidinst_theme.doi_resolution.datacite_test_api_url',
+            'https://api.test.datacite.org/dois',
+        )
+    return tk.config.get(
+        'ckanext.pidinst_theme.doi_resolution.datacite_api_url',
+        'https://api.datacite.org/dois',
+    )
+
+
+@tk.side_effect_free
+def pidinst_resolve_doi_metadata(context, data_dict):
+    """Resolve descriptive DOI metadata without modifying CKAN state."""
+    tk.check_access('pidinst_resolve_doi_metadata', context, data_dict)
+    data, errors = tk.navl_validate(
+        data_dict, schema.pidinst_resolve_doi_metadata(), context
+    )
+    if errors:
+        raise tk.ValidationError(errors)
+
+    timeout = _doi_resolution_timeout()
+    datacite = DataCiteClient(
+        _doi_resolution_datacite_api_url(data['identifier']),
+        timeout,
+    )
+    crossref = CrossrefClient(
+        tk.config.get(
+            'ckanext.pidinst_theme.doi_resolution.crossref_api_url',
+            'https://api.crossref.org/works',
+        ),
+        timeout,
+    )
+    result = resolve_doi(
+        data['identifier'],
+        datacite,
+        crossref,
+        Mapper(),
+        url_fetcher=lambda url: fetch_url_metadata(url, timeout=timeout),
+    )
+    out = result.to_dict()
+    if out.get('status') == 'ok':
+        out['matched_suggestions'] = doi_reconciliation.reconcile(
+            out.get('resolved_fields') or {}, context
+        )
+    return out
+
 
 def _parse_composite_field(data_dict, field_name):
     """Extract a list of dicts from a composite_repeating field, handling all input formats."""
@@ -854,6 +936,7 @@ def group_delete(next_action, context, data_dict):
 def get_actions():
     return {
         'pidinst_theme_get_sum': pidinst_theme_get_sum,
+        'pidinst_resolve_doi_metadata': pidinst_resolve_doi_metadata,
         'organization_list_for_user': organization_list_for_user,
         'package_create': package_create,
         'user_create': user_create,

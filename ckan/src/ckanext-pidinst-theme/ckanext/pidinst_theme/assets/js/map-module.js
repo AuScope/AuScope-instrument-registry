@@ -33,6 +33,9 @@ ckan.module("map-module", function ($, _) {
             var selected = $("input[type=radio][name=location_choice]:checked").val();
             var allData = JSON.parse(this.el.attr("data-all-data"));
             let geoJSONStr = allData["location_data"];
+            if (!geoJSONStr) {
+                console.warn("map-module: no location_data found in data-all-data attribute", allData);
+            }
             this.initializeFromGeoJSON(geoJSONStr);
             
             // Only show map if location choice is not "noLocation"
@@ -432,14 +435,20 @@ ckan.module("map-module", function ($, _) {
                 }
             });
             let geoJSON = {
-                type: "FeatureOrganisation",
+                type: "FeatureCollection",
                 features: features,
             };
             document.getElementById("field-location_data").value = JSON.stringify(geoJSON, null, 2);
         },
 
         initializeFromGeoJSON: function (geoJSONStr) {
-            if (typeof geoJSONStr === "string") {
+            var geoJSONObject;
+
+            // If missing or empty, treat as empty FeatureCollection (no features)
+            if (geoJSONStr === undefined || geoJSONStr === null || geoJSONStr === "") {
+                console.info("map-module: no geoJSONStr provided — initializing empty FeatureCollection");
+                geoJSONObject = { type: "FeatureCollection", features: [] };
+            } else if (typeof geoJSONStr === "string") {
                 try {
                     geoJSONObject = JSON.parse(geoJSONStr);
                 } catch (e) {
@@ -450,6 +459,11 @@ ckan.module("map-module", function ($, _) {
                 geoJSONObject = geoJSONStr;
             } else {
                 console.error("Invalid GeoJSON data type:", typeof geoJSONStr);
+                return;
+            }
+
+            if (!geoJSONObject || !Array.isArray(geoJSONObject.features)) {
+                console.warn("map-module: GeoJSON object missing or invalid features array", geoJSONObject);
                 return;
             }
 

@@ -54,6 +54,15 @@ def pidinst_theme_get_sum():
         "right": [not_empty, convert_int]
     }
 
+
+def pidinst_resolve_doi_metadata():
+    """Validate the public input contract for DOI metadata resolution."""
+    not_empty = tk.get_validator('not_empty')
+    unicode_safe = tk.get_validator('unicode_safe')
+    return {
+        'identifier': [not_empty, unicode_safe],
+    }
+
 @tk.chained_action
 def before_dataset_search(search_params):
     """

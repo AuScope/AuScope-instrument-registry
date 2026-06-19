@@ -35,10 +35,11 @@
       <option value="">-- Select a manufacturer --</option>
       {% set parties = h.get_party_list() %}
       {% for party in parties %}
-        {% set roles = party.party_role %}
+        {% set raw_roles = party.party_role or '' %}
+        {% set roles = raw_roles %}
         {% if roles is string %}{% set roles = h.json_loads(roles) %}{% endif %}
         {% if roles is not iterable %}{% set roles = [] %}{% endif %}
-        {% if 'Manufacturer' in roles %}
+        {% if 'Manufacturer' in roles or 'Manufacturer' in raw_roles|string %}
         {# Resolve identifier: prefer ROR, fall back to free-text #}
         {% set party_id = party.party_identifier_ror or party.party_identifier or '' %}
         {% set party_id_type = party.party_identifier_type or '' %}

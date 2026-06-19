@@ -1,0 +1,303 @@
+{#
+  Resolve_Dialog — DOI metadata resolution modal (Phase 2).
+
+  Read-only prefill helper. This snippet renders only the static modal shell:
+  the two tabs, their containers, label placeholders, and a row template. All
+  values are injected client-side by `doi-resolve-module.js` after the
+  `pidinst_resolve_doi_metadata` action returns. Nothing here triggers a save;
+  applying values only mutates in-memory form inputs (Requirement 8.8).
+
+  Bootstrap 5 markup (matches the existing modal in header.html).
+
+  Elements the JS module (task 9.2) targets
+  -----------------------------------------
+  Modal root .............. #doi-resolve-dialog
+  Fetched tab pane ........ #doi-resolve-pane-fetched
+  Resolved tab pane ....... #doi-resolve-pane-resolved
+
+  Fetched-metadata values (text injected by JS):
+    source .............. [data-doi-resolve="source"]
+    doi ................. [data-doi-resolve="doi"]
+    identifier_url ...... [data-doi-resolve="identifier_url"]
+    title ............... [data-doi-resolve="title"]
+    description ......... [data-doi-resolve="description"]
+    creators ............ [data-doi-resolve="creators"]
+    publisher ........... [data-doi-resolve="publisher"]
+    publication_year .... [data-doi-resolve="publication_year"]
+  Each optional field sits inside a row [data-doi-resolve-field="<name>"] that
+  the module shows when the value is present and hides when it is empty
+  (Requirements 7.4-7.8).
+
+  Warnings:
+    container ........... [data-doi-resolve-field="warnings"]
+    list ................ [data-doi-resolve="warnings"]   (JS appends <li>)
+
+  Resolved-fields tab:
+    table body .......... [data-doi-resolve="fields"]      (JS appends rows)
+    row template ........ [data-doi-resolve="field-row-template"]
+    apply button ........ [data-doi-resolve="apply"]
+#}
+<div class="modal fade doi-resolve-dialog"
+     id="doi-resolve-dialog"
+     tabindex="-1"
+     aria-labelledby="doi-resolve-dialog-title"
+     aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="doi-resolve-dialog-title">
+          {{ _('Fetched metadata') }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="{{ _('Close') }}"></button>
+      </div>
+
+      <div class="modal-body">
+
+        {# Tab navigation (Requirement 7.1) #}
+        <ul class="nav nav-tabs" id="doi-resolve-tabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="doi-resolve-tab-fetched"
+                    data-bs-toggle="tab" data-bs-target="#doi-resolve-pane-fetched"
+                    type="button" role="tab"
+                    aria-controls="doi-resolve-pane-fetched" aria-selected="true">
+              {{ _('Fetched metadata') }}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="doi-resolve-tab-resolved"
+                    data-bs-toggle="tab" data-bs-target="#doi-resolve-pane-resolved"
+                    type="button" role="tab"
+                    aria-controls="doi-resolve-pane-resolved" aria-selected="false">
+              {{ _('Resolved fields') }}
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content doi-resolve-tab-content">
+
+          {# ---- Fetched-metadata tab (Requirement 7) ---- #}
+          <div class="tab-pane fade show active" id="doi-resolve-pane-fetched"
+               role="tabpanel" aria-labelledby="doi-resolve-tab-fetched" tabindex="0">
+
+            <dl class="doi-resolve-meta">
+              {# Source — always shown (Requirement 7.2) #}
+              <div class="doi-resolve-meta-row" data-doi-resolve-field="source">
+                <dt>{{ _('Source') }}</dt>
+                <dd><span data-doi-resolve="source"></span></dd>
+              </div>
+
+              {# DOI + identifier URL — always shown (Requirement 7.3) #}
+              <div class="doi-resolve-meta-row" data-doi-resolve-field="doi">
+                <dt>{{ _('DOI') }}</dt>
+                <dd><span data-doi-resolve="doi"></span></dd>
+              </div>
+              <div class="doi-resolve-meta-row" data-doi-resolve-field="identifier_url">
+                <dt>{{ _('Identifier URL') }}</dt>
+                <dd>
+                  <a data-doi-resolve="identifier_url" href="#" target="_blank"
+                     rel="noopener noreferrer"></a>
+                </dd>
+              </div>
+
+              {# Optional descriptive fields — shown only where present
+                 (Requirements 7.4-7.8). The JS module hides the row when empty. #}
+              <div class="doi-resolve-meta-row" data-doi-resolve-field="title" hidden>
+                <dt>{{ _('Title') }}</dt>
+                <dd><span data-doi-resolve="title"></span></dd>
+              </div>
+              <div class="doi-resolve-meta-row" data-doi-resolve-field="description" hidden>
+                <dt>{{ _('Description') }}</dt>
+                <dd><span data-doi-resolve="description"></span></dd>
+              </div>
+              <div class="doi-resolve-meta-row" data-doi-resolve-field="creators" hidden>
+                <dt>{{ _('Creators') }}</dt>
+                <dd><span data-doi-resolve="creators"></span></dd>
+              </div>
+              <div class="doi-resolve-meta-row" data-doi-resolve-field="publisher" hidden>
+                <dt>{{ _('Publisher') }}</dt>
+                <dd><span data-doi-resolve="publisher"></span></dd>
+              </div>
+              <div class="doi-resolve-meta-row" data-doi-resolve-field="publication_year" hidden>
+                <dt>{{ _('Publication year') }}</dt>
+                <dd><span data-doi-resolve="publication_year"></span></dd>
+              </div>
+            </dl>
+
+            <section class="doi-resolve-provider-metadata"
+                     data-doi-resolve-field="provider_metadata" hidden>
+              <h6>{{ _('All provider metadata') }}</h6>
+              <pre data-doi-resolve="provider_metadata"></pre>
+            </section>
+
+            {# Warnings — one entry per returned warning (Requirements 7.9, 14.3).
+               Hidden until the JS module appends at least one warning. #}
+            <div class="doi-resolve-warnings alert alert-warning"
+                 data-doi-resolve-field="warnings" role="alert" hidden>
+              <strong>{{ _('Some metadata could not be resolved:') }}</strong>
+              <ul class="doi-resolve-warnings-list" data-doi-resolve="warnings"></ul>
+            </div>
+          </div>
+
+          {# ---- Resolved-fields tab (Requirement 8) ---- #}
+          <div class="tab-pane fade" id="doi-resolve-pane-resolved"
+               role="tabpanel" aria-labelledby="doi-resolve-tab-resolved" tabindex="0">
+
+            {# Summary strip — badge counts injected by JS #}
+            <div class="doi-resolve-summary" data-doi-resolve="summary" hidden>
+              <span class="doi-resolve-summary-badge badge-success"
+                    data-doi-resolve="summary-local-exact" hidden>
+                <span data-doi-resolve="summary-local-exact-count">0</span>
+                {{ _('exact matches') }}
+              </span>
+              <span class="doi-resolve-summary-badge badge-warning"
+                    data-doi-resolve="summary-local-manual" hidden>
+                <span data-doi-resolve="summary-local-manual-count">0</span>
+                {{ _('manual suggestions') }}
+              </span>
+              <span class="doi-resolve-summary-badge badge-info"
+                    data-doi-resolve="summary-structured" hidden>
+                <span data-doi-resolve="summary-structured-count">0</span>
+                {{ _('structured fields') }}
+              </span>
+              <span class="doi-resolve-summary-badge badge-danger"
+                    data-doi-resolve="summary-manual-groups" hidden>
+                <span data-doi-resolve="summary-manual-groups-count">0</span>
+                {{ _('review groups') }}
+              </span>
+              <span class="doi-resolve-summary-badge badge-warning"
+                    data-doi-resolve="summary-unmapped" hidden>
+                <span data-doi-resolve="summary-unmapped-count">0</span>
+                {{ _('unmapped keys') }}
+              </span>
+            </div>
+
+            <p class="doi-resolve-hint">
+              {{ _('Choose which resolved values to apply to the form. Fields you '
+                   'have already filled in are left unchecked by default.') }}
+            </p>
+
+            {# 1. Direct mapped fields table #}
+            <section class="doi-resolve-card">
+              <h6 class="doi-resolve-card-title">{{ _('Direct mapped fields') }}</h6>
+              <table class="table table-bordered doi-resolve-fields-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{{ _('Field') }}</th>
+                    <th scope="col">{{ _('Current value') }}</th>
+                    <th scope="col">{{ _('Resolved value') }}</th>
+                    <th scope="col" class="doi-resolve-apply-col">{{ _('Apply?') }}</th>
+                  </tr>
+                </thead>
+                <tbody data-doi-resolve="fields"></tbody>
+              </table>
+            </section>
+
+            {# 2. Structured fields that can be applied #}
+            <section class="doi-resolve-structured doi-resolve-card">
+              <h6 class="doi-resolve-card-title">{{ _('Structured fields that can be applied') }}</h6>
+              <p class="doi-resolve-structured-hint">
+                {{ _('Applying these structured fields updates only this unsaved '
+                     'form. It does not save the record.') }}
+              </p>
+              <div class="doi-resolve-structured-groups"
+                   data-doi-resolve="structured_fields"></div>
+            </section>
+
+            {# 3. Existing local matches — most actionable, shown first #}
+            <section class="doi-resolve-local-matches doi-resolve-card doi-resolve-card--primary"
+                     data-doi-resolve-field="local_matches" hidden>
+              <h6 class="doi-resolve-card-title">{{ _('Existing local matches found') }}</h6>
+              <p class="doi-resolve-local-matches-hint">
+                {{ _('These existing local records match DOI metadata by identifier. '
+                     'Apply is offered only for exact matches where the form can be '
+                     'safely updated without saving.') }}
+              </p>
+              <div class="doi-resolve-local-match-groups"
+                   data-doi-resolve="local_match_groups"></div>
+            </section>
+
+            {# 4. Available provider metadata not mapped — warning panel #}
+            <section class="doi-resolve-unmapped doi-resolve-card doi-resolve-card--warning"
+                     data-doi-resolve-field="available_unmapped" hidden>
+              <h6 class="doi-resolve-card-title">{{ _('Available provider metadata not mapped') }}</h6>
+              <span class="doi-resolve-not-auto-label">{{ _('Not auto-applied') }}</span>
+              <p class="doi-resolve-unmapped-hint">
+                {{ _('The DOI provider returned additional metadata keys that could not be '
+                     'mapped to any form field. These are shown for reference only.') }}
+              </p>
+              <div class="doi-resolve-unmapped-keys"
+                   data-doi-resolve="unmapped_keys"></div>
+              <details class="doi-resolve-json-details">
+                <summary>{{ _('Show raw metadata') }}</summary>
+                <pre class="doi-resolve-json-block"
+                     data-doi-resolve="available_unmapped"></pre>
+              </details>
+            </section>
+
+            {# 5. Suggestions requiring manual review — collapsed by default #}
+            <section class="doi-resolve-manual doi-resolve-card doi-resolve-card--secondary"
+                     data-doi-resolve-field="manual_resolved" hidden>
+              <details class="doi-resolve-manual-details"
+                       data-doi-resolve="manual_details">
+                <summary class="doi-resolve-manual-summary">
+                  <h6 class="doi-resolve-card-title doi-resolve-card-title--inline">
+                    {{ _('Suggestions requiring manual review') }}
+                  </h6>
+                  <span class="doi-resolve-not-auto-label">{{ _('Manual review only') }}</span>
+                  <span class="badge badge-warning doi-resolve-manual-count-badge"
+                        data-doi-resolve="manual_group_count">0</span>
+                  <span class="doi-resolve-manual-summary-text">
+                    {{ _('groups') }}
+                  </span>
+                </summary>
+                <p class="doi-resolve-manual-hint">
+                  {{ _('These values were resolved from the DOI metadata but are not '
+                       'automatically applied. Review them manually before taking action. '
+                       'Nothing here creates parties or taxonomy terms.') }}
+                </p>
+                <div class="doi-resolve-manual-groups"
+                     data-doi-resolve="manual_groups"></div>
+                <details class="doi-resolve-json-details">
+                  <summary>{{ _('Show raw JSON') }}</summary>
+                  <pre class="doi-resolve-json-block"
+                       data-doi-resolve="manual_resolved"></pre>
+                </details>
+              </details>
+            </section>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          {{ _('Cancel') }}
+        </button>
+        {# Applies the checked fields to the form (Requirement 8.6). #}
+        <button type="button" class="btn btn-primary" data-doi-resolve="apply">
+          {{ _('Apply selected fields') }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# Row template for the Resolved-fields tab. The JS module clones this for each
+   mapped field, fills the field label / current value / resolved value cells,
+   and sets the "Apply?" checkbox default from the live form value
+   (Requirements 8.1-8.4, 9.1). #}
+<template data-doi-resolve="field-row-template">
+  <tr class="doi-resolve-field-row" data-doi-resolve-row>
+    <th scope="row" class="doi-resolve-field-name" data-doi-resolve="field-name"></th>
+    <td class="doi-resolve-field-current" data-doi-resolve="field-current"></td>
+    <td class="doi-resolve-field-resolved" data-doi-resolve="field-resolved"></td>
+    <td class="doi-resolve-field-apply">
+      <input type="checkbox" class="doi-resolve-apply-check"
+             data-doi-resolve="field-apply"
+             aria-label="{{ _('Apply this field') }}">
+    </td>
+  </tr>
+</template>

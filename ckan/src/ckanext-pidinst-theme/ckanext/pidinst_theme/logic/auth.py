@@ -88,6 +88,30 @@ def pidinst_theme_get_sum(context, data_dict):
     return {"success": True}
 
 
+def pidinst_resolve_doi_metadata(context, data_dict):
+    """Allow signed-in users who can create datasets in an organisation."""
+    user = context.get('auth_user_obj')
+    if not user:
+        return {
+            'success': False,
+            'msg': 'You must be logged in to fetch identifier metadata.',
+        }
+
+    if authz.is_sysadmin(user.name):
+        return {'success': True}
+
+    # This extension's chained package_create auth grants dataset creation to
+    # users with at least read membership in an organisation. Mirror that
+    # policy here because the helper is available from the same add/edit forms.
+    if authz.has_user_permission_for_some_org(user.name, 'read'):
+        return {'success': True}
+
+    return {
+        'success': False,
+        'msg': 'You are not authorised to fetch identifier metadata.',
+    }
+
+
 def user_is_member_of_package_org(user, package):
     """Return True if the user has the 'member' role in the package's organisation."""
     if package.owner_org:
@@ -390,6 +414,7 @@ def group_update(next_auth, context, data_dict):
 def get_auth_functions():
     return {
         "pidinst_theme_get_sum": pidinst_theme_get_sum,
+        "pidinst_resolve_doi_metadata": pidinst_resolve_doi_metadata,
         "package_create": package_create,
         "resource_create": resource_create,
         "resource_view_create": resource_view_create,

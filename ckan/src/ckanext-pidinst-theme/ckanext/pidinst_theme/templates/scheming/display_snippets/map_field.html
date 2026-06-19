@@ -2,7 +2,7 @@
 <div class="dataset-map" 
 data-module="display-map-module"        
 data-module-site_url="{{ h.dump_json(h.url_for('/', locale='default', qualified=true)) }}"
-data-all-data='{{ data | tojson | safe }}'>
+data-all-data='{{ h.ensure_location_data(data) | tojson | safe }}'>
     <div id="map-container" style="height: 400px; display: none;"></div>
     <div id="location-info" ></div>
 </div>

@@ -5,9 +5,15 @@
 {% set _is_external = (_raw_source | string | lower) == 'external' %}
 
 {% if _is_external %}
+  {# Identifier URL input id and the hidden Resolve_Dialog container id. These are shared by
+     the instrument and platform forms so the control renders identically for both
+     (Requirements 1.3, 15.1). #}
+  {% set _input_id = 'field-' + field.field_name %}
+  {% set _dialog_id = 'doi-resolve-dialog-' + field.field_name %}
+
   {% call form.input(
       field.field_name,
-      id='field-' + field.field_name,
+      id=_input_id,
       label=h.scheming_language_text(field.label),
       placeholder=h.scheming_language_text(field.form_placeholder),
       value=data.get(field.field_name, ''),
@@ -19,4 +25,27 @@
   %}
     {%- snippet 'scheming/form_snippets/help_text.html', field=field -%}
   {% endcall %}
+
+  {# Fetch metadata control. Only rendered in the External_Flow (Requirements 1.1, 1.2).
+     Wired to the doi-resolve-module JS module, which reads the current identifier_url value
+     on click (Requirement 1.4) and opens the Resolve_Dialog. The JS module and dialog markup
+     are provided by separate tasks. #}
+  <div class="form-group pidinst-doi-resolve">
+    <button type="button"
+            class="btn btn-default pidinst-doi-fetch-btn"
+            data-module="doi-resolve-module"
+            data-module-input-id="{{ _input_id }}"
+            data-module-dialog-id="{{ _dialog_id }}">
+      <i class="fa fa-cloud-download"></i> {{ _('Fetch metadata') }}
+    </button>
+  </div>
+
+  {# Modal container for the Resolve_Dialog. The dialog snippet renders the static
+     Bootstrap modal shell (its own .modal.fade markup is display:none until shown
+     by the JS module). The doi-resolve-module scopes all of its dialog lookups to
+     this container via data-module-dialog-id, so the dialog's static element ids
+     never collide. #}
+  <div id="{{ _dialog_id }}" class="pidinst-doi-resolve-dialog">
+    {% snippet 'scheming/package/snippets/doi_resolve_dialog.html' %}
+  </div>
 {% endif %}

@@ -98,6 +98,23 @@ def pidinst_parse_json_list(value):
     return []
 
 
+def ensure_location_data(data):
+    """
+    Ensure the provided form/template `data` dict contains a `location_data` key.
+    Returns a shallow copy with `location_data` set to an empty FeatureCollection
+    when missing or falsy. Safe to call from templates as `h.ensure_location_data(data)`.
+    """
+    try:
+        d = dict(data) if data is not None else {}
+    except Exception:
+        # If data isn't dict-like, return as-is to avoid breaking templates
+        return data
+
+    if not d.get('location_data'):
+        d['location_data'] = {"type": "FeatureCollection", "features": []}
+    return d
+
+
 def is_creating_or_editing_dataset():
     """Determine if the user is creating or editing a instrument."""
     current_path = toolkit.request.path
@@ -1013,4 +1030,5 @@ def get_helpers():
         "pidinst_render_url_or_text": pidinst_render_url_or_text,
         "pidinst_party_display": pidinst_party_display,
         "pidinst_form_group_label": pidinst_form_group_label,
+        "ensure_location_data": ensure_location_data,
     }
