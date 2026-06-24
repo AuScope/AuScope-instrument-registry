@@ -298,6 +298,44 @@ class TestNoPIIInPayloads(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# track_dataset_updated - update origin payload
+# ---------------------------------------------------------------------------
+class TestTrackDatasetUpdated(unittest.TestCase):
+
+    def _props(self, update_origin='user_edit'):
+        with patch.object(analytics.AnalyticsTracker, 'track') as mock_track:
+            analytics.track_dataset_updated(_pkg(), update_origin=update_origin)
+            return mock_track.call_args[1]['properties']
+
+    def test_update_origin_defaults_to_user_edit(self):
+        with patch.object(analytics.AnalyticsTracker, 'track') as mock_track:
+            analytics.track_dataset_updated(_pkg())
+            props = mock_track.call_args[1]['properties']
+        self.assertEqual(props['update_origin'], 'user_edit')
+        self.assertFalse(props['is_initialization_update'])
+
+    def test_user_edit_is_not_initialization_update(self):
+        props = self._props('user_edit')
+        self.assertEqual(props['update_origin'], 'user_edit')
+        self.assertFalse(props['is_initialization_update'])
+
+    def test_create_workflow_marks_initialization_update(self):
+        props = self._props('create_workflow')
+        self.assertEqual(props['update_origin'], 'create_workflow')
+        self.assertTrue(props['is_initialization_update'])
+
+    def test_unknown_origin_is_not_sent(self):
+        props = self._props('manual title or email@example.com')
+        self.assertEqual(props['update_origin'], 'user_edit')
+        self.assertFalse(props['is_initialization_update'])
+
+    def test_no_extra_dataset_fields(self):
+        props = self._props('user_edit')
+        for key in ('name', 'title', 'doi', 'email', 'username'):
+            self.assertNotIn(key, props)
+
+
+# ---------------------------------------------------------------------------
 # file_size_group in Download payload
 # ---------------------------------------------------------------------------
 class TestDownloadPayloadFileSizeGroup(unittest.TestCase):

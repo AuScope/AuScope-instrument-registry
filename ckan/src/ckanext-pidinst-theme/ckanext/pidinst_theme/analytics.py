@@ -356,11 +356,30 @@ def track_dataset_created(dataset_dict: Dict[str, Any]):
     )
 
 
-def track_dataset_updated(dataset_dict: Dict[str, Any]):
+_SAFE_UPDATE_ORIGINS = frozenset({
+    'user_edit',
+    'create_workflow',
+})
+
+
+def _safe_update_origin(update_origin: Optional[str]) -> str:
+    """Return a safe bounded update origin for analytics payloads."""
+    if update_origin in _SAFE_UPDATE_ORIGINS:
+        return update_origin
+    return 'user_edit'
+
+
+def track_dataset_updated(dataset_dict: Dict[str, Any],
+                          update_origin: Optional[str] = 'user_edit'):
     """Track dataset update event (EVENT_UPDATE_EXISTING_DATASET)."""
+    safe_origin = _safe_update_origin(update_origin)
+    props = minimal_dataset_props(dataset_dict)
+    props['update_origin'] = safe_origin
+    props['is_initialization_update'] = safe_origin == 'create_workflow'
+
     AnalyticsTracker.track(
         event=EVENT_UPDATE_EXISTING_DATASET,
-        properties=minimal_dataset_props(dataset_dict),
+        properties=props,
     )
 
 

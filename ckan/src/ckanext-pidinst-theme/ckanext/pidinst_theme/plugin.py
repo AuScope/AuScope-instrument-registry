@@ -27,6 +27,16 @@ from ckanext.pidinst_theme.logic import (
 original_build_metadata_dict = doi_metadata.build_metadata_dict
 
 
+def _create_workflow_update_context(context, ignore_auth=False):
+    """Return a copied context for internal writes during dataset creation."""
+    update_context = dict(context)
+    if ignore_auth:
+        update_context["ignore_auth"] = True
+    update_context["_analytics_suppress"] = True
+    update_context["_analytics_update_origin"] = "create_workflow"
+    return update_context
+
+
 def patched_build_metadata_dict(pkg_dict):
     """
     A patched version of build_metadata_dict to correct language handling and possibly other
@@ -397,12 +407,13 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
             if not pkg_dict.get("version_handler_id"):
                 pkg_id = pkg_dict["id"]
 
-                patch_ctx = dict(context)
-                patch_ctx["ignore_auth"] = True
                 # Prevent after_dataset_update from firing a spurious
                 # 'Update existing dataset' analytics event for this
                 # internal package_patch call.
-                patch_ctx["_analytics_suppress"] = True
+                patch_ctx = _create_workflow_update_context(
+                    context,
+                    ignore_auth=True,
+                )
 
                 toolkit.get_action("package_patch")(
                     patch_ctx,
@@ -440,7 +451,8 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
             return
 
         try:
-            analytics.track_dataset_updated(pkg_dict)
+            update_origin = context.get('_analytics_update_origin', 'user_edit')
+            analytics.track_dataset_updated(pkg_dict, update_origin=update_origin)
 
             was_published = context.get('_analytics_doi_was_published')
             if was_published is False:
