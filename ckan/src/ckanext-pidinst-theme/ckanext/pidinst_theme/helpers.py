@@ -659,6 +659,7 @@ _PARTY_LABELS = {
     'create label': 'Add Party',
     'update label': 'Update Party',
     'breadcrumb': 'Parties',
+    'facet label': 'Parties',
     'main nav': 'Parties',
     'no label found': 'Party',
 }
