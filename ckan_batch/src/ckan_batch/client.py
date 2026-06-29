@@ -24,6 +24,7 @@ class CreateResult:
     created: List[Dict[str, Any]]          # successful creates (and updates if enabled)
     failed: List[Dict[str, Any]]           # errors with payload + message
     resource_results: List[Dict[str, Any]] = field(default_factory=list)  # per-record resource upload results
+    skipped: List[Dict[str, Any]] = field(default_factory=list)  # records skipped (e.g. already exist)
 
 
 def _extract_name_from_ckan_error(err: Any) -> Optional[str]:
@@ -635,14 +636,28 @@ class CKANClient(RemoteCKAN):
     # ------------------------------------------------------------------ #
     #  Party resolution (cached)                                          #
     # ------------------------------------------------------------------ #
-    def _normalize_party_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        out = dict(payload)
+    # Read-only / server-managed fields returned by group_show & friends that
+    # must never be sent back to group_create.
+    _SERVER_FIELDS = frozenset({
+        "display_name", "package_count", "num_followers",
+        "image_display_url", "image_url", "approval_status", "created",
+        "is_organization", "revision_id", "groups", "users", "tags", "extras",
+    })
 
-        if out.get("website") in ("", None):
-            out.pop("website", None)
+    def _normalize_party_payload(
+        self,
+        payload: Dict[str, Any],
+        *,
+        keep_id: bool = False,
+    ) -> Dict[str, Any]:
+        out = {k: v for k, v in payload.items() if k not in self._SERVER_FIELDS}
 
-        if out.get("is_part_of") in ("", None):
-            out.pop("is_part_of", None)
+        if not keep_id:
+            out.pop("id", None)
+
+        for k in ("website", "is_part_of", "parent_party"):
+            if out.get(k) in ("", None):
+                out.pop(k, None)
 
         out["type"] = "party"
         return out
@@ -705,20 +720,46 @@ class CKANClient(RemoteCKAN):
         dry_run: bool = False
     ) -> CreateResult:
         """
-        Create CKAN parties using group_create (or group_update if enabled and exists).
+        Create CKAN parties using group_create.
 
         Assumptions:
         - Each payload matches the party scheming group schema.
         - party objects are CKAN groups with type='party'.
-        - Parent relationship, if present, is stored in `is_part_of` as the parent party name.
+        - Parent relationship, if present, is stored in `parent_party` as the parent party name.
+
+        Behaviour:
+        - Source `id` is dropped; CKAN generates a fresh id on this instance.
+        - A party whose `name` already exists on the target is skipped (and
+          recorded under `skipped`), so the call is safe to re-run.
         """
         created: List[Dict[str, Any]] = []
         failed: List[Dict[str, Any]] = []
+        skipped: List[Dict[str, Any]] = []
+
+        # Names already present on the target instance (for skip-and-record).
+        existing_names = {
+            g.get("name")
+            for g in self.action.group_list(type="party")
+        }
 
         for i, payload in enumerate(parties, start=1):
-            payload_to_send = dict(payload)
-            payload_to_send["type"] = "party"
-            payload_to_send = self._normalize_party_payload(payload_to_send)  # optional pre-processing if needed
+            payload_to_send = self._normalize_party_payload(payload)
+
+            name = payload_to_send.get("name")
+            if name in existing_names:
+                skipped.append(
+                    {
+                        "status": "skipped",
+                        "index": i,
+                        "name": name,
+                        "title": payload_to_send.get("title"),
+                        "reason": "name already exists on target",
+                    }
+                )
+                continue
+
+            # Reserve the name so duplicates within this same batch are skipped too.
+            existing_names.add(name)
 
             if dry_run:
                 created.append(
@@ -726,7 +767,7 @@ class CKANClient(RemoteCKAN):
                         "status": "dry_run",
                         "index": i,
                         "title": payload_to_send.get("title"),
-                        "name": payload_to_send.get("name"),
+                        "name": name,
                         "payload": payload_to_send,
                     }
                 )
@@ -770,7 +811,12 @@ class CKANClient(RemoteCKAN):
                     }
                 )
 
-        return CreateResult(created=created, failed=failed, resource_results=[])
+        return CreateResult(
+            created=created,
+            failed=failed,
+            resource_results=[],
+            skipped=skipped,
+        )
 
     def delete_all_parties(
         self,
@@ -862,21 +908,26 @@ class CKANClient(RemoteCKAN):
 
     def get_all_parties(
         self,
-        q: str = "*:*",
-        fq: Optional[str] = None,
+        q: Optional[str] = None,
         *,
         verbose: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Return all party groups.
+
+        ``q`` is an optional plain substring filter matched against the group's
+        name/title/description (NOT a Solr query — ``group_list`` does not use
+        Solr). Leave it as ``None`` to return every party.
         """
-        results = self.action.group_list(
-            q=q,
-            fq=fq,
+        kwargs: Dict[str, Any] = dict(
             all_fields=True,
             include_extras=True,
             type="party",
         )
+        if q:
+            kwargs["q"] = q
+
+        results = self.action.group_list(**kwargs)
 
         if verbose:
             return results
