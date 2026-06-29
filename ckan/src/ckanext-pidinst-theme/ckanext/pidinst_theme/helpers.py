@@ -659,6 +659,10 @@ _PARTY_LABELS = {
     'create label': 'Add Party',
     'update label': 'Update Party',
     'breadcrumb': 'Parties',
+    'my label': 'My Parties',
+    'content tab': 'Parties',
+    'page title': 'Parties',
+    'facet label': 'Parties',
     'main nav': 'Parties',
     'no label found': 'Party',
 }
@@ -684,7 +688,7 @@ _INSTRUMENT_LABELS = {
 _PLATFORM_LABELS = {
     'create label': 'Create Platform',
     'delete confirmation': 'Are you sure you want to delete this platform?',
-    'no description': 'There is no description for this platform',    
+    'no description': 'There is no description for this platform',
 }
 
 
