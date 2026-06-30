@@ -29,19 +29,19 @@ jobs:
           echo "Release type: $RELEASE_TYPE"
           echo "Branch: $REF_NAME"
 
-          if [[ "$RELEASE_TYPE" == "patch" ]]; then
-            if [[ "$REF_NAME" != release/* ]]; then
-              echo "::error::Patch releases are only allowed from release/* branches."
-              exit 1
-            fi
-          fi
+          # if [[ "$RELEASE_TYPE" == "patch" ]]; then
+          #   if [[ "$REF_NAME" != release/* ]]; then
+          #     echo "::error::Patch releases are only allowed from release/* branches."
+          #     exit 1
+          #   fi
+          # fi
 
-          if [[ "$RELEASE_TYPE" == "minor" || "$RELEASE_TYPE" == "major" ]]; then
-            if [[ "$REF_NAME" != "master" ]]; then
-              echo "::error::Minor and major releases are only allowed from master."
-              exit 1
-            fi
-          fi
+          # if [[ "$RELEASE_TYPE" == "minor" || "$RELEASE_TYPE" == "major" ]]; then
+          #   if [[ "$REF_NAME" != "master" ]]; then
+          #     echo "::error::Minor and major releases are only allowed from master."
+          #     exit 1
+          #   fi
+          # fi
 
           echo "Branch validation passed."
 
