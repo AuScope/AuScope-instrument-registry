@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Mapping
 import json
+import os
+import tempfile
 import urllib.parse
 import urllib.request
 import requests
@@ -213,13 +215,25 @@ class CKANClient(RemoteCKAN):
 
         for res in resources:
             path_str = res.get("path")
-            p = Path(path_str) if path_str else None
+            is_url = bool(path_str) and path_str.startswith(("http://", "https://"))
 
-            if not p or not p.is_file():
-                failed.append({"path": path_str, "error": "File not found or not a valid file path"})
-                continue
+            if is_url:
+                # Online image: download to a temp file, then upload as a resource.
+                try:
+                    tmp_path, downloaded_name = self._download_to_temp(path_str)
+                except Exception as e:
+                    failed.append({"path": path_str, "error": f"Failed to download URL: {e}"})
+                    continue
+                p = tmp_path
+                default_name = downloaded_name
+            else:
+                p = Path(path_str) if path_str else None
+                if not p or not p.is_file():
+                    failed.append({"path": path_str, "error": "File not found or not a valid file path"})
+                    continue
+                default_name = p.name
 
-            name = res.get("name") or p.name
+            name = res.get("name") or default_name
             is_cover = res.get("is_cover")
             fmt = res.get("format") or ""
             desc = res.get("description") or ""
@@ -234,7 +248,12 @@ class CKANClient(RemoteCKAN):
             }
 
             if dry_run:
-                created.append({"status": "dry_run", "path": str(p), "payload": payload})
+                created.append({"status": "dry_run", "path": path_str, "payload": payload})
+                if is_url:
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass
                 continue
 
             try:
@@ -247,14 +266,50 @@ class CKANClient(RemoteCKAN):
                 })
             except CKANAPIError as e:
                 failed.append({
-                    "path": str(p),
+                    "path": path_str,
                     "error": "CKANAPIError",
                     "ckan_error": getattr(e, "error_dict", None) or str(e),
                 })
             except Exception as e:
-                failed.append({"path": str(p), "error": f"Unexpected error: {e}"})
+                failed.append({"path": path_str, "error": f"Unexpected error: {e}"})
+            finally:
+                if is_url:
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass
 
         return {"created": created, "failed": failed}
+
+    @staticmethod
+    def _download_to_temp(url: str) -> Tuple[Path, str]:
+        """
+        Download a remote file (e.g. an online image) to a temporary file.
+        Returns (temp_path, suggested_name). Caller is responsible for deleting
+        the temp file once it is no longer needed.
+        """
+        resp = requests.get(url, stream=True, timeout=60)
+        resp.raise_for_status()
+
+        # Derive a sensible filename from the URL path.
+        url_path = urllib.parse.urlparse(url).path
+        name = Path(urllib.parse.unquote(url_path)).name or "download"
+
+        suffix = Path(name).suffix
+        fd, tmp_name = tempfile.mkstemp(suffix=suffix)
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    if chunk:
+                        fh.write(chunk)
+        except Exception:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
+
+        return Path(tmp_name), name
 
     def create_records(
         self,
@@ -1465,12 +1520,12 @@ class CKANClient(RemoteCKAN):
                     ws.cell(r, 35, _cell(pkg.get("credit", "")))           # Credit
                     ws.cell(r, 36, _cell(pkg.get("locality", "")))         # Locality
                     ws.cell(r, 37, loc_choice)                             # Location Type
-                    ws.cell(r, 38, _cell(lon))                             # Longitude
-                    ws.cell(r, 39, _cell(lat))                             # Latitude
-                    ws.cell(r, 40, _cell(min_lng))                         # min_lng
-                    ws.cell(r, 41, _cell(min_lat))                         # min_lat
-                    ws.cell(r, 42, _cell(max_lng))                         # max_lng
-                    ws.cell(r, 43, _cell(max_lat))                         # max_lat
+                    ws.cell(r, 38, _cell(lat))                             # Latitude
+                    ws.cell(r, 39, _cell(lon))                             # Longitude
+                    ws.cell(r, 40, _cell(min_lat))                         # min_lat
+                    ws.cell(r, 41, _cell(min_lng))                         # min_lng
+                    ws.cell(r, 42, _cell(max_lat))                         # max_lat
+                    ws.cell(r, 43, _cell(max_lng))                         # max_lng
                     ws.cell(r, 44, _cell(pkg.get("epsg_code", "")))        # EPSG
 
                 # col 5: Manufacturer Name

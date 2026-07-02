@@ -670,8 +670,10 @@ def read_pidinst_template(
             # Resources / attachments
             res_path = _clean(row.get("ATTACHMENTS.Path"))
             if res_path:
-                # Expand ~ to the user's home directory
-                res_path = str(Path(res_path).expanduser())
+                # Online images are referenced by URL; local files by filesystem path.
+                if not res_path.startswith(("http://", "https://")):
+                    # Expand ~ to the user's home directory
+                    res_path = str(Path(res_path).expanduser())
                 res_name = _clean(row.get("ATTACHMENTS.Name"))
                 res_is_cover = _coerce_bool(_clean(row.get("ATTACHMENTS.IsCover")))
                 res_fmt = _clean(row.get("ATTACHMENTS.Format"))

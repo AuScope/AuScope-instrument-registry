@@ -1,0 +1,94 @@
+name: Release - CKAN Batch
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseType:
+        description: Release Type
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      new-version: ${{ steps.bump_version.outputs.version }}
+      tag-name: ${{ steps.bump_version.outputs.tag-name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install bump2version
+        run: python -m pip install bump2version
+
+      - name: Set up Git identity
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+      - name: Bump ckan_batch version
+        id: bump_version
+        working-directory: ckan_batch
+        env:
+          RELEASE_TYPE: ${{ inputs.releaseType }}
+        run: |
+          bump2version "$RELEASE_TYPE" --config-file setup.cfg
+          NEW_VERSION=$(grep '^current_version = ' setup.cfg | sed -E 's/^current_version = //')
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag-name=cb-$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "New version: $NEW_VERSION"
+
+      - name: Push tags and version bump commit
+        run: |
+          git push origin HEAD
+          git push origin --tags
+
+  build-wheel-and-create-release:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.tag-name }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ckan_batch/.python-version
+
+      - name: Install uv
+        run: python -m pip install uv
+
+      - name: Build ckan_batch wheel
+        working-directory: ckan_batch
+        run: |
+          rm -rf dist
+          uv build --wheel
+
+      - name: Create release and upload wheel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW_VERSION: ${{ needs.prepare-release.outputs.new-version }}
+          TAG_NAME: ${{ needs.prepare-release.outputs.tag-name }}
+        run: |
+          gh release create "$TAG_NAME" ckan_batch/dist/*.whl \
+            --title "ckan_batch $NEW_VERSION" \
+            --notes "ckan_batch library release $NEW_VERSION" \
+            --verify-tag
