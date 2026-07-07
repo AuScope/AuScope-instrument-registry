@@ -34,9 +34,14 @@ PIDINST_SITE_DEFAULTS = {
 
 
 GCMD_BASE_URL = "https://vocabs.ardc.edu.au/repository/api/lda"
+# Each key maps to one or more GCMD vocab endpoints. When multiple endpoints
+# are listed, a term is accepted if it matches in any of them.
 GCMD_VOCAB_ENDPOINTS = {
     "instruments": "ardc-curated/gcmd-instruments/22-8-2026-02-13",
-    "measured_variables": "ardc-curated/gcmd-measurementname/21-5-2025-06-06",
+    "measured_variables": [
+        "ardc-curated/gcmd-measurementname/21-5-2025-06-06",
+        "ardc-curated/gcmd-sciencekeywords/17-5-2023-12-21",
+    ],
     "platforms": "ardc-curated/gcmd-platforms/21-5-2025-06-17",
 }
 CUSTOM_TAXONOMY_NAMES = {
