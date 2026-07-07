@@ -157,24 +157,18 @@ this.ckan.module('party-tree-module', function ($, _) {
         });
       });
 
-      // Precompute total counts and active-descendant flags
-      var totalCountMap = {};      // nodeId → cumulative count
+      // Precompute active-descendant flags for auto-expanding checked branches.
       var hasActiveDescMap = {};   // nodeId → boolean
 
       function precompute(nodeId) {
-        var node = self._nodeMap[nodeId];
-        var own  = node ? (node.count || 0) : 0;
         var children = childrenMap[nodeId] || [];
-        var childSum = 0;
         var anyActive = false;
         children.forEach(function (c) {
           precompute(c.id);
-          childSum += totalCountMap[c.id];
           if (self._activeFilterSet.has(c.id) || hasActiveDescMap[c.id]) {
             anyActive = true;
           }
         });
-        totalCountMap[nodeId] = own + childSum;
         hasActiveDescMap[nodeId] = anyActive;
       }
 
@@ -199,7 +193,7 @@ this.ckan.module('party-tree-module', function ($, _) {
       // Render root nodes
       var roots = childrenMap['__root__'] || [];
       roots.forEach(function (node) {
-        $frag.append(self._buildNode(node, childrenMap, totalCountMap, hasActiveDescMap));
+        $frag.append(self._buildNode(node, childrenMap, hasActiveDescMap));
       });
 
       $container.append($frag);
@@ -212,11 +206,11 @@ this.ckan.module('party-tree-module', function ($, _) {
     /* ------------------------------------------------------------------ */
     /* Build a single tree node (recursive)                                */
     /* ------------------------------------------------------------------ */
-    _buildNode: function (node, childrenMap, totalCountMap, hasActiveDescMap) {
+    _buildNode: function (node, childrenMap, hasActiveDescMap) {
       var self = this;
       var children    = childrenMap[node.id] || [];
       var hasChildren = children.length > 0;
-      var total       = totalCountMap[node.id] || 0;
+      var count       = node.count || 0;
       var cbId        = 'fac-' + node.id.replace(/[^a-zA-Z0-9_-]/g, '_');
       var isChecked   = self._activeFilterSet.has(node.id);
 
@@ -239,9 +233,7 @@ this.ckan.module('party-tree-module', function ($, _) {
 
       var $lbl = $('<label></label>').attr('for', cbId);
       $lbl.append($('<span class="party-tree-name"></span>').text(node.title || node.id));
-      if (total > 0) {
-        $lbl.append($('<span class="party-tree-count"></span>').text('(' + total + ')'));
-      }
+      $lbl.append($('<span class="party-tree-count"></span>').text('(' + count + ')'));
 
       $row.append($cb).append($lbl);
       $wrapper.append($row);
@@ -249,7 +241,7 @@ this.ckan.module('party-tree-module', function ($, _) {
       if (hasChildren) {
         var $childContainer = $('<div class="party-tree-children" style="display:none;"></div>');
         children.forEach(function (child) {
-          $childContainer.append(self._buildNode(child, childrenMap, totalCountMap, hasActiveDescMap));
+          $childContainer.append(self._buildNode(child, childrenMap, hasActiveDescMap));
         });
         $wrapper.append($childContainer);
 
