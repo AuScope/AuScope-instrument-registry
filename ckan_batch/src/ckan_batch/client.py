@@ -1066,40 +1066,43 @@ class CKANClient(RemoteCKAN):
             self._gcmd_cache = cache
             return None
 
-        url = (
-            f"{GCMD_BASE_URL}/{endpoint}/concept.json"
-            f"?labelcontains={urllib.parse.quote(label.strip())}"
-            f"&_pageSize=100"
-        )
+        # A key may map to a single endpoint or a list of endpoints; a term is
+        # accepted if it matches in any of them (searched in order).
+        endpoints = endpoint if isinstance(endpoint, (list, tuple)) else [endpoint]
 
-        try:
-            req = urllib.request.Request(url, headers={
-                "Accept": "application/json",
-                "User-Agent": "ckan-batch/1.0",
-            })
-            with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
-                data = json.loads(resp.read().decode("utf-8"))
-        except Exception as exc:
-            print(f"[GCMD] HTTP error for {url}: {exc}")
-            cache[cache_key] = None
-            self._gcmd_cache = cache
-            return None
+        for ep in endpoints:
+            url = (
+                f"{GCMD_BASE_URL}/{ep}/concept.json"
+                f"?labelcontains={urllib.parse.quote(label.strip())}"
+                f"&_pageSize=100"
+            )
 
-        items = data.get("result", {}).get("items", [])
-        for item in items:
-            pref = item.get("prefLabel")
-            if isinstance(pref, dict):
-                pref_val = (pref.get("_value") or "").strip()
-            elif isinstance(pref, str):
-                pref_val = pref.strip()
-            else:
+            try:
+                req = urllib.request.Request(url, headers={
+                    "Accept": "application/json",
+                    "User-Agent": "ckan-batch/1.0",
+                })
+                with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+                    data = json.loads(resp.read().decode("utf-8"))
+            except Exception as exc:
+                print(f"[GCMD] HTTP error for {url}: {exc}")
                 continue
 
-            if pref_val.lower() == norm:
-                result = {"code": item.get("_about", ""), "label": pref_val}
-                cache[cache_key] = result
-                self._gcmd_cache = cache
-                return result
+            items = data.get("result", {}).get("items", [])
+            for item in items:
+                pref = item.get("prefLabel")
+                if isinstance(pref, dict):
+                    pref_val = (pref.get("_value") or "").strip()
+                elif isinstance(pref, str):
+                    pref_val = pref.strip()
+                else:
+                    continue
+
+                if pref_val.lower() == norm:
+                    result = {"code": item.get("_about", ""), "label": pref_val}
+                    cache[cache_key] = result
+                    self._gcmd_cache = cache
+                    return result
 
         cache[cache_key] = None
         self._gcmd_cache = cache
