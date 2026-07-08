@@ -7,11 +7,21 @@ Handles:
 import json
 import logging
 import ckan.plugins.toolkit as tk
+from ckanext.pidinst_theme import analytics
 
 log = logging.getLogger(__name__)
 
 # Context flag to prevent recursion
 _SYNCING_RELATIONS = '_pidinst_syncing_relations'
+
+
+def _sync_context():
+    return {
+        'ignore_auth': True,
+        _SYNCING_RELATIONS: True,
+        '_analytics_update_origin': analytics.UPDATE_ORIGIN_INTERNAL_SYNC,
+        '_analytics_is_initialization_update': False,
+    }
 
 
 def _parse_rel_list(raw):
@@ -98,7 +108,7 @@ def sync_publish_reciprocals(context, pkg_dict):
                     'parent_name': pkg_dict.get('title') or pkg_dict.get('name', ''),
                 })
 
-    ctx = {'ignore_auth': True, _SYNCING_RELATIONS: True}
+    ctx = _sync_context()
 
     # Add IsPartOf on current children
     for child_info in children:
@@ -157,7 +167,7 @@ def cleanup_reciprocals(context, pkg_dict):
     if not related_ids:
         return
 
-    ctx = {'ignore_auth': True, _SYNCING_RELATIONS: True}
+    ctx = _sync_context()
 
     for related_id in related_ids:
         try:

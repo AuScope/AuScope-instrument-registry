@@ -64,6 +64,30 @@ class TestEventConstants(unittest.TestCase):
         self.assertEqual(analytics.EVENT_RESOURCE_PREVIEW_OPENED, 'Resource preview opened')
 
 
+class TestUpdateOriginConstants(unittest.TestCase):
+    """Update origin values must stay small, explicit, and dashboard-safe."""
+
+    def test_update_origin_values(self):
+        self.assertEqual(analytics.UPDATE_ORIGIN_USER_EDIT, 'user_edit')
+        self.assertEqual(analytics.UPDATE_ORIGIN_CREATE_WORKFLOW, 'create_workflow')
+        self.assertEqual(analytics.UPDATE_ORIGIN_DOI_PUBLISH, 'doi_publish')
+        self.assertEqual(analytics.UPDATE_ORIGIN_WITHDRAW, 'withdraw')
+        self.assertEqual(analytics.UPDATE_ORIGIN_DUPLICATE, 'duplicate')
+        self.assertEqual(analytics.UPDATE_ORIGIN_INTERNAL_SYNC, 'internal_sync')
+        self.assertEqual(analytics.UPDATE_ORIGIN_UNKNOWN, 'unknown')
+
+    def test_all_expected_values_are_whitelisted(self):
+        self.assertEqual(analytics.UPDATE_ORIGINS, frozenset({
+            'user_edit',
+            'create_workflow',
+            'doi_publish',
+            'withdraw',
+            'duplicate',
+            'internal_sync',
+            'unknown',
+        }))
+
+
 # ---------------------------------------------------------------------------
 # dataset_type derivation from is_platform
 # ---------------------------------------------------------------------------
@@ -125,6 +149,36 @@ class TestHasDoiFromPkg(unittest.TestCase):
 
     def test_false_when_doi_none(self):
         self.assertFalse(analytics._has_doi_from_pkg({'doi': None}))
+
+    def test_true_when_doi_table_status_is_minted_without_pkg_doi(self):
+        pkg = {'id': 'pkg-001', 'doi': ''}
+        with patch.object(analytics, '_doi_status_from_db',
+                          return_value=(False, 'minted')):
+            self.assertTrue(analytics._has_doi_from_pkg(pkg))
+
+    def test_true_when_doi_table_status_is_published_without_pkg_doi(self):
+        pkg = {'id': 'pkg-001'}
+        with patch.object(analytics, '_doi_status_from_db',
+                          return_value=(True, 'published')):
+            self.assertTrue(analytics._has_doi_from_pkg(pkg))
+
+    def test_false_when_doi_table_status_is_none_even_if_pkg_doi_present(self):
+        pkg = {'id': 'pkg-001', 'doi': '10.1234/stale'}
+        with patch.object(analytics, '_doi_status_from_db',
+                          return_value=(False, 'none')):
+            self.assertFalse(analytics._has_doi_from_pkg(pkg))
+
+    def test_unknown_doi_table_status_falls_back_to_pkg_doi(self):
+        pkg = {'id': 'pkg-001', 'doi': '10.1234/fallback'}
+        with patch.object(analytics, '_doi_status_from_db',
+                          return_value=(False, 'unknown')):
+            self.assertTrue(analytics._has_doi_from_pkg(pkg))
+
+    def test_explicit_doi_status_is_used_before_db_lookup(self):
+        pkg = {'id': 'pkg-001', 'doi': ''}
+        with patch.object(analytics, '_doi_status_from_db',
+                          side_effect=AssertionError('DB should not be queried')):
+            self.assertTrue(analytics._has_doi_from_pkg(pkg, doi_status='published'))
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +245,17 @@ class TestMinimalDatasetProps(unittest.TestCase):
 
     def test_has_doi_true(self):
         props = self._call({'doi': '10.1234/abc'})
+        self.assertTrue(props['has_doi'])
+
+    def test_has_doi_true_from_doi_table_when_pkg_doi_missing(self):
+        with patch.object(analytics, '_doi_status_from_db',
+                          return_value=(False, 'minted')):
+            props = self._call({'doi': ''})
+        self.assertTrue(props['has_doi'])
+
+    def test_has_doi_true_from_explicit_doi_status(self):
+        props = analytics.minimal_dataset_props(_pkg({'doi': ''}),
+                                                doi_status='published')
         self.assertTrue(props['has_doi'])
 
 
@@ -297,6 +362,46 @@ class TestNoPIIInPayloads(unittest.TestCase):
         self.assertNotIn('resource_name', props)
 
 
+class TestTrackDatasetUpdatedOrigin(unittest.TestCase):
+    """Update events expose safe origin fields for Amplitude filtering."""
+
+    def _props(self, update_origin=None, is_initialization_update=False):
+        with patch.object(analytics.AnalyticsTracker, 'track') as mock_track:
+            analytics.track_dataset_updated(
+                _pkg(),
+                update_origin=update_origin,
+                is_initialization_update=is_initialization_update,
+            )
+            return mock_track.call_args[1]['properties']
+
+    def test_default_origin_is_unknown_and_not_initialization(self):
+        props = self._props()
+        self.assertEqual(props['update_origin'], analytics.UPDATE_ORIGIN_UNKNOWN)
+        self.assertIs(props['is_initialization_update'], False)
+
+    def test_user_edit_origin_is_passed_through(self):
+        props = self._props(analytics.UPDATE_ORIGIN_USER_EDIT)
+        self.assertEqual(props['update_origin'], analytics.UPDATE_ORIGIN_USER_EDIT)
+        self.assertIs(props['is_initialization_update'], False)
+
+    def test_initialization_boolean_is_included(self):
+        props = self._props(
+            analytics.UPDATE_ORIGIN_CREATE_WORKFLOW,
+            is_initialization_update=True,
+        )
+        self.assertEqual(props['update_origin'], analytics.UPDATE_ORIGIN_CREATE_WORKFLOW)
+        self.assertIs(props['is_initialization_update'], True)
+
+    def test_invalid_origin_is_collapsed_to_unknown(self):
+        props = self._props('free-text-origin')
+        self.assertEqual(props['update_origin'], analytics.UPDATE_ORIGIN_UNKNOWN)
+
+    def test_all_allowed_origins_pass_through(self):
+        for origin in analytics.UPDATE_ORIGINS:
+            props = self._props(origin)
+            self.assertEqual(props['update_origin'], origin)
+
+
 # ---------------------------------------------------------------------------
 # file_size_group in Download payload
 # ---------------------------------------------------------------------------
@@ -349,6 +454,15 @@ class TestTrackDoiPublished(unittest.TestCase):
         props = self._props()
         for key in ('dataset_id', 'dataset_type', 'is_public', 'has_doi', 'doi_status'):
             self.assertIn(key, props)
+
+    def test_has_doi_true_from_passed_published_status_without_doi_value(self):
+        with patch.object(analytics, '_doi_status_from_db',
+                          side_effect=AssertionError('DB should not be queried')):
+            with patch.object(analytics.AnalyticsTracker, 'track') as mock_track:
+                analytics.track_doi_published(_pkg({'doi': ''}),
+                                              doi_status='published')
+                props = mock_track.call_args[1]['properties']
+        self.assertTrue(props['has_doi'])
 
 
 # ---------------------------------------------------------------------------

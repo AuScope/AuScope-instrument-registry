@@ -29,6 +29,26 @@ EVENT_RESOURCE_PREVIEW_OPENED = 'Resource preview opened'
 EVENT_DATASET_VIEW_DURATION = 'Dataset view duration'
 EVENT_DATASET_REUSE_CREATED = 'Dataset reuse created'
 
+# Safe origin values for EVENT_UPDATE_EXISTING_DATASET. Keep these low-cardinality
+# and non-PII so they are useful as Amplitude filters.
+UPDATE_ORIGIN_USER_EDIT = 'user_edit'
+UPDATE_ORIGIN_CREATE_WORKFLOW = 'create_workflow'
+UPDATE_ORIGIN_DOI_PUBLISH = 'doi_publish'
+UPDATE_ORIGIN_WITHDRAW = 'withdraw'
+UPDATE_ORIGIN_DUPLICATE = 'duplicate'
+UPDATE_ORIGIN_INTERNAL_SYNC = 'internal_sync'
+UPDATE_ORIGIN_UNKNOWN = 'unknown'
+
+UPDATE_ORIGINS = frozenset({
+    UPDATE_ORIGIN_USER_EDIT,
+    UPDATE_ORIGIN_CREATE_WORKFLOW,
+    UPDATE_ORIGIN_DOI_PUBLISH,
+    UPDATE_ORIGIN_WITHDRAW,
+    UPDATE_ORIGIN_DUPLICATE,
+    UPDATE_ORIGIN_INTERNAL_SYNC,
+    UPDATE_ORIGIN_UNKNOWN,
+})
+
 # ---------------------------------------------------------------------------
 # Known frontend event names — used to whitelist the /api/analytics/track
 # endpoint.  Only events defined above are accepted from the browser.
@@ -304,12 +324,34 @@ def _is_public_from_pkg(pkg_dict: Dict[str, Any]) -> Optional[bool]:
     return not pkg_dict['private']
 
 
-def _has_doi_from_pkg(pkg_dict: Dict[str, Any]) -> bool:
-    """Return True only when a non-empty DOI value exists in the package dict."""
+def _has_doi_from_pkg(pkg_dict: Dict[str, Any],
+                      doi_status: Optional[str] = None) -> bool:
+    """Return whether a package has a DOI record without exposing the DOI value.
+
+    Prefer the ckanext-doi table when a package ID is available.  CKAN package
+    dicts are not guaranteed to include the decorated ``doi`` field, especially
+    during backend lifecycle hooks, so the DOI table is the more reliable
+    source for analytics.  Fall back to the package field only when the table
+    status is unavailable, which keeps lightweight test/import environments
+    working without sending the raw DOI value.
+    """
+    if doi_status in ('minted', 'published'):
+        return True
+    if doi_status == 'none':
+        return False
+
+    pkg_id = pkg_dict.get('id')
+    if pkg_id:
+        _is_published, doi_status = _doi_status_from_db(pkg_id)
+        if doi_status in ('minted', 'published'):
+            return True
+        if doi_status == 'none':
+            return False
     return bool(pkg_dict.get('doi'))
 
 
-def minimal_dataset_props(pkg_dict: Dict[str, Any]) -> Dict[str, Any]:
+def minimal_dataset_props(pkg_dict: Dict[str, Any],
+                          doi_status: Optional[str] = None) -> Dict[str, Any]:
     """Return the minimal analytics property dict for a dataset/package event.
 
     Sends only: dataset_id, dataset_type, is_public, has_doi.
@@ -319,8 +361,19 @@ def minimal_dataset_props(pkg_dict: Dict[str, Any]) -> Dict[str, Any]:
         'dataset_id': pkg_dict.get('id'),
         'dataset_type': _dataset_type_from_pkg(pkg_dict),
         'is_public': _is_public_from_pkg(pkg_dict),
-        'has_doi': _has_doi_from_pkg(pkg_dict),
+        'has_doi': _has_doi_from_pkg(pkg_dict, doi_status=doi_status),
     }
+
+
+def safe_update_origin(update_origin: Optional[str]) -> str:
+    """Return a whitelisted update origin for analytics payloads.
+
+    Unknown, missing, or typo values collapse to ``unknown`` so callers cannot
+    accidentally introduce high-cardinality or unsafe values into Amplitude.
+    """
+    if update_origin in UPDATE_ORIGINS:
+        return update_origin
+    return UPDATE_ORIGIN_UNKNOWN
 
 
 def file_size_group(size_bytes: Optional[int]) -> str:
@@ -356,11 +409,20 @@ def track_dataset_created(dataset_dict: Dict[str, Any]):
     )
 
 
-def track_dataset_updated(dataset_dict: Dict[str, Any]):
-    """Track dataset update event (EVENT_UPDATE_EXISTING_DATASET)."""
+def track_dataset_updated(dataset_dict: Dict[str, Any],
+                          update_origin: Optional[str] = None,
+                          is_initialization_update: bool = False):
+    """Track dataset update event (EVENT_UPDATE_EXISTING_DATASET).
+
+    ``update_origin`` distinguishes genuine user edits from backend workflow
+    updates while remaining a small, safe enum for analytics filtering.
+    """
+    props = minimal_dataset_props(dataset_dict)
+    props['update_origin'] = safe_update_origin(update_origin)
+    props['is_initialization_update'] = bool(is_initialization_update)
     AnalyticsTracker.track(
         event=EVENT_UPDATE_EXISTING_DATASET,
-        properties=minimal_dataset_props(dataset_dict),
+        properties=props,
     )
 
 
@@ -398,7 +460,7 @@ def track_doi_published(dataset_dict: Dict[str, Any],
 
     The full DOI value is intentionally NOT sent in the payload.
     """
-    props = minimal_dataset_props(dataset_dict)
+    props = minimal_dataset_props(dataset_dict, doi_status=doi_status)
     props['doi_status'] = doi_status or 'unknown'
     AnalyticsTracker.track(
         event=EVENT_DATASET_PUBLISHED_WITH_DOI,

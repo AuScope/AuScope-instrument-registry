@@ -18,6 +18,7 @@ from ckanext.pidinst_theme.logic import (
 )
 from ckanext.pidinst_theme.logic.auth import _is_doi_published, _package_extra_value
 from ckanext.pidinst_theme import (
+    analytics,
     doi_policy,
     party_propagation,
     party_cache,
@@ -37,6 +38,16 @@ from ckanext.pidinst_theme.doi_resolution.url_metadata_client import fetch_url_m
 from ckanext.doi.lib.api import DataciteClient
 from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 from ckanext.doi.model.crud import DOIQuery
+
+
+def _setdefault_analytics_update_context(context, origin,
+                                         is_initialization_update=False):
+    """Add update analytics metadata without overriding a more specific caller."""
+    context.setdefault('_analytics_update_origin', origin)
+    context.setdefault(
+        '_analytics_is_initialization_update',
+        bool(is_initialization_update),
+    )
 
 
 _log = logging.getLogger(__name__)
@@ -320,6 +331,11 @@ def generate_instrument_name(data_dict):
 
 @tk.chained_action
 def package_update(next_action, context, data_dict):
+    _setdefault_analytics_update_context(
+        context,
+        analytics.UPDATE_ORIGIN_USER_EDIT,
+        is_initialization_update=False,
+    )
     logger = logging.getLogger(__name__)
     logger.debug(
         'PIDINST package_update incoming id=%r identifier_source=%r '
@@ -371,6 +387,16 @@ def package_update(next_action, context, data_dict):
 
 @tk.chained_action
 def package_patch(next_action, context, data_dict):
+    default_origin = (
+        analytics.UPDATE_ORIGIN_INTERNAL_SYNC
+        if context.get('ignore_auth')
+        else analytics.UPDATE_ORIGIN_USER_EDIT
+    )
+    _setdefault_analytics_update_context(
+        context,
+        default_origin,
+        is_initialization_update=False,
+    )
     logger = logging.getLogger(__name__)
     logger.debug(
         'PIDINST package_patch incoming id=%r identifier_source=%r '
@@ -683,7 +709,13 @@ def package_mark_duplicate(context, data_dict):
             'relation_type': 'IsIdenticalTo',
         })
 
-    tk.get_action('package_patch')(context, {
+    patch_context = dict(context)
+    _setdefault_analytics_update_context(
+        patch_context,
+        analytics.UPDATE_ORIGIN_DUPLICATE,
+        is_initialization_update=False,
+    )
+    tk.get_action('package_patch')(patch_context, {
         'id': pkg_id,
         'publication_status': 'duplicate',
         'duplicate_of': duplicate_of,
@@ -720,7 +752,13 @@ def package_withdraw(context, data_dict):
         raise ValidationError({'id': ['This record is already withdrawn.']})
 
     # Update only the two lifecycle extras; leave everything else unchanged.
-    tk.get_action('package_patch')(context, {
+    patch_context = dict(context)
+    _setdefault_analytics_update_context(
+        patch_context,
+        analytics.UPDATE_ORIGIN_WITHDRAW,
+        is_initialization_update=False,
+    )
+    tk.get_action('package_patch')(patch_context, {
         'id': pkg_id,
         'publication_status': 'withdrawn',
         'withdrawal_reason': reason,

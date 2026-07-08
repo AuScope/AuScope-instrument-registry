@@ -50,6 +50,16 @@ def patched_build_metadata_dict(pkg_dict):
 doi_metadata.build_metadata_dict = patched_build_metadata_dict
 
 
+def _setdefault_analytics_update_context(context, origin,
+                                         is_initialization_update=False):
+    """Add update analytics metadata without overriding a more specific caller."""
+    context.setdefault('_analytics_update_origin', origin)
+    context.setdefault(
+        '_analytics_is_initialization_update',
+        bool(is_initialization_update),
+    )
+
+
 def _apply_or_within_block_for_group_page(fq):
     """Replace per-value AND clauses with OR groups for multi-selected checkbox facets.
 
@@ -403,6 +413,11 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
                 # 'Update existing dataset' analytics event for this
                 # internal package_patch call.
                 patch_ctx["_analytics_suppress"] = True
+                _setdefault_analytics_update_context(
+                    patch_ctx,
+                    analytics.UPDATE_ORIGIN_CREATE_WORKFLOW,
+                    is_initialization_update=True,
+                )
 
                 toolkit.get_action("package_patch")(
                     patch_ctx,
@@ -440,14 +455,36 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
             return
 
         try:
-            analytics.track_dataset_updated(pkg_dict)
-
+            update_origin = analytics.safe_update_origin(
+                context.get('_analytics_update_origin')
+            )
+            is_initialization_update = bool(
+                context.get('_analytics_is_initialization_update')
+            )
+            is_now_published = False
+            doi_status = None
             was_published = context.get('_analytics_doi_was_published')
             if was_published is False:
                 pkg_id = pkg_dict.get('id', '')
                 is_now_published, doi_status = analytics._doi_status_from_db(pkg_id)
                 if is_now_published:
-                    analytics.track_doi_published(pkg_dict, doi_status=doi_status)
+                    update_origin = analytics.UPDATE_ORIGIN_DOI_PUBLISH
+
+            if update_origin == analytics.UPDATE_ORIGIN_UNKNOWN:
+                pub_status = pkg_dict.get('publication_status', '')
+                if pub_status == 'withdrawn':
+                    update_origin = analytics.UPDATE_ORIGIN_WITHDRAW
+                elif pub_status == 'duplicate':
+                    update_origin = analytics.UPDATE_ORIGIN_DUPLICATE
+
+            analytics.track_dataset_updated(
+                pkg_dict,
+                update_origin=update_origin,
+                is_initialization_update=is_initialization_update,
+            )
+
+            if was_published is False and is_now_published:
+                analytics.track_doi_published(pkg_dict, doi_status=doi_status)
         except Exception as e:
             logging.error(f"Failed to track instrument update: {e}")
 
