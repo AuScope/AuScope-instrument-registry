@@ -32,6 +32,9 @@ ValidationError = logic.ValidationError
 
 log = logging.getLogger(__name__)
 
+
+_PARTY_TREE_CACHE_SCHEMA_VERSION = 5
+
 try:
     from ckanext.contact.routes import _helpers
     contact_plugin_available = True
@@ -757,21 +760,181 @@ def _parse_party_roles(merged):
             role_raw = json.loads(role_raw) if role_raw.strip().startswith('[') else [role_raw]
         except Exception:
             role_raw = [role_raw]
-    return [
-        str(r).strip().lower()
-        for r in (role_raw if isinstance(role_raw, list) else [])
-        if str(r).strip()
-    ]
+
+    roles = []
+    known_roles = ('owner', 'funder', 'manufacturer')
+    for value in (role_raw if isinstance(role_raw, list) else []):
+        role_text = str(value or '').strip().lower()
+        if not role_text:
+            continue
+        if role_text in known_roles:
+            roles.append(role_text)
+            continue
+        roles.extend(role for role in known_roles if role in role_text)
+
+    return list(dict.fromkeys(roles))
 
 
-def _build_party_trees(is_platform, is_logged_in):
+def _current_package_search_context():
+    """Return the package_search context for the current viewer."""
+    return {
+        'user': getattr(toolkit.c, 'user', None),
+        'auth_user_obj': getattr(toolkit.c, 'userobj', None),
+    }
+
+
+def _search_context_user_id(context):
+    user = context.get('auth_user_obj')
+    if user is not None:
+        return getattr(user, 'id', None) or getattr(user, 'name', None)
+    return context.get('user')
+
+
+def _search_context_include_private(context):
+    return bool(_search_context_user_id(context))
+
+
+def _search_context_cache_key(context):
+    user_id = _search_context_user_id(context)
+    return 'user:{}'.format(user_id) if user_id else 'anonymous'
+
+
+def _party_cache_version_for_context(context):
+    return '{}:{}:{}'.format(
+        _PARTY_TREE_CACHE_SCHEMA_VERSION,
+        _party_cache_mod.get_version(),
+        _search_context_cache_key(context),
+    )
+
+
+def _party_slug_lookup(slugs, title_map):
+    """Map Solr facet values back to party slugs by slug or title."""
+    lookup = {}
+    for slug in slugs:
+        title = title_map.get(slug) or slug
+        for value in (slug, title):
+            if not value:
+                continue
+            lookup.setdefault(value, slug)
+            lookup.setdefault(str(value).lower(), slug)
+    return lookup
+
+
+def _lookup_party_slug(value, lookup):
+    if value in lookup:
+        return lookup[value]
+    return lookup.get(str(value).lower())
+
+
+def _solr_phrase(value):
+    return '"{}"'.format(str(value).replace('\\', '\\\\').replace('"', '\\"'))
+
+
+def _party_filter_values_for_slug(slug, all_parties):
+    """Return possible indexed values for a selected party tree node."""
+    values = []
+    for value in (slug, (all_parties.get(slug) or {}).get('title')):
+        value = str(value or '').strip()
+        if value and value not in values:
+            values.append(value)
+    return values
+
+
+def _build_owner_funder_party_fq(owner_parties, all_parties=None):
+    """Build the Solr fq for Owners/Funders tree selections.
+
+    Tree node IDs are party slugs, while records are indexed by owner/funder
+    display names in vocab_owner_party and vocab_funder_party.  Match only
+    those fields so a manufacturer-only relationship cannot satisfy this
+    filter.
+    """
+    clauses = []
+    all_parties = all_parties if all_parties is not None else _load_all_party_metadata()
+    for slug in owner_parties:
+        for value in _party_filter_values_for_slug(slug, all_parties):
+            phrase = _solr_phrase(value)
+            clauses.append('vocab_owner_party:{}'.format(phrase))
+            clauses.append('vocab_funder_party:{}'.format(phrase))
+
+    clauses = list(dict.fromkeys(clauses))
+    if not clauses:
+        return ''
+    if len(clauses) == 1:
+        return '+' + clauses[0]
+    return '+(' + ' OR '.join(clauses) + ')'
+
+
+def _listify_search_value(value):
+    """Return a package_search field value as a list of non-empty strings."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return []
+        if value.startswith('['):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    value = parsed
+            except Exception:
+                pass
+        if isinstance(value, str):
+            return [value]
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    return [str(value).strip()] if str(value).strip() else []
+
+
+def _party_values_from_package(pkg, facet_field, object_field, name_key, id_key):
+    """Extract party slug/title values from Solr fields with validated-data fallback."""
+    values = _listify_search_value(pkg.get(facet_field))
+    if values:
+        return values
+
+    vdd = pkg.get('validated_data_dict')
+    if not vdd:
+        return []
+    try:
+        data = json.loads(vdd) if isinstance(vdd, str) else vdd
+    except Exception:
+        return []
+
+    object_values = data.get(object_field, []) if isinstance(data, dict) else []
+    if isinstance(object_values, str):
+        try:
+            object_values = json.loads(object_values)
+        except Exception:
+            object_values = []
+
+    values = []
+    if isinstance(object_values, list):
+        for item in object_values:
+            if not isinstance(item, dict):
+                continue
+            for key in (id_key, name_key):
+                value = item.get(key)
+                if value:
+                    values.append(str(value).strip())
+    return [v for v in values if v]
+
+
+def _build_party_trees(is_platform, search_context=None):
     """Build owner and manufacturer party node lists.
 
-    Returns (owner_nodes, manufacturer_nodes).  Uses a single rows=0 Solr
-    facet query to count both trees; Solr computes counts server-side without
-    transferring package documents.  Cached for _PARTY_CACHE_TTL seconds.
+    Returns (owner_nodes, manufacturer_nodes).  Manufacturer counts are read
+    from Solr facets.  Owner/funder counts are distinct visible package counts
+    across owner and funder fields so a package that lists the same party in
+    both roles is counted once.  Cached for _PARTY_CACHE_TTL seconds.
     """
-    cache_key = ('party_trees', is_platform, is_logged_in)
+    search_context = search_context or _current_package_search_context()
+    include_private = _search_context_include_private(search_context)
+    cache_key = (
+        'party_trees',
+        _PARTY_TREE_CACHE_SCHEMA_VERSION,
+        is_platform,
+        _search_context_cache_key(search_context),
+    )
     cached = _party_cache_get(cache_key)
     if cached is not None:
         log.info('[PERF] _build_party_trees(is_platform=%s): cache HIT', is_platform)
@@ -788,11 +951,11 @@ def _build_party_trees(is_platform, is_logged_in):
     # Pre-parse roles once for all parties
     roles_by_slug = {slug: _parse_party_roles(m) for slug, m in all_parties.items()}
 
-    # --- Owner party map (exclude manufacturer-only parties) ---
+    # --- Owner/Funder party map ---
     owner_map = {}
     for slug, merged in all_parties.items():
         roles = roles_by_slug[slug]
-        if roles and all(r == 'manufacturer' for r in roles):
+        if not any(r in ('owner', 'funder') for r in roles):
             continue
         owner_map[slug] = {
             'id':        slug,
@@ -801,6 +964,10 @@ def _build_party_trees(is_platform, is_logged_in):
             'contact':   merged.get('party_contact', ''),
             'count':     0,
         }
+
+    for node in owner_map.values():
+        if node['parent_id'] not in owner_map:
+            node['parent_id'] = None
 
     # --- Manufacturer party map ---
     title_map = {slug: (m.get('title') or slug) for slug, m in all_parties.items()}
@@ -822,21 +989,18 @@ def _build_party_trees(is_platform, is_logged_in):
     log.info('[PERF] _build_party_trees: maps built (%d owners, %d mfrs) in %.3fs',
              len(owner_map), len(mfr_map), _t2 - _t1)
 
-    # --- Single rows=0 Solr facet query for counting both owners and manufacturers ---
-    # Solr computes the aggregated counts server-side in one round-trip without
-    # transferring any package documents, replacing the previous paginated while-loop.
-    context = {'ignore_auth': True}
+    # --- rows=0 Solr facet query for party count fields ---
     fq = f'dataset_type:instrument AND extras_is_platform:{is_platform}'
     try:
-        facet_result = toolkit.get_action('package_search')(context, {
+        facet_result = toolkit.get_action('package_search')(search_context, {
             'q': '*:*',
             'fq': fq,
             'rows': 0,
             'facet': 'true',
-            'facet.field': ['vocab_owner_party', 'vocab_manufacturer_party'],
+            'facet.field': ['vocab_manufacturer_party'],
             'facet.limit': -1,    # return all values, not just top-N
             'facet.mincount': 1,
-            'include_private': is_logged_in,
+            'include_private': include_private,
         })
     except Exception as e:
         log.warning('Party count facet query failed: %s', e)
@@ -846,21 +1010,67 @@ def _build_party_trees(is_platform, is_logged_in):
 
     search_facets = facet_result.get('search_facets', {})
 
-    # vocab_owner_party indexes owner_name (display title); map back to slug via
-    # a reverse title→slug lookup built from the same all_parties metadata.
-    title_to_slug = {(m.get('title') or slug): slug for slug, m in all_parties.items()}
-    for item in search_facets.get('vocab_owner_party', {}).get('items', []):
-        name = item.get('name', '')
-        slug = title_to_slug.get(name)
-        if slug and slug in owner_map:
-            owner_map[slug]['count'] = item['count']
+    # Count distinct visible packages per owner/funder party.  The owner and
+    # funder facets cannot simply be added because the same package may list
+    # the same party in both roles.
+    owner_value_to_slug = _party_slug_lookup(owner_map.keys(), title_map)
+    owner_package_ids_by_slug = {slug: set() for slug in owner_map}
+    rows = 1000
+    start = 0
+    try:
+        while True:
+            package_result = toolkit.get_action('package_search')(search_context, {
+                'q': '*:*',
+                'fq': fq,
+                'rows': rows,
+                'start': start,
+                'fl': (
+                    'id,name,vocab_owner_party,vocab_funder_party,'
+                    'validated_data_dict'
+                ),
+                'include_private': include_private,
+            })
+            packages = package_result.get('results', [])
+            for pkg in packages:
+                package_id = pkg.get('id') or pkg.get('name')
+                if not package_id:
+                    continue
+                party_values = []
+                party_values.extend(_party_values_from_package(
+                    pkg,
+                    'vocab_owner_party',
+                    'owner',
+                    'owner_name',
+                    'owner_party_id',
+                ))
+                party_values.extend(_party_values_from_package(
+                    pkg,
+                    'vocab_funder_party',
+                    'funder',
+                    'funder_name',
+                    'funder_party_id',
+                ))
+                for value in party_values:
+                    slug = _lookup_party_slug(value, owner_value_to_slug)
+                    if slug and slug in owner_package_ids_by_slug:
+                        owner_package_ids_by_slug[slug].add(package_id)
 
-    # vocab_manufacturer_party indexes the manufacturer title, which is also
-    # the node id in mfr_map, so the lookup is direct.
-    mfr_title_to_slug = {title_map[slug]: slug for slug in mfr_slugs}
+            start += len(packages)
+            total = package_result.get('count', start)
+            if not packages or start >= total:
+                break
+
+        for slug, package_ids in owner_package_ids_by_slug.items():
+            owner_map[slug]['count'] = len(package_ids)
+    except Exception as e:
+        log.warning('Party owner/funder distinct count query failed: %s', e)
+
+    # Manufacturer nodes use display titles as ids, but count mapping still
+    # accepts either slug or title from Solr.
+    mfr_value_to_slug = _party_slug_lookup(mfr_slugs, title_map)
     for item in search_facets.get('vocab_manufacturer_party', {}).get('items', []):
         name = item.get('name', '')
-        slug = mfr_title_to_slug.get(name)
+        slug = _lookup_party_slug(name, mfr_value_to_slug)
         if slug and slug in mfr_map:
             mfr_map[slug]['count'] = item['count']
 
@@ -870,14 +1080,14 @@ def _build_party_trees(is_platform, is_logged_in):
     return result_pair
 
 
-def _build_instrument_party_nodes(is_platform, is_logged_in):
+def _build_instrument_party_nodes(is_platform, search_context=None):
     """Build the nodes list for the instrument parties (Owners/Funders) tree."""
-    return _build_party_trees(is_platform, is_logged_in)[0]
+    return _build_party_trees(is_platform, search_context)[0]
 
 
-def _build_manufacturer_party_nodes(is_platform, is_logged_in):
+def _build_manufacturer_party_nodes(is_platform, search_context=None):
     """Build the nodes list for the manufacturer parties tree."""
-    return _build_party_trees(is_platform, is_logged_in)[1]
+    return _build_party_trees(is_platform, search_context)[1]
 
 
 @pidinst_theme.route('/api/party_cache_version')
@@ -888,7 +1098,7 @@ def party_cache_version():
     server-side party data has changed so the sessionStorage cache can
     be invalidated.
     """
-    return jsonify({'version': _party_cache_mod.get_version()})
+    return jsonify({'version': _party_cache_version_for_context(_current_package_search_context())})
 
 
 @pidinst_theme.route('/api/propagation_progress/<path:entity_key>')
@@ -936,11 +1146,14 @@ def instrument_parties():
     _t0 = time.time()
     try:
         is_platform = request.args.get('is_platform', 'false')
-        is_logged_in = bool(toolkit.c.user)
-        nodes = _build_instrument_party_nodes(is_platform, is_logged_in)
+        search_context = _current_package_search_context()
+        nodes = _build_instrument_party_nodes(is_platform, search_context)
         log.info('[PERF] GET /api/instrument_parties?is_platform=%s -> %d nodes in %.3fs',
                  is_platform, len(nodes), time.time() - _t0)
-        return jsonify({'nodes': nodes, 'cache_version': _party_cache_mod.get_version()})
+        return jsonify({
+            'nodes': nodes,
+            'cache_version': _party_cache_version_for_context(search_context),
+        })
     except Exception as e:
         log.error('[PERF] instrument_parties error after %.3fs: %s', time.time() - _t0, e)
         return jsonify({'nodes': [], 'error': str(e)}), 500
@@ -954,11 +1167,14 @@ def manufacturer_parties():
     _t0 = time.time()
     try:
         is_platform = request.args.get('is_platform', 'false')
-        is_logged_in = bool(toolkit.c.user)
-        nodes = _build_manufacturer_party_nodes(is_platform, is_logged_in)
+        search_context = _current_package_search_context()
+        nodes = _build_manufacturer_party_nodes(is_platform, search_context)
         log.info('[PERF] GET /api/manufacturer_parties?is_platform=%s -> %d nodes in %.3fs',
                  is_platform, len(nodes), time.time() - _t0)
-        return jsonify({'nodes': nodes, 'cache_version': _party_cache_mod.get_version()})
+        return jsonify({
+            'nodes': nodes,
+            'cache_version': _party_cache_version_for_context(search_context),
+        })
     except Exception as e:
         log.error('[PERF] manufacturer_parties error after %.3fs: %s', time.time() - _t0, e)
         return jsonify({'nodes': [], 'error': str(e)}), 500
@@ -1635,17 +1851,15 @@ def _instrument_platform_search(is_platform_value, template, named_route, displa
     extra_fq_parts = []
     search_extras = {}
 
-    # --- party owner filter: OR across CKAN group membership ---
+    # --- party owner/funder filter: OR across indexed owner/funder fields ---
     owner_parties = toolkit.request.args.getlist('owner_party')
     if owner_parties:
         for fac in owner_parties:
             fields.append(('owner_party', fac))
             fields_grouped.setdefault('owner_party', []).append(fac)
-        or_clauses = ['groups:"{}"'.format(f) for f in owner_parties]
-        if len(or_clauses) == 1:
-            extra_fq_parts.append('+' + or_clauses[0])
-        else:
-            extra_fq_parts.append('+(' + ' OR '.join(or_clauses) + ')')
+        owner_funder_fq = _build_owner_funder_party_fq(owner_parties)
+        if owner_funder_fq:
+            extra_fq_parts.append(owner_funder_fq)
 
     # --- standard facet filters: group by field for OR-within / AND-between ---
     # Collect all values per field first so that multiple selections in the

@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 
 import ckan.plugins.toolkit as toolkit
+from ckanext.pidinst_theme import analytics
 
 log = logging.getLogger(__name__)
 
@@ -300,7 +301,12 @@ def load_fresh_package(pkg_id, fallback=None):
 def patch_package(pkg_id, payload):
     """Issue a package_patch for the given package."""
     toolkit.get_action('package_patch')(
-        {'ignore_auth': True}, {**payload, 'id': pkg_id}
+        {
+            'ignore_auth': True,
+            '_analytics_update_origin': analytics.UPDATE_ORIGIN_INTERNAL_SYNC,
+            '_analytics_is_initialization_update': False,
+        },
+        {**payload, 'id': pkg_id},
     )
 
 

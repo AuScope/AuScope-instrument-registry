@@ -19,3 +19,5 @@ __pycache__/
 
 
 .ipynb_checkpoints/
+.kiro/
+.tmp_pycache/
