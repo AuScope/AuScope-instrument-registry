@@ -43,6 +43,9 @@ dataset_fields:
   - field_name: schema_version
     label: Schema Version
     form_snippet: hidden_field.html
+    # Internal CKAN schema version; hidden from the record view so it is not
+    # mistaken for the PIDINST or DataCite schema version.
+    display_snippet: null
     form_placeholder: Version number of the PIDINST schema used in this record
     help_text: Version number of the PIDINST schema used in this record
     groupBy: About Instrument
