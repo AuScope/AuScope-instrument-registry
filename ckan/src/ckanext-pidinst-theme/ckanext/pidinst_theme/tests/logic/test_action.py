@@ -145,3 +145,84 @@ def test_doi_resolution_action_uses_test_datacite_api_for_test_resolver_url(
 def test_doi_resolution_action_rejects_missing_identifier():
     with pytest.raises(tk.ValidationError):
         action.pidinst_resolve_doi_metadata({'ignore_auth': True}, {})
+
+
+class _FakePackage:
+    """Minimal stand-in for the package ORM object used by the write hooks."""
+
+    def __init__(self, private=True, extras=None):
+        self.id = 'pkg-1'
+        self.private = private
+        self.extras = extras or {}
+
+
+def _call_package_update(monkeypatch, package, data_dict):
+    monkeypatch.setattr(action, 'get_package_object', lambda context, d: package)
+    monkeypatch.setattr(action, '_is_doi_published', lambda pkg: False)
+    return action.package_update(
+        lambda context, d: d, {}, dict(data_dict, id=package.id),
+    )
+
+
+def test_package_update_stamps_publication_date_when_private_is_a_bool(monkeypatch):
+    """The API sends private as a real bool; the UI form sends 'False'."""
+    result = _call_package_update(
+        monkeypatch,
+        _FakePackage(private=True),
+        {'title': 'Batch instrument', 'private': False},
+    )
+    assert result['publication_date']
+
+
+def test_package_update_stamps_publication_date_when_private_is_a_string(monkeypatch):
+    result = _call_package_update(
+        monkeypatch,
+        _FakePackage(private=True),
+        {'title': 'Form instrument', 'private': 'False'},
+    )
+    assert result['publication_date']
+
+
+def test_package_update_backfills_public_record_missing_publication_date(monkeypatch):
+    """Re-running the update over an already-public record repairs a missing date."""
+    result = _call_package_update(
+        monkeypatch,
+        _FakePackage(private=False),
+        {'title': 'Already public', 'private': False},
+    )
+    assert result['publication_date']
+
+
+def test_package_update_preserves_stored_publication_date(monkeypatch):
+    """package_update replaces the record, so an omitted date must not be blanked."""
+    result = _call_package_update(
+        monkeypatch,
+        _FakePackage(private=False, extras={'publication_date': '2025-03-04'}),
+        {'title': 'Already public', 'private': False},
+    )
+    assert result['publication_date'] == '2025-03-04'
+
+
+def test_package_update_does_not_stamp_private_record(monkeypatch):
+    result = _call_package_update(
+        monkeypatch,
+        _FakePackage(private=True),
+        {'title': 'Still private', 'private': True},
+    )
+    assert not result.get('publication_date')
+
+
+def test_package_create_stamps_publication_date_when_private_is_a_bool(monkeypatch):
+    class _FakePlugin:
+        def create_package_schema(self):
+            return {}
+
+    monkeypatch.setattr(
+        action.lib_plugins, 'lookup_package_plugin', lambda t: _FakePlugin(),
+    )
+    result = action.package_create(
+        lambda context, d: d,
+        {},
+        {'title': 'Batch instrument', 'type': 'instrument', 'private': False},
+    )
+    assert result['publication_date']

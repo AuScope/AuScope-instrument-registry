@@ -42,6 +42,17 @@ from ckanext.doi.model.crud import DOIQuery
 _log = logging.getLogger(__name__)
 
 
+def _is_private(value):
+    """Coerce a ``private`` value to a bool using CKAN's boolean semantics.
+
+    The UI form posts the string 'True'/'False' while the API sends a real
+    bool, so comparing against either type alone silently misses the other.
+    """
+    if isinstance(value, str):
+        return value.strip().lower() in ('true', 'yes', 't', 'y', '1')
+    return bool(value)
+
+
 def _run_propagation_async(propagation_fn, *args, **kwargs):
     """Run a propagation function in a background daemon thread.
 
@@ -146,7 +157,8 @@ def package_create(next_action, context, data_dict):
 
     manage_parent_related_resource(data_dict)
 
-    if 'private' in data_dict and data_dict['private'] == 'False':
+    if 'private' in data_dict and not _is_private(data_dict['private']) \
+            and not data_dict.get('publication_date'):
         data_dict['publication_date'] = datetime.now()
 
     return next_action(context, data_dict)
@@ -347,13 +359,12 @@ def package_update(next_action, context, data_dict):
         'doi' in data_dict,
     )
 
-    # DOI lifecycle guard: prevent a public DOI record from being made private.
     # 'private' can be a bool or string ('True'/'False') depending on whether the call
     # comes from the UI form or the API.
+    new_private = _is_private(data_dict.get('private', package.private))
+
+    # DOI lifecycle guard: prevent a public DOI record from being made private.
     if doi_policy.should_manage_doi(_package_identifier_state(package)) and _is_doi_published(package):
-        new_private = data_dict.get('private', package.private)
-        if isinstance(new_private, str):
-            new_private = new_private.strip().lower() not in ('false', '0')
         if new_private:
             raise ValidationError({
                 'private': [
@@ -362,9 +373,17 @@ def package_update(next_action, context, data_dict):
                 ]
             })
 
-    if package.private and data_dict['private'] == 'False' and \
-            (not data_dict['publication_date'] or data_dict['publication_date'] == ''):
-        data_dict['publication_date'] = datetime.now()
+    # Stamp the publication date on any public record that lacks one.  This is
+    # keyed on the resulting state rather than a private -> public transition so
+    # that a record published without a date can be corrected by re-running the
+    # update.  package_update replaces the whole record, so a payload that omits
+    # publication_date must inherit the stored value instead of blanking it.
+    if not new_private:
+        publication_date = (
+            data_dict.get('publication_date')
+            or _package_extra_value(package, 'publication_date')
+        )
+        data_dict['publication_date'] = publication_date or datetime.now()
 
     return next_action(context, data_dict)
 
