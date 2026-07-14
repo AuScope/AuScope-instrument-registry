@@ -109,7 +109,7 @@
       {%- if pkg.citation -%}
         <h2>{{ _('Cite this as') }}</h2>
         <div class="citation embedded-content">
-          {{ h.render_markdown(h.get_translated(pkg, 'citation')) }}
+          {{ h.render_markdown(h.pidinst_format_citation(pkg, h.get_translated(pkg, 'citation'), true)) }}
         </div>
       {%- endif -%}
     {% endblock %}

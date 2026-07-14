@@ -539,6 +539,9 @@ def pidinst_instrument_meta(pkg_dict):
           'alt_identifier_label': str,    # human-readable type label
         }
     """
+    if not isinstance(pkg_dict, dict):
+        pkg_dict = {}
+
     def _parse_composite(pkg_dict, field_name):
         """Return a list of dicts for a composite_repeating field."""
         value = pkg_dict.get(field_name)
@@ -560,7 +563,13 @@ def pidinst_instrument_meta(pkg_dict):
     model_name = models[0].get('model_name') if models else None
 
     # --- Alternate identifier: SerialNumber priority, then first ---
-    alt_ids = _parse_composite(pkg_dict, 'alternate_identifier_obj')
+    alt_ids = []
+    for alt_id in _parse_composite(pkg_dict, 'alternate_identifier_obj'):
+        value = alt_id.get('alternate_identifier')
+        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+            value = str(value).strip()
+            if value:
+                alt_ids.append(dict(alt_id, alternate_identifier=value))
     chosen = next(
         (a for a in alt_ids if a.get('alternate_identifier_type') == 'SerialNumber'),
         alt_ids[0] if alt_ids else None
@@ -569,20 +578,66 @@ def pidinst_instrument_meta(pkg_dict):
     alt_identifier = None
     alt_identifier_label = 'Identifier'
     if chosen:
-        alt_identifier = chosen.get('alternate_identifier') or chosen.get('alternate_identifier_name')
+        alt_identifier = chosen.get('alternate_identifier')
         raw_type = chosen.get('alternate_identifier_type', '')
+        raw_type = raw_type.strip() if isinstance(raw_type, str) else ''
+        descriptive_name = chosen.get('alternate_identifier_name')
+        descriptive_name = (
+            descriptive_name.strip() if isinstance(descriptive_name, str) else ''
+        )
         _type_labels = {
-            'SerialNumber': 'Serial #',
-            'InventoryNumber': 'Inventory #',
-            'Other': chosen.get('alternate_identifier_name') or 'Identifier',
+            'SerialNumber': 'Serial No.',
+            'InventoryNumber': 'Inventory No.',
+            'Other': descriptive_name or 'Identifier',
         }
-        alt_identifier_label = _type_labels.get(raw_type, raw_type)
+        alt_identifier_label = _type_labels.get(raw_type, raw_type or 'Identifier')
 
     return {
         'model_name': model_name,
         'alt_identifier': alt_identifier,
         'alt_identifier_label': alt_identifier_label,
     }
+
+
+def pidinst_format_citation(pkg_dict, citation_text, escape_for_markdown=False):
+    """Add the preferred physical-instrument identifier to a citation.
+
+    This only formats the supplied display text; it does not update the package
+    citation or DOI metadata. If the title cannot be found unambiguously, the
+    original citation is returned unchanged. ``escape_for_markdown`` escapes
+    only the inserted text before a caller passes the result to Markdown.
+    """
+    if not isinstance(citation_text, str) or not isinstance(pkg_dict, dict):
+        return citation_text
+
+    meta = pidinst_instrument_meta(pkg_dict)
+    identifier = meta.get('alt_identifier')
+    label = meta.get('alt_identifier_label')
+    title = pkg_dict.get('title')
+    if not identifier or not label or not isinstance(title, str) or not title:
+        return citation_text
+
+    display_label = label
+    display_identifier = identifier
+    if escape_for_markdown:
+        display_label = str(escape(label))
+        display_identifier = str(escape(identifier))
+
+    identifier_text = '({} {})'.format(display_label, display_identifier)
+    if identifier_text in citation_text:
+        return citation_text
+
+    title_start = citation_text.find(title)
+    if title_start < 0 or citation_text.find(title, title_start + len(title)) >= 0:
+        return citation_text
+
+    insert_at = title_start + len(title)
+    if title.endswith('.'):
+        insert_at -= 1
+
+    return '{} {}{}'.format(
+        citation_text[:insert_at], identifier_text, citation_text[insert_at:]
+    )
 
 
 def pidinst_cover_image_url(pkg_dict):
@@ -1016,6 +1071,7 @@ def get_helpers():
         "pidinst_cover_image_url": pidinst_cover_image_url,
         "get_cover_photo_info": get_cover_photo_info,
         "pidinst_instrument_meta": pidinst_instrument_meta,
+        "pidinst_format_citation": pidinst_format_citation,
         "json_loads": json_loads,
         "humanize_entity_type": humanize_entity_type,
         "get_party_list": get_party_list,
