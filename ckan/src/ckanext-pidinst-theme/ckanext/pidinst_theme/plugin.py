@@ -12,6 +12,7 @@ from ckanext.pidinst_theme import helpers
 from ckanext.pidinst_theme import analytics
 from ckanext.pidinst_theme import doi_policy
 from ckanext.pidinst_theme import relation_sync
+from ckanext.pidinst_theme import smtp_compat  # noqa: F401  (patches smtplib on import)
 
 import ckan.model as model
 import logging
