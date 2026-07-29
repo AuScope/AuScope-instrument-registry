@@ -71,7 +71,7 @@ RUN pip install -r /tmp/spatial-reqs.txt
 RUN pip install future
 
 ### DOI extension ###
-RUN pip install -e "git+https://github.com/AuScope/ckanext-doi.git@ckan-2.11#egg=ckanext-doi" && \
+RUN pip install -e "git+https://github.com/AuScope/ckanext-doi.git@auscope_pidinst#egg=ckanext-doi" && \
     pip install jsonschema-specifications
 
 ### ISO19115 extension ###
