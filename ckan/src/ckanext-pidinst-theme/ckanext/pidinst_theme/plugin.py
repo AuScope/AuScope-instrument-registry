@@ -19,7 +19,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
-# import ckanext.pidinst_theme.cli as cli
+import ckanext.pidinst_theme.cli as cli
 from ckanext.pidinst_theme.logic import (
     action, schema, auth, validators
 )
@@ -108,7 +108,7 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
     plugins.implements(plugins.IBlueprint)
-    # plugins.implements(plugins.IClick)
+    plugins.implements(plugins.IClick)
     plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IValidators)
     plugins.implements(plugins.ITranslation)
@@ -661,8 +661,8 @@ class PidinstThemePlugin(plugins.SingletonPlugin):
 
     # IClick
 
-    # def get_commands(self):
-    #     return cli.get_commands()
+    def get_commands(self):
+        return cli.get_commands()
 
     # ITemplateHelpers
 

@@ -7,7 +7,7 @@ Handles:
 import json
 import logging
 import ckan.plugins.toolkit as tk
-from ckanext.pidinst_theme import analytics
+from ckanext.pidinst_theme import analytics, doi_policy
 
 log = logging.getLogger(__name__)
 
@@ -35,14 +35,67 @@ def _parse_rel_list(raw):
     return raw if isinstance(raw, list) else []
 
 
-def _has_reciprocal(child_rels, parent_pkg_id):
-    """Check if child already has IsPartOf pointing to parent."""
-    for r in child_rels:
+def _find_reciprocal(child_rels, parent_pkg_id):
+    """Return the first IsPartOf row index for ``parent_pkg_id``."""
+    for index, r in enumerate(child_rels):
         if not isinstance(r, dict):
             continue
         if r.get('relation_type') == 'IsPartOf' and r.get('related_instrument_package_id') == parent_pkg_id:
-            return True
-    return False
+            return index
+    return None
+
+
+def _resolve_pkg_identifier(pkg_dict):
+    """Return ``(identifier, type, resolution_level)`` for a package."""
+    system_doi = doi_policy._system_doi(pkg_dict)
+    if doi_policy.is_valid_doi(system_doi):
+        return doi_policy.normalize_doi(system_doi), 'DOI', 'doi'
+
+    if doi_policy.is_external_identifier(pkg_dict):
+        external_url = doi_policy.get_identifier_url(pkg_dict)
+        if doi_policy.is_valid_identifier_url(external_url):
+            return external_url, 'URL', 'external'
+
+    package_name = pkg_dict.get('name') or pkg_dict.get('id')
+    if package_name:
+        try:
+            landing_page = tk.url_for(
+                'instrument.read', id=package_name, qualified=True
+            )
+        except Exception:
+            landing_page = ''
+        if doi_policy.is_valid_identifier_url(landing_page):
+            return landing_page, 'URL', 'landing_page'
+
+    return '', '', 'unresolved'
+
+
+def _reciprocal_row(parent_pkg, parent_id=None):
+    """Build the canonical child-side IsPartOf row for ``parent_pkg``."""
+    identifier, identifier_type, level = _resolve_pkg_identifier(parent_pkg)
+    if level == 'unresolved':
+        return None
+    return {
+        'related_identifier': identifier,
+        'related_identifier_type': identifier_type,
+        'related_identifier_name': parent_pkg.get('title') or parent_pkg.get('name', ''),
+        'related_resource_type': 'Instrument',
+        'relation_type': 'IsPartOf',
+        'related_instrument_package_id': parent_id or parent_pkg.get('id', ''),
+        'instrument_relation_role': 'parent',
+    }
+
+
+def _reciprocal_matches(row, canonical_row):
+    """Whether the value-bearing parent fields are already canonical."""
+    return all(
+        row.get(field_name) == canonical_row.get(field_name)
+        for field_name in (
+            'related_identifier',
+            'related_identifier_type',
+            'related_identifier_name',
+        )
+    )
 
 
 def _clean_stale_children(ctx, parent_id, current_child_ids):
@@ -92,7 +145,7 @@ def sync_publish_reciprocals(context, pkg_dict):
         return
 
     rel_list = _parse_rel_list(pkg_dict.get('related_identifier_obj'))
-    children = []
+    child_ids = []
     current_child_ids = set()
     for r in rel_list:
         if not isinstance(r, dict):
@@ -101,41 +154,41 @@ def sync_publish_reciprocals(context, pkg_dict):
             child_id = r.get('related_instrument_package_id', '').strip()
             if child_id:
                 current_child_ids.add(child_id)
-                children.append({
-                    'child_id': child_id,
-                    'parent_identifier': r.get('related_identifier', ''),
-                    'parent_identifier_type': r.get('related_identifier_type', 'URL'),
-                    'parent_name': pkg_dict.get('title') or pkg_dict.get('name', ''),
-                })
+                child_ids.append(child_id)
 
     ctx = _sync_context()
+    canonical_row = _reciprocal_row(pkg_dict, parent_id)
+    if canonical_row is None:
+        log.warning(
+            'Skipping reciprocal sync for parent %s: identifier is unresolved',
+            parent_id,
+        )
+        # Identifier resolution only gates additions/corrections. Removal of
+        # stale internal rows remains safe and must retain its old behaviour.
+        _clean_stale_children(ctx, parent_id, current_child_ids)
+        return
 
     # Add IsPartOf on current children
-    for child_info in children:
+    for child_id in child_ids:
         try:
-            child_pkg = tk.get_action('package_show')(ctx, {'id': child_info['child_id']})
+            child_pkg = tk.get_action('package_show')(ctx, {'id': child_id})
             child_rels = _parse_rel_list(child_pkg.get('related_identifier_obj'))
 
-            if _has_reciprocal(child_rels, parent_id):
+            reciprocal_index = _find_reciprocal(child_rels, parent_id)
+            if reciprocal_index is None:
+                child_rels.append(dict(canonical_row))
+            elif _reciprocal_matches(child_rels[reciprocal_index], canonical_row):
                 continue
-
-            child_rels.append({
-                'related_identifier': child_info['parent_identifier'],
-                'related_identifier_type': child_info['parent_identifier_type'],
-                'related_identifier_name': child_info['parent_name'],
-                'related_resource_type': 'Instrument',
-                'relation_type': 'IsPartOf',
-                'related_instrument_package_id': parent_id,
-                'instrument_relation_role': 'parent',
-            })
+            else:
+                child_rels[reciprocal_index] = dict(canonical_row)
 
             tk.get_action('package_patch')(ctx, {
-                'id': child_info['child_id'],
+                'id': child_id,
                 'related_identifier_obj': json.dumps(child_rels),
             })
-            log.info('Added IsPartOf→%s on child %s', parent_id, child_info['child_id'])
+            log.info('Synced IsPartOf to %s on child %s', parent_id, child_id)
         except Exception:
-            log.exception('Failed to add reciprocal IsPartOf on child %s', child_info['child_id'])
+            log.exception('Failed to sync reciprocal IsPartOf on child %s', child_id)
 
     # Clean stale IsPartOf from former children no longer in HasPart
     _clean_stale_children(ctx, parent_id, current_child_ids)
