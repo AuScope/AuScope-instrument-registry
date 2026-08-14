@@ -18,4 +18,4 @@ pyproj>=3.6.0
 Shapely>=2.0.5
 
 OWSLib==0.28.1
-geojson==3.0.1
+geojson~=3.1
