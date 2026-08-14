@@ -17,5 +17,5 @@ pyproj>=3.6.0
 # Use a shapely release that has wheels compatible with NumPy 2
 Shapely>=2.0.5
 
-OWSLib==0.28.1
+OWSLib~=0.32.0
 geojson~=3.1
