@@ -1,0 +1,22 @@
+{#
+  A captioned screenshot from the User Guide.
+
+  src      - filename inside /base/images/help/
+  alt      - accessible description
+  caption  - caption text shown beneath the image
+  number   - figure number from the source document
+  width    - intrinsic pixel width  (reserves space, avoids layout shift)
+  height   - intrinsic pixel height
+#}
+<figure class="help-figure">
+  <button type="button" class="help-figure-btn"
+          data-help-zoom
+          aria-label="{{ _('Enlarge figure {n}').format(n=number) }}">
+    <img src="{{ h.url_for_static('/base/images/help/' ~ src) }}"
+         alt="{{ alt }}"
+         width="{{ width }}" height="{{ height }}"
+         loading="lazy" decoding="async">
+    <span class="help-figure-zoom" aria-hidden="true"><i class="fa-solid fa-magnifying-glass-plus"></i></span>
+  </button>
+  <figcaption><span class="help-figure-num">{{ _('Figure') }} {{ number }}</span> {{ caption }}</figcaption>
+</figure>

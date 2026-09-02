@@ -1,0 +1,46 @@
+{% extends "help/base.html" %}
+
+{% block help_intro %}
+<p class="help-lead">
+  {% trans %}The standards and specifications this registry is built on.{% endtrans %}
+</p>
+{% endblock %}
+
+{% block help_content %}
+<section class="help-section" id="references">
+  <ol class="help-references">
+    <li id="ref-1">
+      Krahl, R., Darroch, L., Huber, R., Devaraju, A., Klump, J., Habermann, T., Stocker, M., &amp;
+      The Research Data Alliance Persistent Identification of Instruments Working Group members.
+      (2021). <cite>Metadata Schema for the Persistent Identification of Instruments.</cite>
+      Research Data Alliance.
+      <a href="https://doi.org/10.15497/RDA00070" rel="noopener noreferrer" target="_blank">https://doi.org/10.15497/RDA00070</a>
+    </li>
+    <li id="ref-2">
+      <cite>DataCite Metadata Schema — PIDINST mapping.</cite>
+      <a href="https://datacite-metadata-schema.readthedocs.io/en/4.6/mappings/pidinst/" rel="noopener noreferrer" target="_blank">https://datacite-metadata-schema.readthedocs.io/en/4.6/mappings/pidinst/</a>
+    </li>
+    <li id="ref-3">
+      Golodoniuc, P., Motevalli, B., &amp; Taherifar, N. (2026).
+      <cite>Persistent Identifiers for Instruments — AuScope Web Application: User Guide.</cite>
+      CSIRO. 20 May 2026.
+    </li>
+  </ol>
+</section>
+
+<section class="help-section" id="acknowledgements">
+  <h2>{{ _('Acknowledgements') }}</h2>
+  <p>
+    {% trans %}This work is supported through AuScope and is funded by the Australian Government
+    through the National Collaborative Research Infrastructure Strategy, NCRIS.{% endtrans %}
+  </p>
+</section>
+
+<section class="help-section" id="contact">
+  <h2>{{ _('Contact') }}</h2>
+  <p>
+    {% trans contact_url=h.url_for('contact.form') %}For questions about the registry, or to request
+    an account, <a href="{{ contact_url }}">contact us</a>.{% endtrans %}
+  </p>
+</section>
+{% endblock %}

@@ -1,0 +1,614 @@
+/* ---------------------------------------------------------------------------
+ * User Guide (/help)
+ *
+ * Scoped to .pidinst-help and .help-nav so nothing here leaks into the rest of
+ * the site. Colours come from the AuScope tokens defined in shared_style.css.
+ * ------------------------------------------------------------------------- */
+
+.pidinst-help {
+  --help-border: #e3e5ec;
+  --help-muted: #5b6070;
+  --help-bg-soft: #f6f7fa;
+  --help-max-measure: 46rem;
+
+  color: var(--color-aus-black);
+}
+
+/* --- Sidebar navigation -------------------------------------------------- */
+
+.help-nav .module-heading {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.help-nav .module-heading .fa-book-open {
+  margin-right: 0.4rem;
+}
+
+.help-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0;
+}
+
+.help-nav-item > a {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.5rem 1rem;
+  color: var(--color-aus-black);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  line-height: 1.35;
+}
+
+.help-nav-item > a:hover,
+.help-nav-item > a:focus-visible {
+  background: var(--help-bg-soft, #f6f7fa);
+  color: var(--color-aus-royal-blue);
+}
+
+.help-nav-item.is-active > a {
+  border-left-color: var(--color-aus-royal-blue);
+  background: #eef0f8;
+  color: var(--color-aus-royal-blue);
+  font-weight: 600;
+}
+
+.help-nav-num {
+  flex: 0 0 1.1rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: #8a8fa0;
+}
+
+.help-nav-item.is-active .help-nav-num {
+  color: var(--color-aus-royal-blue);
+}
+
+/* Sub-headings injected by help-module.js under the active section. */
+.help-nav-sub {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0 0 0 2.4rem;
+  border-left: 3px solid #eef0f8;
+}
+
+.help-nav-sub a {
+  display: block;
+  padding: 0.25rem 0.75rem 0.25rem 0;
+  font-size: 0.85rem;
+  color: var(--help-muted, #5b6070);
+  text-decoration: none;
+  line-height: 1.35;
+}
+
+.help-nav-sub a:hover,
+.help-nav-sub a:focus-visible,
+.help-nav-sub a.is-current {
+  color: var(--color-aus-royal-blue);
+}
+
+.help-nav-sub a.is-current {
+  font-weight: 600;
+}
+
+@media (min-width: 992px) {
+  .help-nav {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+/* --- Page header --------------------------------------------------------- */
+
+.help-eyebrow {
+  margin: 0 0 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-aus-royal-blue);
+}
+
+.pidinst-help .page-heading {
+  margin-top: 0;
+  border-bottom: 1px solid var(--help-border);
+  padding-bottom: 0.6rem;
+}
+
+.help-lead {
+  font-size: 1.06rem;
+  line-height: 1.65;
+  color: var(--help-muted);
+  max-width: var(--help-max-measure);
+}
+
+/* --- Body content -------------------------------------------------------- */
+
+.help-body {
+  max-width: 58rem;
+}
+
+.help-section {
+  margin: 2.25rem 0;
+  /* Offset for in-page anchor jumps so headings are not hidden under the header. */
+  scroll-margin-top: 5rem;
+}
+
+.help-section h2 {
+  font-size: 1.4rem;
+  margin: 0 0 0.75rem;
+  color: var(--color-aus-royal-blue);
+  scroll-margin-top: 5rem;
+}
+
+.help-section h3 {
+  font-size: 1.09rem;
+  font-weight: 700;
+  margin: 1.75rem 0 0.6rem;
+  scroll-margin-top: 5rem;
+}
+
+.help-body p,
+.help-body li {
+  line-height: 1.65;
+}
+
+.help-body p {
+  max-width: var(--help-max-measure);
+}
+
+.help-body code {
+  font-size: 0.88em;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  background: var(--help-bg-soft);
+  color: #b3196b;
+  border: 1px solid var(--help-border);
+}
+
+/* Definition lists carry most of the guide's field-by-field reference. */
+.help-deflist {
+  margin: 1rem 0 1.25rem;
+  max-width: var(--help-max-measure);
+}
+
+.help-deflist dt {
+  font-weight: 700;
+  color: var(--color-aus-royal-blue);
+  margin-top: 0.9rem;
+}
+
+.help-deflist dt:first-child {
+  margin-top: 0;
+}
+
+.help-deflist dd {
+  margin: 0.2rem 0 0;
+  padding-left: 0;
+  color: #33363f;
+  line-height: 1.6;
+}
+
+/* Numbered procedures. */
+.help-steps {
+  margin: 1rem 0 1.25rem;
+  padding-left: 1.3rem;
+  max-width: var(--help-max-measure);
+}
+
+.help-steps > li {
+  margin-bottom: 0.7rem;
+  padding-left: 0.2rem;
+}
+
+.help-steps > li > strong {
+  display: block;
+  color: var(--color-aus-royal-blue);
+}
+
+/* --- Callouts ------------------------------------------------------------ */
+
+.help-callout {
+  margin: 1.25rem 0;
+  padding: 0.9rem 1.1rem;
+  border-radius: 4px;
+  border-left: 4px solid;
+  background: var(--help-bg-soft);
+  max-width: var(--help-max-measure);
+}
+
+.help-callout p {
+  margin: 0 0 0.6rem;
+}
+
+.help-callout p:last-child {
+  margin-bottom: 0;
+}
+
+.help-callout-info {
+  border-left-color: var(--color-aus-royal-blue);
+  background: #eef0f8;
+}
+
+.help-callout-warning {
+  border-left-color: #b8860b;
+  background: #fdf6e3;
+}
+
+/* Marks sections that only apply to logged-in users. */
+.help-audience {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.9rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #6b4e00;
+  background: #fdf6e3;
+  border: 1px solid #ecd9a0;
+  border-radius: 999px;
+}
+
+/* --- Figures ------------------------------------------------------------- */
+
+.help-figure {
+  margin: 1.5rem 0 1.75rem;
+}
+
+.help-figure-btn {
+  display: block;
+  position: relative;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--help-border);
+  border-radius: 5px;
+  background: #fff;
+  cursor: zoom-in;
+  overflow: hidden;
+}
+
+.help-figure-btn:hover,
+.help-figure-btn:focus-visible {
+  border-color: var(--color-aus-royal-blue);
+}
+
+.help-figure-btn img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.help-figure-zoom {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: rgba(40, 37, 114, 0.88);
+  color: #fff;
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.help-figure-btn:hover .help-figure-zoom,
+.help-figure-btn:focus-visible .help-figure-zoom {
+  opacity: 1;
+}
+
+.help-figure figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.87rem;
+  color: var(--help-muted);
+  line-height: 1.5;
+}
+
+.help-figure-num {
+  font-weight: 700;
+  color: var(--color-aus-royal-blue);
+}
+
+/* --- Lightbox ------------------------------------------------------------ */
+
+.help-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  background: rgba(20, 18, 45, 0.9);
+}
+
+.help-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.help-lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.help-lightbox-close:hover,
+.help-lightbox-close:focus-visible {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* --- Tables -------------------------------------------------------------- */
+
+.help-table-wrap {
+  overflow-x: auto;
+  max-width: var(--help-max-measure);
+  margin: 1rem 0 1.25rem;
+}
+
+.help-table {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.help-table th[scope="col"] {
+  background: var(--help-bg-soft);
+  color: var(--color-aus-royal-blue);
+}
+
+.help-table th[scope="row"] {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* --- Landing page -------------------------------------------------------- */
+
+.help-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.85rem;
+  margin: 1.5rem 0 2.5rem;
+}
+
+.help-card {
+  display: flex;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid var(--help-border);
+  border-radius: 5px;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.help-card:hover,
+.help-card:focus-visible {
+  border-color: var(--color-aus-royal-blue);
+  box-shadow: 0 2px 10px rgba(40, 37, 114, 0.1);
+  text-decoration: none;
+  color: inherit;
+}
+
+.help-card-icon {
+  flex: 0 0 2.2rem;
+  height: 2.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  background: #eef0f8;
+  color: var(--color-aus-royal-blue);
+}
+
+.help-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.help-card-title {
+  font-weight: 700;
+  color: var(--color-aus-royal-blue);
+}
+
+.help-card-summary {
+  font-size: 0.87rem;
+  color: var(--help-muted);
+  line-height: 1.45;
+}
+
+.help-quicklinks {
+  list-style: none;
+  margin: 1rem 0 1.5rem;
+  padding: 0;
+  max-width: var(--help-max-measure);
+}
+
+.help-quicklinks li {
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--help-border);
+}
+
+.help-quicklinks li:last-child {
+  border-bottom: 0;
+}
+
+.help-quicklinks i {
+  flex: 0 0 1.2rem;
+  margin-top: 0.28rem;
+  color: var(--color-aus-royal-blue);
+}
+
+/* Core-concept cards on the Home Page section. */
+.help-concepts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 0.85rem;
+  margin: 1.25rem 0 1.75rem;
+}
+
+.help-concept {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--help-border);
+  border-radius: 5px;
+  background: var(--help-bg-soft);
+}
+
+.help-concept h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+  color: var(--color-aus-royal-blue);
+}
+
+.help-concept h3 i {
+  margin-right: 0.35rem;
+}
+
+.help-concept p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #33363f;
+}
+
+.help-inline-cta {
+  margin: 0.25rem 0 0.5rem;
+}
+
+/* --- References ---------------------------------------------------------- */
+
+.help-references {
+  padding-left: 1.3rem;
+  max-width: var(--help-max-measure);
+}
+
+.help-references li {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+  scroll-margin-top: 5rem;
+}
+
+.help-references a {
+  word-break: break-word;
+}
+
+/* Aside on a reference entry, e.g. marking the guide's own source document. */
+.help-reference-note {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  color: var(--help-muted);
+}
+
+/* Briefly highlight a reference jumped to from an in-text citation. */
+.help-references li:target {
+  background: #fdf6e3;
+  box-shadow: 0 0 0 0.4rem #fdf6e3;
+  border-radius: 2px;
+}
+
+/* --- Previous / next pager ---------------------------------------------- */
+
+.help-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--help-border);
+}
+
+.help-pager-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--help-border);
+  border-radius: 5px;
+  text-decoration: none;
+  color: inherit;
+  max-width: 48%;
+}
+
+.help-pager-link:hover,
+.help-pager-link:focus-visible {
+  border-color: var(--color-aus-royal-blue);
+  text-decoration: none;
+  color: inherit;
+}
+
+.help-pager-next {
+  margin-left: auto;
+  text-align: right;
+}
+
+.help-pager-dir {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--help-muted);
+}
+
+.help-pager-title {
+  font-weight: 600;
+  color: var(--color-aus-royal-blue);
+}
+
+@media (max-width: 575px) {
+  .help-pager {
+    flex-direction: column;
+  }
+
+  .help-pager-link {
+    max-width: none;
+  }
+
+  .help-pager-next {
+    text-align: left;
+  }
+}
+
+/* --- Print --------------------------------------------------------------- */
+
+@media print {
+  .help-nav,
+  .help-pager,
+  .help-figure-zoom,
+  .help-inline-cta {
+    display: none !important;
+  }
+
+  .help-figure-btn {
+    cursor: default;
+  }
+
+  .help-section {
+    break-inside: avoid;
+  }
+}

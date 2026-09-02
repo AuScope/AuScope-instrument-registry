@@ -53,6 +53,9 @@
   <li class="{{ 'active' if request.path.startswith('/taxonomies') else '' }}">
     <a href="/taxonomies">{{ _('Taxonomies') }}</a>
   </li>
+  <li class="{{ 'active' if request.path.startswith('/help') else '' }}">
+    <a href="{{ h.url_for('pidinst_theme.help_index') }}">{{ _('Help') }}</a>
+  </li>
   <li class="{{ 'active' if request.path == '/about' else '' }}">
     <a href="{{ h.url_for('home.about') }}">{{ _('About') }}</a>
   </li>

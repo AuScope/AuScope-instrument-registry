@@ -1,0 +1,78 @@
+{#
+  Shared layout for every page of the User Guide.
+
+  Provides the breadcrumb, the section sidebar and the previous/next footer.
+  Child templates only need to fill in {% block help_content %}.
+  Context (help_pages, help_current, help_prev, help_next) comes from
+  views._help_extra_vars().
+#}
+{% extends "page.html" %}
+
+{% block subtitle %}{{ _('User Guide') }}{% if help_current %} - {{ _(help_current.title) }}{% endif %}{% endblock %}
+
+{% block breadcrumb_content %}
+<li><a href="{{ h.url_for('pidinst_theme.help_index') }}">{{ _('User Guide') }}</a></li>
+{% if help_current %}
+<li class="active"><a href="{{ h.url_for('pidinst_theme.help_page', slug=help_current.slug) }}">{{ _(help_current.title) }}</a></li>
+{% endif %}
+{% endblock %}
+
+{% block secondary_content %}
+<nav class="module module-narrow help-nav" aria-label="{{ _('User Guide sections') }}">
+  <h2 class="module-heading">
+    <i class="fa-solid fa-book-open" aria-hidden="true"></i> {{ _('User Guide') }}
+  </h2>
+  <ul class="help-nav-list">
+    <li class="help-nav-item{% if not help_current %} is-active{% endif %}">
+      <a href="{{ h.url_for('pidinst_theme.help_index') }}">
+        <span class="help-nav-num" aria-hidden="true"></span>{{ _('Overview') }}
+      </a>
+    </li>
+    {% for page in help_pages %}
+    {% set is_active = help_current and page.slug == help_current.slug %}
+    <li class="help-nav-item{% if is_active %} is-active{% endif %}">
+      <a href="{{ h.url_for('pidinst_theme.help_page', slug=page.slug) }}"
+         {% if is_active %}aria-current="page"{% endif %}>
+        <span class="help-nav-num" aria-hidden="true">{{ page.number }}</span>{{ _(page.title) }}
+      </a>
+      {# On the active page, help-module injects an <ol> of this page's headings here. #}
+    </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endblock %}
+
+{% block page_header %}{% endblock %}
+
+{% block primary_content_inner %}
+<div class="pidinst-help" data-module="help-module" data-module-close-label="{{ _('Close') }}">
+  <header class="help-header">
+    {% if help_current %}
+    <p class="help-eyebrow">{{ _('Section') }} {{ help_current.number }}</p>
+    {% endif %}
+    <h1 class="page-heading">{% block help_title %}{{ _(help_current.title) if help_current else _('User Guide') }}{% endblock %}</h1>
+    {% block help_intro %}{% endblock %}
+  </header>
+
+  <div class="help-body">
+    {% block help_content %}{% endblock %}
+  </div>
+
+  {% if help_prev or help_next %}
+  <nav class="help-pager" aria-label="{{ _('Guide navigation') }}">
+    {% if help_prev %}
+    <a class="help-pager-link help-pager-prev" href="{{ h.url_for('pidinst_theme.help_page', slug=help_prev.slug) }}">
+      <span class="help-pager-dir"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {{ _('Previous') }}</span>
+      <span class="help-pager-title">{{ help_prev.number }}. {{ _(help_prev.title) }}</span>
+    </a>
+    {% else %}<span></span>{% endif %}
+    {% if help_next %}
+    <a class="help-pager-link help-pager-next" href="{{ h.url_for('pidinst_theme.help_page', slug=help_next.slug) }}">
+      <span class="help-pager-dir">{{ _('Next') }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+      <span class="help-pager-title">{{ help_next.number }}. {{ _(help_next.title) }}</span>
+    </a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

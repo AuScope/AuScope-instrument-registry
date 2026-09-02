@@ -1,0 +1,109 @@
+{% extends "help/base.html" %}
+
+{% block help_intro %}
+<p class="help-lead">
+  {% trans %}This AuScope Instrument Registry acts as a centralised metadata catalogue for
+  describing, managing, and publishing detailed records of AuScope-funded and AuScope-owned
+  scientific hardware. Built on a robust data management framework, the system ensures high
+  discoverability, precise citation tracking, and absolute transparency across research
+  infrastructures by using global persistent identifiers such as DOIs.{% endtrans %}
+</p>
+{% endblock %}
+
+{% block help_content %}
+<section class="help-section" id="navigation">
+  <h2>{{ _('Navigating the registry') }}</h2>
+  <p>
+    {% trans %}The home page is structured to provide an immediate entry point into the catalogue,
+    balancing general exploration with direct search functionalities. Users can navigate the
+    registry through four sections available directly from the header:{% endtrans %}
+  </p>
+
+  <dl class="help-deflist">
+    <dt><a href="{{ h.url_for('pidinst_theme.instruments_search') }}">{{ _('Instruments') }}</a></dt>
+    <dd>{{ _('The catalogue of individual scientific devices, tracking physical assets, and capturing details such as name, identifier, manufacturer, owner, model, measured variables, location, lifecycle dates, and related resources.') }}</dd>
+
+    <dt><a href="{{ h.url_for('pidinst_theme.platforms_search') }}">{{ _('Platforms') }}</a></dt>
+    <dd>{{ _('Grouped profiles detailing configurations of multiple instruments working together as a singular deployment system.') }}</dd>
+
+    <dt><a href="/party">{{ _('Parties') }}</a></dt>
+    <dd>{{ _('The registry of administrative stakeholders, hardware manufacturers, funding institutions, and individual points of contact mapped to verified research identifiers (such as ROR).') }}</dd>
+
+    <dt><a href="/taxonomies">{{ _('Taxonomies') }}</a></dt>
+    <dd>{{ _('Controlled vocabulary indexes ensuring data consistency and enabling advanced classification filters across all instruments and research sectors.') }}</dd>
+  </dl>
+
+  {% snippet 'help/snippets/figure.html',
+      src='homepage.png',
+      number='1',
+      width=1863, height=2612,
+      alt=_('The PIDINST application home page, showing the header navigation, the search bar and promoted catalogue sections.'),
+      caption=_('Homepage of the PIDINST application.') %}
+</section>
+
+<section class="help-section" id="login">
+  <h2>{{ _('4.1 Login') }}</h2>
+  <p>
+    {% trans %}While authentication is not required to search, view, or browse the public metadata
+    catalogue, users must be registered and logged in to actively manage data.{% endtrans %}
+  </p>
+  <p>{{ _('You must log in to your account to perform the following operations:') }}</p>
+  <ul>
+    <li>{{ _('Create new records for instruments, platforms, parties, or taxonomies.') }}</li>
+    <li>{{ _('Update or edit existing private or public records.') }}</li>
+    <li>{{ _('Generate new versions or update instrument version histories.') }}</li>
+    <li>{{ _('Mark as duplicate or withdraw a published public record.') }}</li>
+  </ul>
+  <p>
+    {% trans login_url=h.url_for('user.login') %}To log in, click the <a href="{{ login_url }}">Log
+    In</a> link located in the top-right corner of the homepage header. If you do not have an active
+    account but need to register or manage scientific hardware records, please contact the
+    administration team.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='login.png',
+      number='2',
+      width=1842, height=964,
+      alt=_('The login screen, with the sign-in form and the option to request an account.'),
+      caption=_('Login screen.') %}
+</section>
+
+<section class="help-section" id="core-concepts">
+  <h2>{{ _('4.2 Core Concepts') }}</h2>
+  <p>
+    {% trans %}The AuScope Instrument Registry centres around four core concepts available directly
+    from the header navigation menu. These core registries combine to form an interconnected network
+    of metadata. This network structure delivers maximum data provenance, precise citation tracking,
+    and complete tracking transparency.{% endtrans %}
+  </p>
+  <p>
+    {{ _('Each entity represents a specific type of asset, stakeholder, or controlled classification within the registry:') }}
+  </p>
+
+  <div class="help-concepts">
+    <article class="help-concept">
+      <h3><i class="fa-solid fa-microscope" aria-hidden="true"></i> {{ _('Instruments') }}</h3>
+      <p>{{ _('Individual physical devices or distinct pieces of scientific equipment. This catalogue tracks physical assets and captures structural fields, including unique persistent identifiers, manufacturers, owners, physical locations, operational lifecycle states, and measured variables.') }}</p>
+    </article>
+    <article class="help-concept">
+      <h3><i class="fa-solid fa-layer-group" aria-hidden="true"></i> {{ _('Platforms') }}</h3>
+      <p>{{ _('Grouped profiles detailing configurations of multiple instruments working together as a singular deployment system. Platforms allow geoscientists to describe how individual instruments are combined and arranged across different field surveys, arrays, or configurations.') }}</p>
+    </article>
+    <article class="help-concept">
+      <h3><i class="fa-solid fa-building-columns" aria-hidden="true"></i> {{ _('Parties') }}</h3>
+      <p>{{ _('The administrative directory of stakeholders associated with instrument lifecycles. This module manages records for equipment manufacturers, funding institutions, administrative organisations, and individual technical contacts, with organisation profiles dynamically integrated with verified global research IDs via the ROR API.') }}</p>
+    </article>
+    <article class="help-concept">
+      <h3><i class="fa-solid fa-diagram-project" aria-hidden="true"></i> {{ _('Taxonomies') }}</h3>
+      <p>{{ _('Controlled vocabulary indexes that establish system-wide data consistency. Taxonomies provide hierarchical dictionaries for filtering and classifying hardware by scientific sector, instrument types, and measured environmental variables.') }}</p>
+    </article>
+  </div>
+
+  <p>
+    {% trans %}The following sections outline the specific browsing capabilities, specialised
+    interface views, and targeted search features unique to each of these foundational sections of
+    the application.{% endtrans %}
+  </p>
+</section>
+{% endblock %}

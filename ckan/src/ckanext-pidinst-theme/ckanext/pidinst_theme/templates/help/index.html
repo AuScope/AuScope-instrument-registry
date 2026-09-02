@@ -1,0 +1,86 @@
+{% extends "help/base.html" %}
+
+{% block help_title %}{{ _('AuScope Instrument Registry User Guide') }}{% endblock %}
+
+{% block help_intro %}
+
+<section class="help-section" id="about-this-guide">
+  <h2>{{ _('About this guide') }}</h2>
+  <p>
+
+  </p>
+  <p>
+    {% trans %}This guide explains how to search, register and manage instruments, platforms,
+  parties and taxonomies in the AuScope Instrument Registry. Screenshots show the interface at the time of writing; the
+    live application may differ in minor detail.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}This work is supported through AuScope and is funded by the Australian Government
+    through the National Collaborative Research Infrastructure Strategy (NCRIS).{% endtrans %}
+  </p>
+</section>
+
+{% endblock %}
+
+{% block help_content %}
+<div class="help-cards">
+  {% for page in help_pages %}
+  <a class="help-card" href="{{ h.url_for('pidinst_theme.help_page', slug=page.slug) }}">
+    <span class="help-card-icon" aria-hidden="true"><i class="fa-solid {{ page.icon }}"></i></span>
+    <span class="help-card-body">
+      <span class="help-card-title">{{ page.number }}. {{ _(page.title) }}</span>
+      <span class="help-card-summary">{{ _(page.summary) }}</span>
+    </span>
+  </a>
+  {% endfor %}
+</div>
+
+<section class="help-section" id="quick-start">
+  <h2>{{ _('Quick start') }}</h2>
+  <p>
+    {% trans %}You do not need an account to browse the registry. Searching and viewing published
+    instrument and platform records is open to everyone.{% endtrans %}
+  </p>
+  <ul class="help-quicklinks">
+    <li>
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <span>
+        <a href="{{ h.url_for('pidinst_theme.instruments_search') }}">{{ _('Search instruments') }}</a>
+        — {{ _('find individual devices by name, model, owner, manufacturer or measured variable.') }}
+      </span>
+    </li>
+    <li>
+      <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+      <span>
+        <a href="{{ h.url_for('pidinst_theme.platforms_search') }}">{{ _('Browse platforms') }}</a>
+        — {{ _('explore configurations of several instruments deployed together.') }}
+      </span>
+    </li>
+    <li>
+      <i class="fa-solid fa-building-columns" aria-hidden="true"></i>
+      <span>
+        <a href="/party">{{ _('View parties') }}</a>
+        — {{ _('see the organisations and contacts behind the instruments.') }}
+      </span>
+    </li>
+    <li>
+      <i class="fa-solid fa-diagram-project" aria-hidden="true"></i>
+      <span>
+        <a href="/taxonomies">{{ _('Explore taxonomies') }}</a>
+        — {{ _('the controlled vocabularies used to classify records.') }}
+      </span>
+    </li>
+  </ul>
+
+  <div class="help-callout help-callout-info">
+    <p>
+      <strong>{{ _('Need to create or edit records?') }}</strong>
+      {% trans login_url=h.url_for('user.login') %}You must be registered and logged in to manage
+      data. <a href="{{ login_url }}">Log in</a>, or contact the administration team if you do not
+      yet have an account. See <a href="/help/home-page#login">Login</a> for details.{% endtrans %}
+    </p>
+  </div>
+</section>
+
+
+{% endblock %}

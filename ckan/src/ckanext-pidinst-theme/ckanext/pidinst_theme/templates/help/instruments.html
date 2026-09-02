@@ -1,0 +1,224 @@
+{% extends "help/base.html" %}
+
+{% block help_intro %}
+<p class="help-lead">
+  {% trans %}The AuScope Instrument Registry provides a multi-layered search and discovery interface
+  that allows users to seamlessly navigate through thousands of research assets. The search layout
+  is optimised to quickly filter instrument arrays and individual scientific hardware using both
+  text-based queries and dynamic facet filters.{% endtrans %}
+</p>
+{% endblock %}
+
+{% block help_content %}
+<section class="help-section" id="instrument-search">
+  <h2>{{ _('5.1 Instrument Search') }}</h2>
+
+  {% snippet 'help/snippets/figure.html',
+      src='instrument-search.png',
+      number='3',
+      width=980, height=907,
+      alt=_('The main Instruments search page, with the keyword search bar, active filter pills, the faceted sidebar and the results list.'),
+      caption=_('Main Instruments search interface.') %}
+
+  <p>
+    <a class="btn btn-secondary help-inline-cta" href="{{ h.url_for('pidinst_theme.instruments_search') }}">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> {{ _('Open the Instruments search') }}
+    </a>
+  </p>
+
+  <h3 id="text-search">{{ _('5.1.1 Text Search and Multi-Match System') }}</h3>
+  <p>
+    {% trans %}At the centre of the workspace, a smart text search bar allows users to enter
+    keywords that match specific assets.{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Global Keyword Matching') }}</dt>
+    <dd>{{ _('Text queries dynamically scan the database to find partial or absolute matches across fields such as Instrument Name, Model, Internal Asset IDs, and Technical Descriptions.') }}</dd>
+
+    <dt>{{ _('Result Ordering') }}</dt>
+    <dd>{{ _('Users can quickly prioritise their results using the Order by dropdown menu in the upper-right corner. Options include ordering records by Name (Ascending or Descending), Relevance, or Last Modified Date.') }}</dd>
+  </dl>
+
+  <h3 id="filter-pills">{{ _('5.1.2 Active Filter Pills') }}</h3>
+  <p>
+    {% trans %}When user criteria are explicitly checked in the sidebar, they appear as graphical
+    tags directly above the results feed.{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Dynamic Indicators') }}</dt>
+    <dd>{{ _('Each pill shows the selected category alongside its explicit metadata value.') }}</dd>
+
+    <dt>{{ _('Instant Removal') }}</dt>
+    <dd>{{ _('Users click the close icon (x) on any individual pill to expand their search parameters.') }}</dd>
+  </dl>
+
+  <h3 id="facet-panels">{{ _('5.1.3 Faceted Filter Panels') }}</h3>
+  <p>
+    {% trans %}The left-hand sidebar contains expanding facet menus that allow granular data
+    drilling. Each category lists individual parameters, accompanied by a record count indicating
+    how many items fall under that classification. The filtering sections include:{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Owners and Funders') }}</dt>
+    <dd>{{ _('Filter instruments by their managing institutions or funding bodies (e.g., Adelaide University, AuScope, Curtin University).') }}</dd>
+
+    <dt>{{ _('Manufacturers') }}</dt>
+    <dd>{{ _('Isolate hardware by the commercial entity or research laboratory responsible for producing the device (e.g., Ametek, Applied Spectra).') }}</dd>
+
+    <dt>{{ _('Instrument Class') }}</dt>
+    <dd>{{ _('High-level structural categories used to group hardware by major disciplines, such as Geophysics or Geochemistry.') }}</dd>
+
+    <dt>{{ _('Instrument Type') }}</dt>
+    <dd>{{ _('Deep hierarchical taxonomy structures mapping to recognised GCMD keywords or custom local labels. Users can expand sub-vocabularies or use the dedicated inline text filter to search for obscure classifications (e.g., In Situ/Laboratory Instruments, Magnetotelluric magnetic field sensors).') }}</dd>
+
+    <dt>{{ _('Measured Variable') }}</dt>
+    <dd>{{ _('Pinpoint hardware based on the actual physical properties, phenomena, or environmental variables the device is configured to record.') }}</dd>
+  </dl>
+
+  <h3 id="entry-actions">{{ _('5.1.4 Asset Entry Actions') }}</h3>
+  <p class="help-audience">
+    <i class="fa-solid fa-lock" aria-hidden="true"></i> {{ _('Authorised users only') }}
+  </p>
+  <p>
+    {% trans %}For logged-in and authorised users, two administrative buttons are positioned above
+    the primary search workspace to support different registration workflows depending on whether
+    the asset is entirely new or already tracked globally:{% endtrans %}
+  </p>
+  <ol class="help-steps">
+    <li>
+      <strong>{{ _('Create a New Instrument') }}</strong>
+      {{ _('Initiates a step-by-step form to declare a completely new physical asset within the registry metadata schema. Upon successful submission, the system generates a completely new, unique Instrument Identifier (DOI) that permanently anchors and describes this specific piece of hardware.') }}
+    </li>
+    <li>
+      <strong>{{ _('Register Existing Instrument') }}</strong>
+      {{ _('This path is used to register an instrument that already possesses a pre-assigned, globally recognised identity. Instead of creating a duplicate record, the submission process requires the user to input the existing Instrument Identifier to import, link, or reference the device within the AuScope network.') }}
+    </li>
+  </ol>
+</section>
+
+<section class="help-section" id="visibility">
+  <h2>{{ _('5.2 Private and Public Records') }}</h2>
+  <p>
+    {% trans %}The AuScope Instrument Registry features a dual-layer data visibility framework that
+    categorises records as either private or public. This status is initially designated via the
+    Visibility dropdown field during record creation and can be adjusted later by authorised
+    administrators.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='record-visibility.png',
+      number='4',
+      width=799, height=148,
+      alt=_('The Visibility dropdown on a record form, offering Private and Public options.'),
+      caption=_('Record visibility drop-down selector.') %}
+
+  <dl class="help-deflist">
+    <dt>{{ _('Private Records') }}</dt>
+    <dd>{{ _('Private records serve as restricted workspaces visible only to authenticated and authorised users within the managing organisation. They remain hidden from public search and external visitors, allowing teams to safely draft metadata, record internal asset numbers, and verify configurations before publication. A DOI URL is generated and preserved for a private record, but the record is not published to DOI until it is made public.') }}</dd>
+
+    <dt>{{ _('Public Records') }}</dt>
+    <dd>{{ _('Once a record is finalised and made public, it becomes part of the open-access metadata catalogue and is published to DOI. Unauthenticated external visitors can browse, search, and view public records to discover available scientific instruments and verify the provenance of research data.') }}</dd>
+  </dl>
+
+  <div class="help-callout help-callout-warning">
+    <p>
+      {% trans %}If a public record is later changed back to private, the DOI is
+      <strong>not</strong> retracted or removed; the DOI remains associated with the
+      record.{% endtrans %}
+    </p>
+  </div>
+</section>
+
+<section class="help-section" id="create-update-delete">
+  <h2>{{ _('5.3 Create / Update / Delete Instruments') }}</h2>
+  <p class="help-audience">
+    <i class="fa-solid fa-lock" aria-hidden="true"></i> {{ _('Authorised users only') }}
+  </p>
+  <p>
+    {% trans %}The Create Instrument form provides a comprehensive, multi-section web layout that
+    allows authorised users to document the entire administrative, technical, and operational
+    lifecycle of a physical asset.{% endtrans %}
+  </p>
+
+  <dl class="help-deflist">
+    <dt>{{ _('Multi-Section Metadata Schema') }}</dt>
+    <dd>{{ _('The user interface groups properties logically into dedicated functional cards, including Core Instrument Details, Owner and Contact Information, Manufacturer Details, Dates, Measured Variables, Funding Sources, and Related Resources.') }}</dd>
+
+    <dt>{{ _('Controlled Vocabulary Fields') }}</dt>
+    <dd>{{ _('Standardised fields leverage dropdown components to link assets directly with verified global vocabularies (e.g., NASA GCMD), internal custom taxonomies, and recognised stakeholder registries (Parties).') }}</dd>
+
+    <dt>{{ _('Dynamic Component Management') }}</dt>
+    <dd>{{ _('Users can adapt the entry form dynamically using functional controls (e.g., Add Owner, Add Manufacturer, Add Date) to capture multi-institution ownership, complex funding arrangements, or varying structural configurations.') }}</dd>
+
+    <dt>{{ _('Workflow Operations') }}</dt>
+    <dd>{{ _('Interactive action buttons at the bottom of the interface manage record status, allowing users to save data as a private workspace iteration or complete the submission process.') }}</dd>
+
+    <dt>{{ _('Persistent Identifier Allocation') }}</dt>
+    <dd>{{ _('Upon successful form validation and submission, the application automatically mints a globally unique Digital Object Identifier (DOI). This action permanently anchors the metadata record, enabling cross-platform traceability and data provenance across research infrastructure networks.') }}</dd>
+  </dl>
+
+  {% snippet 'help/snippets/figure.html',
+      src='instrument-create.png',
+      number='5',
+      width=1976, height=1957,
+      alt=_('The New Instrument form, showing the grouped metadata cards for core details, owner, manufacturer, dates and related resources.'),
+      caption=_('New Instrument record creation interface.') %}
+</section>
+
+<section class="help-section" id="versioning">
+  <h2>{{ _('5.4 Versioning') }}</h2>
+  <p class="help-audience">
+    <i class="fa-solid fa-lock" aria-hidden="true"></i> {{ _('Authorised users only') }}
+  </p>
+  <p>
+    {% trans %}Versioning allows authorised users to create a new published record when the metadata
+    for an existing instrument needs to be updated while preserving the previous record as part of
+    the history of the instrument. This is useful when key descriptive, administrative, or lifecycle
+    information changes, such as ownership, contacts, location, operational dates, measured
+    variables, related resources, or other metadata that should remain traceable over
+    time.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}To create a new version, open the existing instrument record and select the option to
+    <strong>Create a New Version</strong>. The system opens a new editable record based on the
+    current instrument metadata, allowing the user to review, update, and submit the revised
+    information. When the new version is published, the application generates a separate DOI for
+    that version. Each published version is therefore independently citable, while remaining linked
+    to the earlier and later versions of the same instrument record.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='instrument-new-version.png',
+      number='6',
+      width=1874, height=1199,
+      alt=_('An instrument record page with the Create a New Version action available in the record toolbar.'),
+      caption=_('On the Instrument page, users can initiate the creation of a new version of the existing instrument.') %}
+
+  <p>
+    {% trans %}The link between versions is recorded through the Related Identifiers field. When a
+    new version is created, the new record references the previous version using the relationship
+    type <code>IsNewVersionOf</code>. This relationship makes the version chain explicit in the
+    metadata and supports consistent DOI-based navigation between related instrument
+    records.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}The version history view provides a clear record of all versions associated with an
+    instrument. Users can use this view to move between versions and understand how the record has
+    changed over time. If a user opens an older version, the application indicates that it is not
+    the latest version and provides a pathway to the current version. This helps prevent users from
+    accidentally relying on outdated metadata while still keeping previous published versions
+    accessible for citation, audit, and provenance purposes.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}This versioning model preserves the distinction between the physical instrument and
+    the metadata records that describe it. The instrument remains the same real-world object, but
+    each published metadata version represents a specific state of knowledge about that object at a
+    point in time. This approach supports DOI governance, long-term traceability, and transparent
+    management of changes across the AuScope Instrument Registry.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}See also <a href="/help/data-schema#datacite-version-linkage">DataCite version
+    linkage</a> for how this relationship is recorded in the published DOI metadata.{% endtrans %}
+  </p>
+</section>
+{% endblock %}

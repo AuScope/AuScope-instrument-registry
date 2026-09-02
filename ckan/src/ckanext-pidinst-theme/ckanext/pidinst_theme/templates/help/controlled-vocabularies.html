@@ -1,0 +1,52 @@
+{% extends "help/base.html" %}
+
+{% block help_intro %}
+<p class="help-lead">
+  {% trans %}The PIDINST application supports controlled vocabularies to improve consistency,
+  discoverability, and search quality across instrument and platform records. Controlled
+  vocabularies help users select recognised terms rather than entering free-text values, reducing
+  duplication and variation in how similar concepts are described.{% endtrans %}
+</p>
+{% endblock %}
+
+{% block help_content %}
+<section class="help-section" id="types-and-variables">
+  <h2>{{ _('Instrument Type, Platform Type and Measured Variables') }}</h2>
+  <p>
+    {% trans %}For Instrument Type, Platform Type, and Measured Variables, users can select terms
+    from recognised GCMD keywords or from custom hierarchical taxonomies defined within the site.
+    These custom taxonomies allow users to grow their own controlled dictionaries for instruments,
+    platforms, and measured variables, while maintaining structured relationships between broader
+    and narrower terms. This provides flexibility for local AuScope requirements while still
+    supporting consistent metadata entry and improved searchability.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}See <a href="/help/taxonomies">Taxonomies</a> for how to browse and maintain these
+    vocabularies.{% endtrans %}
+  </p>
+</section>
+
+<section class="help-section" id="parties-as-vocabulary">
+  <h2>{{ _('Owners, Manufacturers and Funders') }}</h2>
+  <p>
+    {% trans %}For fields such as Owners, Manufacturers, and Funders, the application uses the
+    concept of Parties. Parties provide a controlled way to manage organisations or individuals
+    associated with instrument records. The Parties system also supports integration with the ROR
+    API, allowing organisations to be linked to recognised Research Organisation Registry
+    identifiers where available.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}See <a href="/help/parties">Parties</a> for how to create and manage these
+    records.{% endtrans %}
+  </p>
+</section>
+
+<section class="help-section" id="why">
+  <h2>{{ _('Why this matters') }}</h2>
+  <p>
+    {% trans %}Together, these controlled vocabularies and party records help ensure that instrument
+    metadata is entered consistently, searched more effectively, and linked more reliably to
+    external standards and registries.{% endtrans %}
+  </p>
+</section>
+{% endblock %}

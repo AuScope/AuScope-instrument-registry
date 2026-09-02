@@ -29,6 +29,7 @@ pidinst_theme-js:
     - js/related-instruments-picker-module.js
     - js/propagation-progress-module.js
     - js/doi-resolve-module.js
+    - js/help-module.js
     - js/pidinst_theme.js
   extra:
     preload:
@@ -43,4 +44,5 @@ pidinst_theme-css:
     - vendor/dataTables/datatables.min.css
     - css/shared_style.css
     - css/pidinst_theme.css
+    - css/help.css
   output: ckanext-pidinst_theme/%(version)s-pidinst_theme.css

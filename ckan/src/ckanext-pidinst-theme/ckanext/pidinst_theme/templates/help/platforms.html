@@ -1,0 +1,164 @@
+{% extends "help/base.html" %}
+
+{% block help_intro %}
+<p class="help-lead">
+  {% trans %}A platform is a configured collection of instruments used together for a particular
+  purpose. Platforms and instruments share the same underlying schema, but platforms additionally
+  record which instruments make up the configuration.{% endtrans %}
+</p>
+{% endblock %}
+
+{% block help_content %}
+<section class="help-section" id="platform-search">
+  <h2>{{ _('6.1 Platforms Search') }}</h2>
+  <p>
+    {% trans %}The search workspace is optimised to filter multi-instrument configurations using
+    text-based queries, active filters, and dynamic sidebar facets.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='platform-search.png',
+      number='7',
+      width=1856, height=1778,
+      alt=_('The Platforms search page, with the keyword search bar, the faceted sidebar including date pickers and a map filter, and the results list.'),
+      caption=_('Platforms search interface.') %}
+
+  <p>
+    <a class="btn btn-secondary help-inline-cta" href="{{ h.url_for('pidinst_theme.platforms_search') }}">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> {{ _('Open the Platforms search') }}
+    </a>
+  </p>
+
+  <h3 id="text-search">{{ _('6.1.1 Text Search and Query Matching') }}</h3>
+  <p>
+    {% trans %}At the top centre of the page, a centralised search bar allows logged-in and public
+    users to isolate configurations.{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Keyword Matching') }}</dt>
+    <dd>{{ _('Input text scans the database to find partial or absolute string matches across Platform Names, identifiers, and custom platform descriptions.') }}</dd>
+
+    <dt>{{ _('Result Ordering') }}</dt>
+    <dd>{{ _('A dropdown menu in the upper-right corner prioritises results by Relevance, Name, or creation date.') }}</dd>
+  </dl>
+
+  <h3 id="filter-pills">{{ _('6.1.2 Active Filter Pills') }}</h3>
+  <p>
+    {% trans %}When user criteria are explicitly checked in the sidebar, they appear as graphical
+    tags directly above the results feed.{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Dynamic Indicators') }}</dt>
+    <dd>{{ _('Each pill shows the selected category alongside its explicit metadata value.') }}</dd>
+
+    <dt>{{ _('Instant Removal') }}</dt>
+    <dd>{{ _('Users click the close icon (x) on any individual pill to expand their search parameters.') }}</dd>
+  </dl>
+
+  <h3 id="facet-panels">{{ _('6.1.3 Faceted Filter Panels') }}</h3>
+  <p>
+    {% trans %}The left sidebar features collapsible facet blocks accompanied by specific record
+    counts to help users refine their queries:{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Owners and Funders') }}</dt>
+    <dd>{{ _('Filters platforms by institutional owners or national funding initiatives (e.g., Adelaide University, AuScope).') }}</dd>
+
+    <dt>{{ _('Manufacturers') }}</dt>
+    <dd>{{ _('Isolates systems based on the builders or laboratories responsible for the sub-components.') }}</dd>
+
+    <dt>{{ _('Platform Type') }}</dt>
+    <dd>{{ _('Groups platforms by hierarchical taxonomy structures or specific geoscience survey methods (e.g., Magnetotelluric Survey Array).') }}</dd>
+
+    <dt>{{ _('Measured Variable') }}</dt>
+    <dd>{{ _('Pinpoints configurations tracking specific environmental fields or physical phenomena (e.g., Magnetic Field, Electric Field).') }}</dd>
+
+    <dt>{{ _('Dates') }}</dt>
+    <dd>{{ _('Refine results using dedicated calendar date pickers for Commissioned or Decommissioned operational timelines.') }}</dd>
+
+    <dt>{{ _('Filter by Location') }}</dt>
+    <dd>{{ _('An interactive, embedded geospatial map widget allows geographic bounding-box filtering for field arrays.') }}</dd>
+  </dl>
+
+  <h3 id="configuration-actions">{{ _('6.1.4 Configuration Actions') }}</h3>
+  <p class="help-audience">
+    <i class="fa-solid fa-lock" aria-hidden="true"></i> {{ _('Authorised users only') }}
+  </p>
+  <p>
+    {% trans %}Two administrative operation buttons sit directly above the main text search layout
+    to manage workflows:{% endtrans %}
+  </p>
+  <ol class="help-steps">
+    <li>
+      <strong>{{ _('Create New Platform') }}</strong>
+      {{ _('Opens a blank schema form to declare and document a completely fresh multi-device array.') }}
+    </li>
+    <li>
+      <strong>{{ _('Register Existing Platform') }}</strong>
+      {{ _('Imports an active, pre-configured arrangement that already possesses a globally unique persistent identity without minting a separate identifier.') }}
+    </li>
+  </ol>
+</section>
+
+<section class="help-section" id="create-update-delete">
+  <h2>{{ _('6.2 Create / Update / Delete Platforms') }}</h2>
+  <p class="help-audience">
+    <i class="fa-solid fa-lock" aria-hidden="true"></i> {{ _('Authorised users only') }}
+  </p>
+  <p>
+    {% trans %}The Platforms interface enables users to configure, register, and manage arrays of
+    scientific instruments that operate together as a unified system. This section covers the
+    workflows for creating, modifying, and deleting platform profiles.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='platform-create.png',
+      number='8',
+      width=1851, height=1916,
+      alt=_('The New Platform form, showing expandable metadata cards for platform details, owner, manufacturer, models, dates and measured variables.'),
+      caption=_('New Platform record creation interface.') %}
+
+  <p>
+    {% trans %}The Create Platform form provides a structured, multi-section web layout that allows
+    authorised users to document a configuration of multiple instruments working together as a
+    single system.{% endtrans %}
+  </p>
+
+  <dl class="help-deflist">
+    <dt>{{ _('Multi-Section Metadata Schema') }}</dt>
+    <dd>{{ _('The user interface groups platform properties logically into dedicated expandable cards, including About Platform details, Owner and Contact Information, Manufacturer Details, Model configurations, Date ranges, Measured Variables, Funding Sources, Alternate Identifiers, and Related Resources.') }}</dd>
+
+    <dt>{{ _('Controlled Vocabulary Fields') }}</dt>
+    <dd>{{ _('Standardised dropdown menus link platform records directly with verified global vocabularies (e.g., NASA GCMD), internal custom taxonomies, and recognised stakeholder registries (Parties).') }}</dd>
+
+    <dt>{{ _('Dynamic Component Management') }}</dt>
+    <dd>{{ _('Users can dynamically expand the entry form using operational controls (e.g., Add Owner, Add Manufacturer, Add Model, Add Date) to map multi-institution ownership, complex structural models, or varying lifecycles.') }}</dd>
+
+    <dt>{{ _('Instrument Linking') }}</dt>
+    <dd>{{ _('A dedicated Related Instruments section allows users to search for and link individual physical devices or components that comprise the operational deployment system.') }}</dd>
+
+    <dt>{{ _('Workflow Operations') }}</dt>
+    <dd>{{ _('Interactive action buttons at the bottom of the interface manage record status, allowing users to cancel changes, save data as a private workspace iteration, or complete the registration process to publish the platform profile.') }}</dd>
+  </dl>
+</section>
+
+<section class="help-section" id="related-instruments">
+  <h2>{{ _('Assembling the instrument array') }}</h2>
+  <p>
+    {% trans %}A platform configuration is defined by linking a collection of individual instruments
+    that work together as a unified measurement system. Users assemble this array in the
+    <strong>Related Instruments</strong> panel using the autocomplete search bar to query existing
+    assets by title, model, or serial number. Once selected, each connected device is explicitly
+    logged and displayed as an active "Component" of the broader platform layout. This explicit
+    relationship list ensures detailed configuration traceability and preserves data provenance
+    across multi-device geoscience surveys.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='platform-related-instruments.png',
+      number='9',
+      width=1725, height=626,
+      alt=_('The Related Instruments panel listing the linked instruments that make up a platform, each shown as a component entry.'),
+      caption=_('The list of Related Instruments that form a Platform.') %}
+</section>
+{% endblock %}

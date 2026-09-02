@@ -1,0 +1,208 @@
+{% extends "help/base.html" %}
+
+{% block help_intro %}
+<p class="help-lead">
+  {% trans %}Taxonomies are controlled vocabularies that establish system-wide data consistency.
+  Taxonomies provide hierarchical dictionaries for filtering and classifying hardware by scientific
+  sector, instrument types, and measured environmental variables.{% endtrans %}
+</p>
+{% endblock %}
+
+{% block help_content %}
+<section class="help-section" id="search-and-browse">
+  <h2>{{ _('8.1 Taxonomy Search and Browse') }}</h2>
+  <p>
+    {% trans %}The Taxonomies interface serves as the centralised classification directory,
+    providing users with structured navigation across all controlled vocabularies in the registry.
+    The interface provides a dual-framework classification system to ensure data uniformity and
+    support advanced asset discovery across multiple scientific sectors.{% endtrans %}
+  </p>
+
+  <h3 id="dual-classification">{{ _('8.1.1 Dual-Classification Framework') }}</h3>
+  <p>
+    {% trans %}The directory is divided into two distinct indexing architectures to balance
+    localised asset tracking with standardised global discovery frameworks:{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Custom Taxonomies') }}</dt>
+    <dd>{{ _('Hierarchical dictionaries managed internally by the registry to support custom organisational tracking.') }}</dd>
+
+    <dt>{{ _('GCMD Taxonomies') }}</dt>
+    <dd>{{ _('Standardised environmental science keywords derived directly from the NASA Global Change Master Directory vocabulary service.') }}</dd>
+  </dl>
+
+  <div class="help-callout help-callout-info">
+    <p>
+      {% trans %}Where possible, users are encouraged to request the addition of missing terms to
+      the GCMD vocabulary rather than creating equivalent custom taxonomy terms.{% endtrans %}
+    </p>
+  </div>
+
+  <h3 id="browsing">{{ _('8.1.2 Search and Browsing Capabilities') }}</h3>
+  <p>
+    {% trans %}The interface offers multi-layered navigational tools designed to streamline how
+    users locate specific terminology:{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Dynamic Vocabulary Search') }}</dt>
+    <dd>{{ _('Individual text search fields allow users to filter structural terms and pinpoint obscure classifications instantaneously.') }}</dd>
+
+    <dt>{{ _('Collapsible Tree Navigation') }}</dt>
+    <dd>{{ _('Interactive, multi-level dropdown hierarchies enable users to expand or collapse parent-child relationships between broader and narrower terms.') }}</dd>
+
+    <dt>{{ _('Incremental Data Loading') }}</dt>
+    <dd>{{ _('Large datasets utilise on-demand pagination controls, allowing public and registered visitors to expand sub-vocabularies without degrading page performance.') }}</dd>
+  </dl>
+
+  <h3 id="classification-levels">{{ _('8.1.3 Facet Filtering and Classification Levels') }}</h3>
+  <p>
+    {% trans %}Both taxonomy frameworks organise system-wide terminology into three foundational
+    classification streams to refine data entry and improve overall searchability:{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Instruments') }}</dt>
+    <dd>{{ _('Hardware classifications that index individual physical devices, sensors, and similar equipment.') }}</dd>
+
+    <dt>{{ _('Platforms') }}</dt>
+    <dd>{{ _('Structural terminology mapping out combined multi-device survey arrays, satellite configurations, and operational deployment networks.') }}</dd>
+
+    <dt>{{ _('Measured Variables') }}</dt>
+    <dd>{{ _('Granular physical properties, phenomena, or environmental metrics that the registered devices are explicitly configured to observe.') }}</dd>
+  </dl>
+
+  {% snippet 'help/snippets/figure.html',
+      src='taxonomy-browse.png',
+      number='13',
+      width=1850, height=1680,
+      alt=_('The Taxonomies page showing the Custom and GCMD frameworks side by side, each with a search field and a collapsible term tree.'),
+      caption=_('Taxonomies search and browsing interface.') %}
+
+  <p>
+    <a class="btn btn-secondary help-inline-cta" href="/taxonomies">
+      <i class="fa-solid fa-diagram-project" aria-hidden="true"></i> {{ _('Open the Taxonomies directory') }}
+    </a>
+  </p>
+</section>
+
+<section class="help-section" id="create-taxonomy">
+  <h2>{{ _('8.2 Create / Update / Delete a Taxonomy') }}</h2>
+  <p class="help-audience">
+    <i class="fa-solid fa-lock" aria-hidden="true"></i> {{ _('Authorised users only') }}
+  </p>
+  <p>
+    {% trans %}The Taxonomies interface enables authorised users to create, expand, and modify
+    hierarchical controlled dictionaries. This section provides a step-by-step workflow for
+    establishing a new taxonomy registry and organising structured terms within it.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}Initiating a fresh classification dictionary requires a high-level registration
+    process. To create a completely new taxonomy structure:{% endtrans %}
+  </p>
+
+  <ol class="help-steps">
+    <li>
+      {% trans %}Navigate to the <a href="/taxonomies">Taxonomies</a> page from the main header and
+      click the <strong>+ New Taxonomy</strong> button.{% endtrans %}
+    </li>
+    <li>
+      <strong>{{ _('Title') }}</strong>
+      {{ _('Input a human-readable title that clearly establishes the scope of the controlled vocabulary.') }}
+    </li>
+    <li>
+      <strong>{{ _('Name') }}</strong>
+      {{ _('Provide a unique system name. If left blank, the application will automatically generate this string from your title entry.') }}
+    </li>
+    <li>
+      <strong>{{ _('URI') }}</strong>
+      {{ _('Users can optionally provide a custom, resolvable external URI to link this entry with broader vocabulary services. If left empty, the registry automatically mints a local, fully resolvable system URI.') }}
+    </li>
+    <li>
+      {% trans %}Click <strong>Create Taxonomy</strong> to commit the record.{% endtrans %}
+    </li>
+  </ol>
+
+  {% snippet 'help/snippets/figure.html',
+      src='taxonomy-create.png',
+      number='14',
+      width=1849, height=966,
+      alt=_('The New Taxonomy form, with fields for title, name and URI.'),
+      caption=_('Creating a new Taxonomy interface.') %}
+</section>
+
+<section class="help-section" id="create-term">
+  <h2>{{ _('Adding taxonomy terms') }}</h2>
+  <p>
+    {% trans %}Once the parent taxonomy is generated, users can populate it with precise,
+    multi-layered scientific terms. The registry supports deep hierarchical structuring, allowing
+    terms to be nested safely within one another for complex data classification:{% endtrans %}
+  </p>
+
+  <ol class="help-steps">
+    <li>
+      {% trans %}Open your created taxonomy from the list view and click the <strong>+ Add Child
+      Term</strong> button.{% endtrans %}
+    </li>
+    <li>
+      <strong>{{ _('Label and Description') }}</strong>
+      {{ _('Enter the explicit scientific term label along with a concise description detailing its metadata application boundaries.') }}
+    </li>
+    <li>
+      <strong>{{ _('URI and Extras') }}</strong>
+      {{ _('Just like the parent taxonomy, a resolvable URI is auto-generated upon saving unless a custom URI is manually supplied. Optional metadata properties can be added as a raw JSON object within the Extras block.') }}
+    </li>
+    <li>
+      {% trans %}Click <strong>Create Term</strong> to finalise registration.{% endtrans %}
+    </li>
+  </ol>
+
+  {% snippet 'help/snippets/figure.html',
+      src='taxonomy-term-create.png',
+      number='15',
+      width=1855, height=1297,
+      alt=_('The New Taxonomy Term form, with fields for label, description, URI and a JSON extras block.'),
+      caption=_('Creating a new Taxonomy Term interface.') %}
+</section>
+
+<section class="help-section" id="edit-delete">
+  <h2>{{ _('Editing and removing terms') }}</h2>
+  <p>
+    {% trans %}Controlled dictionaries are designed to be dynamic and can change as new geoscience
+    sectors or instrumentation standards evolve:{% endtrans %}
+  </p>
+  <dl class="help-deflist">
+    <dt>{{ _('Modifying Metadata') }}</dt>
+    <dd>{{ _('Authorised administrators can select any active tree layer and click the Edit button to alter descriptive labels, adjust parental nesting structures, or append structural JSON key-value pairs.') }}</dd>
+
+    <dt>{{ _('Removing Classifications') }}</dt>
+    <dd>{{ _('To completely remove a taxonomy or a specific nested branch from the active workspace, click the red Delete button.') }}</dd>
+  </dl>
+
+  {% snippet 'help/snippets/figure.html',
+      src='taxonomy-edit.png',
+      number='16',
+      width=1863, height=844,
+      alt=_('The taxonomy editing form, showing editable title, name and URI fields with Update and Delete actions.'),
+      caption=_('Taxonomy editing interface.') %}
+
+  {% snippet 'help/snippets/figure.html',
+      src='taxonomy-term-edit.png',
+      number='17',
+      width=1850, height=841,
+      alt=_('The taxonomy term editing form, showing the label, description, parent term and extras fields.'),
+      caption=_('Taxonomy Term editing interface.') %}
+
+  <p>
+    {% trans %}New Taxonomy Terms will immediately appear in the <strong>Taxonomies (Custom)</strong>
+    section of the Taxonomies page. New Taxonomy Terms can be added directly from this interface to
+    the root taxonomy or as a child of another Term using the "+" button. Likewise, existing Terms
+    can be edited or removed from the Taxonomy using the respective buttons.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='taxonomy-list-new.png',
+      number='18',
+      width=1859, height=1244,
+      alt=_('The Taxonomies list showing a newly created taxonomy with inline buttons to add a term, edit and delete.'),
+      caption=_('New Taxonomy is displayed in the list of Taxonomies with options to add new terms, edit and delete existing terms.') %}
+</section>
+{% endblock %}

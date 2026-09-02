@@ -1,0 +1,201 @@
+{% extends "help/base.html" %}
+
+{% block help_intro %}
+<p class="help-lead">
+  {% trans %}How instrument metadata is structured, how it differs from the base PIDINST standard,
+  and how records are published to DataCite and versioned over time.{% endtrans %}
+</p>
+{% endblock %}
+
+{% block help_content %}
+<section class="help-section" id="pidinst-schema">
+  <h2>{{ _('2.1 PIDINST Schema') }}</h2>
+  <p>
+    {% trans %}The PIDINST web application uses the PIDINST metadata standard
+    [<a href="/help/references#ref-1">1</a>] as the foundation for describing AuScope-funded and
+    AuScope-owned instruments. This provides a structured and consistent way to capture the key
+    information required to identify, describe, manage, and publish instrument records.{% endtrans %}
+  </p>
+  <p>{{ _('The schema captures the main PIDINST information blocks, including:') }}</p>
+
+  <dl class="help-deflist">
+    <dt>{{ _('Identifier') }}</dt>
+    <dd>{{ _('The persistent identifier assigned to the instrument.') }}</dd>
+
+    <dt>{{ _('LandingPage') }}</dt>
+    <dd>{{ _('The web page that users are directed to when resolving the instrument identifier.') }}</dd>
+
+    <dt>{{ _('Name') }}</dt>
+    <dd>{{ _('The recognised name of the instrument, ideally meaningful and unique within the managing organisation.') }}</dd>
+
+    <dt>{{ _('Owner') }}</dt>
+    <dd>{{ _('The organisation or person responsible for managing, operating, hosting, or providing access to the instrument.') }}</dd>
+
+    <dt>{{ _('Manufacturer') }}</dt>
+    <dd>{{ _('The organisation or person responsible for building or producing the instrument.') }}</dd>
+
+    <dt>{{ _('Model') }}</dt>
+    <dd>{{ _('The instrument model, type, or model name.') }}</dd>
+
+    <dt>{{ _('Description') }}</dt>
+    <dd>{{ _('A summary of the instrument, including its purpose, capabilities, and relevant technical details.') }}</dd>
+
+    <dt>{{ _('InstrumentType') }}</dt>
+    <dd>{{ _('One or more classifications describing the kind of instrument being registered.') }}</dd>
+
+    <dt>{{ _('MeasuredVariable') }}</dt>
+    <dd>{{ _('The variables, properties, or phenomena that the instrument measures or observes.') }}</dd>
+
+    <dt>{{ _('Date') }}</dt>
+    <dd>{{ _('Important lifecycle dates for the instrument, such as when it entered operation or stopped being used.') }}</dd>
+
+    <dt>{{ _('RelatedIdentifier') }}</dt>
+    <dd>{{ _('Links to related resources, such as documents, datasets, publications, external metadata records, or related instruments.') }}</dd>
+
+    <dt>{{ _('AlternateIdentifier') }}</dt>
+    <dd>{{ _('Other identifiers used for the same instrument in external systems, inventories, catalogues, or registries.') }}</dd>
+  </dl>
+</section>
+
+<section class="help-section" id="adjustments">
+  <h2>{{ _('2.2 Adjustments to the Schema') }}</h2>
+  <p>
+    {% trans %}The PIDINST schema is used as the base schema, but it has been enhanced to support
+    additional AuScope registry requirements. These enhancements include information about the
+    location of the instrument, funding references, and instrument classification, which provides a
+    high-level category for grouping instruments.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}The schema also includes temporal information about the instrument lifecycle. In
+    addition to the standard Commissioned and Decommissioned dates, the application supports a
+    broader Date Range to describe the period during which an instrument was active, available, or
+    relevant to a record.{% endtrans %}
+  </p>
+
+  <div class="help-callout help-callout-warning">
+    <p>
+      <strong>{{ _('Model and Alternate Identifier are mandatory here.') }}</strong>
+      {% trans %}In the original PIDINST schema, Model and Alternate Identifier are optional
+      fields. However, in the AuScope PIDINST implementation, these fields are mandatory. This is
+      because an organisation may manage multiple instruments with the same or similar name from
+      the same manufacturer. In these cases, the model and an alternate identifier, such as a
+      serial number, asset number, inventory number, or other local identifier, are required to
+      distinguish one instrument from another. A combination of manufacturer, model, and alternate
+      identifier, therefore, helps ensure that each instrument record can be uniquely and reliably
+      identified within the registry.{% endtrans %}
+    </p>
+  </div>
+</section>
+
+<section class="help-section" id="datacite">
+  <h2>{{ _('2.3 Publishing to DataCite') }}</h2>
+  <p>
+    {% trans %}For publishing and DOI creation, the enhanced PIDINST metadata is mapped to the
+    DataCite Metadata Schema 4.7. This mapping allows instrument records to be transformed into
+    DataCite-compatible metadata so that they can be published and assigned DOIs. The mapping
+    approach follows the official PIDINST-to-DataCite guidance
+    [<a href="/help/references#ref-2">2</a>], where key PIDINST fields such as identifier, name,
+    owner, manufacturer, model, dates, related identifiers, and alternate identifiers are mapped to
+    corresponding DataCite properties.{% endtrans %}
+  </p>
+</section>
+
+<section class="help-section" id="versioning">
+  <h2>{{ _('2.4 Versioning') }}</h2>
+  <p>
+    {% trans %}The PIDINST application supports versioning to track changes made to instrument
+    records over time. This is important because instrument metadata may change as new information
+    becomes available, such as updates to ownership, contacts, location, lifecycle dates, related
+    resources, or operational status.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}In this application, each time a user creates a new version of an instrument record,
+    a new DOI is generated for that version. This ensures that each published version has its own
+    persistent and citable identity. Older versions remain accessible, but they are clearly linked
+    to the newer versions of the same instrument record.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}The application maintains relationships between versions so that users can understand
+    the history of an instrument record. When viewing a record, users can see whether other versions
+    exist and can navigate through the version history. If a user opens an older version, the
+    application clearly indicates that they are not viewing the latest version and provides a way to
+    access the most recent version.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}This approach helps preserve the integrity of published metadata while still allowing
+    instrument records to evolve over time. It distinguishes between the instrument as a real-world
+    object and the published metadata versions that describe it. Each version can be cited
+    independently, while the application keeps the version history connected and
+    understandable.{% endtrans %}
+  </p>
+
+  <h3 id="datacite-version-linkage">{{ _('2.4.1 DataCite version linkage') }}</h3>
+  <p>
+    {% trans %}The relationship between instrument versions is also recorded in the DOI metadata
+    registered with DataCite. When a new version of an instrument record is published and a new DOI
+    is created, the DOI of the previous version is included as a related identifier.{% endtrans %}
+  </p>
+  <p>{{ _('The related identifier is recorded with:') }}</p>
+  <div class="help-table-wrap">
+    <table class="table table-bordered help-table">
+      <thead>
+        <tr>
+          <th scope="col">{{ _('Property') }}</th>
+          <th scope="col">{{ _('Value') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">{{ _('Related identifier type') }}</th>
+          <td><code>DOI</code></td>
+        </tr>
+        <tr>
+          <th scope="row">{{ _('Relation type') }}</th>
+          <td><code>IsNewVersionOf</code></td>
+        </tr>
+        <tr>
+          <th scope="row">{{ _('Related identifier') }}</th>
+          <td>{{ _('The DOI of the previous version') }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    {% trans %}For example, if a new instrument version with DOI <code>10.82388/new-version</code>
+    is created from an existing version with DOI <code>10.82388/previous-version</code>, the
+    DataCite metadata for the new DOI includes the previous DOI with the relationship
+    <code>IsNewVersionOf</code>.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}This means the version relationship is not maintained only within the PIDINST
+    application; it is also represented in the DOI metadata itself. Systems that consume DataCite
+    metadata can therefore identify that the newer DOI represents a new version of an earlier
+    published instrument record.{% endtrans %}
+  </p>
+</section>
+
+<section class="help-section" id="platforms-as-arrays">
+  <h2>{{ _('2.5 Platforms: Arrays of instruments') }}</h2>
+  <p>
+    {% trans %}The PIDINST website makes a clear distinction between Instruments and Platforms, even
+    though both record types use the same underlying schema. In this context, an instrument
+    represents an individual device or piece of equipment, while a platform represents a configured
+    collection of instruments used together for a particular purpose.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}This distinction is important in geoscience applications, where scientists often
+    combine the same instruments, or selected instruments from a larger set, in different
+    configurations before conducting a survey. For example, a survey platform may consist of several
+    sensors, receivers, transmitters, loggers, or supporting components that are assembled and
+    operated together as a single measurement system.{% endtrans %}
+  </p>
+  <p>
+    {% trans %}Therefore, a platform is not necessarily a single physical instrument. Instead, it
+    should be understood as an array or configuration of instruments that work together in a defined
+    arrangement. Recording platforms separately allows users to describe both the individual
+    instruments and the combined systems in which those instruments are deployed. This supports
+    better traceability, especially when instruments are reused across multiple surveys, projects,
+    or configurations.{% endtrans %}
+  </p>
+</section>
+{% endblock %}

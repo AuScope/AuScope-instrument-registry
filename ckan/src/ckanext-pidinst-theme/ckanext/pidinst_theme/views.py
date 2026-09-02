@@ -2112,6 +2112,115 @@ def mark_duplicate(pkg_name):
     })
 
 
+# ---------------------------------------------------------------------------
+# Help / User Guide
+# ---------------------------------------------------------------------------
+# Content is derived from "Persistent Identifiers for Instruments - AuScope Web
+# Application - User Guide" (Golodoniuc, Motevalli & Taherifar, 20 May 2026).
+# Each entry maps a URL slug to a template under templates/help/ and supplies
+# the ordering used by the sidebar and the previous/next footer links.
+
+HELP_PAGES = [
+    {
+        'slug': 'introduction',
+        'number': '1',
+        'title': 'Introduction',
+        'summary': 'What the AuScope Instrument Registry is for and who it serves.',
+        'icon': 'fa-circle-info',
+    },
+    {
+        'slug': 'data-schema',
+        'number': '2',
+        'title': 'Data Schema',
+        'summary': 'The PIDINST metadata standard, AuScope adjustments, DataCite publishing and versioning.',
+        'icon': 'fa-sitemap',
+    },
+    {
+        'slug': 'controlled-vocabularies',
+        'number': '3',
+        'title': 'Controlled Vocabularies',
+        'summary': 'GCMD keywords, custom taxonomies and Parties as controlled terms.',
+        'icon': 'fa-book',
+    },
+    {
+        'slug': 'home-page',
+        'number': '4',
+        'title': 'Home Page',
+        'summary': 'Navigating the registry, logging in, and the four core concepts.',
+        'icon': 'fa-house',
+    },
+    {
+        'slug': 'instruments',
+        'number': '5',
+        'title': 'Instruments',
+        'summary': 'Searching, filtering, creating and versioning instrument records.',
+        'icon': 'fa-microscope',
+    },
+    {
+        'slug': 'platforms',
+        'number': '6',
+        'title': 'Platforms',
+        'summary': 'Searching and managing configurations of multiple instruments.',
+        'icon': 'fa-layer-group',
+    },
+    {
+        'slug': 'parties',
+        'number': '7',
+        'title': 'Parties',
+        'summary': 'Managing owners, manufacturers, funders and contacts, with ROR integration.',
+        'icon': 'fa-building-columns',
+    },
+    {
+        'slug': 'taxonomies',
+        'number': '8',
+        'title': 'Taxonomies',
+        'summary': 'Browsing and maintaining hierarchical controlled vocabularies.',
+        'icon': 'fa-diagram-project',
+    },
+    {
+        'slug': 'references',
+        'number': '9',
+        'title': 'References',
+        'summary': 'Source standards and specifications cited throughout this guide.',
+        'icon': 'fa-quote-right',
+    },
+]
+
+_HELP_PAGES_BY_SLUG = {page['slug']: page for page in HELP_PAGES}
+
+
+def _help_extra_vars(slug=None):
+    """Build the shared template context for any help page.
+
+    ``slug`` is None for the guide's landing page, in which case there is no
+    current page and no previous/next navigation.
+    """
+    current = _HELP_PAGES_BY_SLUG.get(slug)
+    index = HELP_PAGES.index(current) if current else None
+    return {
+        'help_pages': HELP_PAGES,
+        'help_current': current,
+        'help_prev': HELP_PAGES[index - 1] if index else None,
+        'help_next': (
+            HELP_PAGES[index + 1]
+            if index is not None and index + 1 < len(HELP_PAGES)
+            else None
+        ),
+    }
+
+
+@pidinst_theme.route('/help')
+def help_index():
+    return toolkit.render('help/index.html', _help_extra_vars())
+
+
+@pidinst_theme.route('/help/<slug>')
+def help_page(slug):
+    if slug not in _HELP_PAGES_BY_SLUG:
+        toolkit.abort(404, _('Help page not found'))
+    return toolkit.render('help/%s.html' % slug, _help_extra_vars(slug))
+
+
 @pidinst_theme.after_app_request
 def _set_browser_id_cookie_on_response(response):
     """Delegate to analytics.set_browser_id_cookie to persist the browser UUID."""

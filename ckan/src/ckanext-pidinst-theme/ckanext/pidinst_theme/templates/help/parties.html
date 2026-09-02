@@ -1,0 +1,134 @@
+{% extends "help/base.html" %}
+
+{% block help_intro %}
+<p class="help-lead">
+  {% trans %}The Parties module provides a streamlined interface for managing organisational
+  stakeholders, manufacturers, funders, and individual contacts associated with instruments and
+  platforms. Party records act as controlled vocabulary entries that can be reused across the
+  registry, ensuring consistent attribution and reducing duplication.{% endtrans %}
+</p>
+{% endblock %}
+
+{% block help_content %}
+<section class="help-section" id="search-and-browse">
+  <h2>{{ _('7.1 Parties Search and Browse') }}</h2>
+  <p>
+    {% trans %}The Parties interface provides a simplified, lightweight way to quickly explore
+    administrative stakeholders, equipment manufacturers, funding institutions, and technical
+    contacts across the AuScope network.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='party-search.png',
+      number='10',
+      width=1847, height=1662,
+      alt=_('The Parties browsing page, with a single search bar, an Order by dropdown and organisation cards showing instrument and member counts.'),
+      caption=_('Simple Party browsing and search interface.') %}
+
+  <p>
+    {% trans %}Users can search the registry using a single text search bar that scans the database
+    for keyword matches in organisation names and basic metadata. Search results can be ordered
+    using the "Order by" dropdown menu to sort the organisation profiles alphabetically by name.
+    Each matched profile is presented with key metrics, including the total number of registered
+    instruments and registered Party members. This repository utilises underlying CKAN Groups,
+    allowing users to consolidate datasets, coordinate project teams, and organise published
+    metadata by organisational themes.{% endtrans %}
+  </p>
+
+  <p>
+    <a class="btn btn-secondary help-inline-cta" href="/party">
+      <i class="fa-solid fa-building-columns" aria-hidden="true"></i> {{ _('Open the Parties directory') }}
+    </a>
+  </p>
+</section>
+
+<section class="help-section" id="create">
+  <h2>{{ _('7.2 Create / Update / Delete a Party') }}</h2>
+  <p class="help-audience">
+    <i class="fa-solid fa-lock" aria-hidden="true"></i> {{ _('Authorised users only') }}
+  </p>
+  <p>
+    {% trans %}Authorised users can create a new Party profile using the <strong>Add Party</strong>
+    form. The interface presents a structured set of fields that capture the essential
+    administrative and descriptive attributes of an organisation or individual. The layout mirrors
+    the design patterns used across the registry, grouping related metadata into logical
+    sections.{% endtrans %}
+  </p>
+  <p>{{ _('The Party creation form includes:') }}</p>
+
+  <dl class="help-deflist">
+    <dt>{{ _('Name and Identifiers') }}</dt>
+    <dd>{{ _('The primary Party name, optional aliases, and external identifiers such as ROR IDs.') }}</dd>
+
+    <dt>{{ _('Roles') }}</dt>
+    <dd>{{ _('A selectable list of roles (e.g., Owner, Manufacturer, Funder) that define how the Party participates in the lifecycle of instruments and platforms.') }}</dd>
+
+    <dt>{{ _('ROR search behaviour') }}</dt>
+    <dd>{{ _('The scope of the ROR organisation search depends on the selected Party roles. When the Party is assigned the Owner and/or Funder role, the ROR search is limited to registered organisations within Australia. If the Manufacturer role is selected, the ROR search is expanded globally to allow manufacturers from outside Australia to be identified and linked.') }}</dd>
+
+    <dt>{{ _('Hierarchy and Organisation Type') }}</dt>
+    <dd>{{ _('Optional fields for parent-child organisational relationships and classification of the Party as a university, government agency, company, or individual.') }}</dd>
+
+    <dt>{{ _('Location and Contact Details') }}</dt>
+    <dd>{{ _('Country, state, website, and contact information to support accurate attribution and external linking.') }}</dd>
+
+    <dt>{{ _('Short Description') }}</dt>
+    <dd>{{ _('A concise summary describing the relevance of the Party to the AuScope network.') }}</dd>
+  </dl>
+
+  <p>
+    {% trans %}The form uses controlled vocabularies and dropdown selectors to maintain consistency
+    across the registry. Once all required fields are completed, users submit the record using the
+    <strong>Add Party</strong> button, which creates a new reusable Party entry.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='party-create.png',
+      number='11',
+      width=1938, height=3380,
+      alt=_('The Party creation and editing form, with fields for name, identifiers, roles, hierarchy, organisation type, location and description.'),
+      caption=_('Party creation and editing interface.') %}
+</section>
+
+<section class="help-section" id="update">
+  <h2>{{ _('Updating a Party') }}</h2>
+  <p>
+    {% trans %}Existing Party records can be edited by authorised users to reflect organisational
+    changes, updated contact details, or expanded role assignments. The update interface mirrors the
+    creation form, allowing users to adjust any metadata field. This ensures that Party profiles
+    remain accurate and aligned with current institutional structures.{% endtrans %}
+  </p>
+
+  {% snippet 'help/snippets/figure.html',
+      src='party-manage.png',
+      number='12',
+      width=1856, height=1245,
+      alt=_('A Party profile page with the Manage button highlighted at the top of the form.'),
+      caption=_('To manage an existing Party, click the "Manage" button at the top of the form.') %}
+</section>
+
+<section class="help-section" id="delete">
+  <h2>{{ _('Deleting a Party') }}</h2>
+  <p>
+    {% trans %}Existing Party records can also be deleted from the <strong>Manage</strong> section
+    of the Party. The delete function is available at the end of the Party management form through
+    the <strong>Delete</strong> button.{% endtrans %}
+  </p>
+
+  <div class="help-callout help-callout-warning">
+    <p>
+      <strong>{{ _('Deletion is restricted.') }}</strong>
+      {% trans %}Deletion permissions are restricted to protect references between Parties and to
+      registered instruments or platforms. A CKAN system administrator can delete any Party record.
+      AuScope administrators can create Parties and can delete only the Parties they created
+      themselves.{% endtrans %}
+    </p>
+    <p>
+      {% trans %}Even where deletion is permitted, the system prevents removal if the Party is
+      currently assigned to instruments. In this case, the Delete button remains visible, but the
+      system displays an error advising the user to first remove or correct the existing references
+      before the Party can be deleted.{% endtrans %}
+    </p>
+  </div>
+</section>
+{% endblock %}

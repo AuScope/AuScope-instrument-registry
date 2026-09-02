@@ -1,0 +1,42 @@
+{% extends "help/base.html" %}
+
+{% block help_intro %}
+<p class="help-lead">
+  {% trans %}The PIDINST web application is an instrument registry designed specifically for
+  AuScope-funded and AuScope-owned scientific instruments.{% endtrans %}
+</p>
+{% endblock %}
+
+{% block help_content %}
+<section class="help-section" id="purpose">
+  <h2>{{ _('Purpose') }}</h2>
+  <p>
+    {% trans %}Its purpose is to provide a central place to record, manage, and publish structured
+    information about instruments that are part of the AuScope research infrastructure network.
+    The application helps ensure that these instruments are clearly described, discoverable,
+    traceable, and reusable across research projects and datasets.{% endtrans %}
+  </p>
+</section>
+
+<section class="help-section" id="standards">
+  <h2>{{ _('Standards and identifiers') }}</h2>
+  <p>
+    {% trans %}The registry is based on the PIDINST metadata standard, which supports persistent
+    identification of instruments. The PIDINST metadata captured in the application is also mapped
+    to the DataCite Metadata Schema 4.7, enabling instrument records to be published and assigned
+    Digital Object Identifiers (DOIs). It allows users to capture key information such as
+    instrument name, identifier, type, manufacturer, owner, contacts, funding references,
+    location, lifecycle status, and related organisations.{% endtrans %}
+  </p>
+</section>
+
+<section class="help-section" id="benefits">
+  <h2>{{ _('Why it matters') }}</h2>
+  <p>
+    {% trans %}By using the PIDINST registry, AuScope can improve the visibility of its funded and
+    owned instruments, support better data provenance, and make it easier for researchers,
+    partners, and stakeholders to understand what instruments are available, who manages them, and
+    how they relate to broader research activities.{% endtrans %}
+  </p>
+</section>
+{% endblock %}
